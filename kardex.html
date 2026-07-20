@@ -1576,17 +1576,15 @@ const IMAGE_STORE_NAME = 'images';
 const BACKUP_STORAGE_KEY = 'kardex-local-backup-v1';
 
 /* ---------------- Supabase config ----------------
-   Same project as index.html — fill in with your own values:
-   Supabase dashboard → Project Settings → API
-   TEMPORARILY DISABLED FOR LOCAL TESTING
+   Auth is disabled for now so the app always runs in local-only mode.
+   Remove the placeholder values and restore your project when you want
+   to re-enable login and cloud sync.
 --------------------------------------------------- */
 const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
 const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-// True once you've swapped in a real project URL/key. While false, the app
-// skips auth entirely and just runs off the local browser backup — this is
-// what stops it from redirect-looping when previewed without real credentials.
-const SUPABASE_CONFIGURED = !SUPABASE_URL.includes('YOUR-PROJECT-REF') && !SUPABASE_ANON_KEY.includes('YOUR-ANON-PUBLIC-KEY');
+// False while using placeholder values, so the app stays local-only.
+const SUPABASE_CONFIGURED = false;
 
 let currentUser = null;   // set once signed in
 let accessToken = null;   // the user's Supabase access token, sent so RLS can see auth.uid()
@@ -4399,11 +4397,27 @@ async function initAuthAndApp(){
     return;
   }
 
-  const { data: { session }, error } = await supabaseClient.auth.getSession();
-  if (error){
-    showAuthDiagnostic('Could not check session: ' + error.message);
-    return;
+  let session = null;
+  try {
+    const { data: { session: urlSession }, error: urlError } = await supabaseClient.auth.getSessionFromUrl();
+    if (urlError){
+      showAuthDiagnostic('Could not parse auth callback: ' + urlError.message);
+      return;
+    }
+    session = urlSession;
+  } catch (err) {
+    console.warn('No OAuth callback data in URL', err);
   }
+
+  if (!session) {
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error){
+      showAuthDiagnostic('Could not check session: ' + error.message);
+      return;
+    }
+    session = data.session;
+  }
+
   if (!session){
     goToSignIn();
     return;
