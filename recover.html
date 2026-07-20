@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Kardex Data Recovery</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #f5f5f5;
+}
+.section {
+  background: white;
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+h2 { color: #2F6F62; }
+pre {
+  background: #f0f0f0;
+  padding: 15px;
+  border-radius: 5px;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.status { padding: 10px; border-radius: 5px; margin: 10px 0; }
+.success { background: #e8f5e9; color: #2e7d32; }
+.warning { background: #fff3e0; color: #e65100; }
+.error { background: #ffebee; color: #c62828; }
+button {
+  padding: 10px 20px;
+  background: #2F6F62;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  margin: 5px;
+}
+button:hover { background: #1F4E44; }
+</style>
+</head>
+<body>
+<h1>🔍 Kardex Data Recovery</h1>
+
+<div class="section">
+  <h2>Local Storage Backup</h2>
+  <div id="backupStatus"></div>
+  <button onclick="checkBackup()">Check Backup</button>
+  <button onclick="downloadBackup()">Download Backup as JSON</button>
+  <pre id="backupData"></pre>
+</div>
+
+<div class="section">
+  <h2>IndexedDB Images Check</h2>
+  <button onclick="checkIndexedDB()">Check for Cached Images</button>
+  <pre id="idbData"></pre>
+</div>
+
+<div class="section">
+  <h2>Recovery Options</h2>
+  <p>Your data backup key: <code>kardex-local-backup-v1</code></p>
+  <p><strong>Status:</strong> <span id="recoveryStatus">Only default Welcome deck found</span></p>
+  <button onclick="goToApp()">Go to App & Start Fresh →</button>
+</div>
+
+<script>
+function checkBackup() {
+  const backup = localStorage.getItem('kardex-local-backup-v1');
+  const statusDiv = document.getElementById('backupStatus');
+  const dataDiv = document.getElementById('backupData');
+  
+  if (!backup) {
+    statusDiv.innerHTML = '<div class="status error">❌ No backup found in localStorage</div>';
+    dataDiv.textContent = 'No data available';
+    return;
+  }
+  
+  try {
+    const data = JSON.parse(backup);
+    const deckCount = data.tree?.children?.length || 0;
+    const reviewCount = data.reviewLog?.length || 0;
+    const lastUpdate = new Date(data.updatedAt).toLocaleString();
+    
+    statusDiv.innerHTML = `
+      <div class="status success">
+        ✅ Backup found!
+        <br>Last updated: ${lastUpdate}
+        <br>Drawers: ${deckCount}
+        <br>Review log entries: ${reviewCount}
+      </div>
+    `;
+    
+    // Show formatted JSON
+    dataDiv.textContent = JSON.stringify(data, null, 2);
+  } catch (e) {
+    statusDiv.innerHTML = '<div class="status error">❌ Backup is corrupted: ' + e.message + '</div>';
+  }
+}
+
+function downloadBackup() {
+  const backup = localStorage.getItem('kardex-local-backup-v1');
+  if (!backup) {
+    alert('No backup found');
+    return;
+  }
+  
+  const blob = new Blob([backup], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `kardex-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function clearOldData() {
+  if (confirm('This will clear the current Welcome state. Are you sure?')) {
+    localStorage.removeItem('kardex-local-backup-v1');
+    alert('Backup cleared. Reload the app to see if an older backup exists.');
+  }
+}
+
+function checkIndexedDB() {
+  const dataDiv = document.getElementById('idbData');
+  
+  if (!('indexedDB' in window)) {
+    dataDiv.textContent = 'IndexedDB not available';
+    return;
+  }
+  
+  const req = indexedDB.databases();
+  Promise.resolve(req).then(dbs => {
+    if (dbs.length === 0) {
+      dataDiv.textContent = 'No IndexedDB databases found';
+      return;
+    }
+    
+    dataDiv.textContent = 'Found databases: ' + dbs.map(db => db.name).join(', ') + '\n\nNote: Image storage is minimal after data loss.';
+  }).catch(e => {
+    dataDiv.textContent = 'Error checking IndexedDB: ' + e.message;
+  });
+}
+
+function goToApp() {
+  window.location.href = '/kardex.html';
+}
+
+// Auto-check on load
+window.addEventListener('load', checkBackup);
+</script>
+</body>
+</html>

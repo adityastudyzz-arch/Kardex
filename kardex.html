@@ -1578,9 +1578,10 @@ const BACKUP_STORAGE_KEY = 'kardex-local-backup-v1';
 /* ---------------- Supabase config ----------------
    Same project as index.html — fill in with your own values:
    Supabase dashboard → Project Settings → API
+   TEMPORARILY DISABLED FOR LOCAL TESTING
 --------------------------------------------------- */
-const SUPABASE_URL = 'https://cvwqsxeydimszufybffv.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2d3FzeGV5ZGltc3p1ZnliZmZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1MzM4ODgsImV4cCI6MjEwMDEwOTg4OH0.Tct26EfeZDJkIrJ4lUQQg2KaQLCacLadOkdBV_R27E0';
+const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // True once you've swapped in a real project URL/key. While false, the app
 // skips auth entirely and just runs off the local browser backup — this is
@@ -1781,7 +1782,11 @@ async function resolveImageRef(ref){
   }
   return null;
 }
-async function persistTextState(){
+/* Debounce utility to prevent excessive saves */
+let persistTimeoutId = null;
+let lastPersistedPayload = null;
+
+function persistLocalState(){
   const payload = {
     version: 1,
     updatedAt: Date.now(),
@@ -1789,8 +1794,14 @@ async function persistTextState(){
     tree: root,
     reviewLog
   };
+  // Save synchronously to localStorage immediately — this is the critical backup
   localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(payload));
-  if (!currentUser || !accessToken) return; // not signed in yet — local backup only
+  lastPersistedPayload = payload;
+  return payload;
+}
+
+async function syncToSupabase(payload){
+  if (!currentUser || !accessToken) return; // not signed in — local backup only
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/kardex_state`, {
       method: 'POST',
@@ -1805,6 +1816,17 @@ async function persistTextState(){
   } catch (err) {
     console.warn('Supabase sync skipped', err);
   }
+}
+
+function persistTextState(){
+  // Save to localStorage immediately (synchronous) — this is critical for data safety
+  const payload = persistLocalState();
+  
+  // Debounce the Supabase sync to avoid hammering the network on rapid edits
+  clearTimeout(persistTimeoutId);
+  persistTimeoutId = setTimeout(() => {
+    syncToSupabase(payload);
+  }, 500); // wait 500ms of inactivity before syncing to cloud
 }
 function applyPersistedPayload(parsed){
   if (!parsed || !parsed.tree) return;
@@ -4405,7 +4427,15 @@ async function initAuthAndApp(){
 }
 
 initAuthAndApp();
-window.addEventListener('beforeunload', ()=> persistTextState());
+window.addEventListener('beforeunload', ()=> {
+  // On page unload, make sure we save to localStorage and flush any pending Supabase sync
+  const payload = persistLocalState();
+  if (persistTimeoutId) {
+    clearTimeout(persistTimeoutId);
+    // Attempt to sync before leaving (fire-and-forget, doesn't block unload)
+    syncToSupabase(payload);
+  }
+});
 </script>
 </body>
 </html>
