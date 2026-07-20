@@ -1,0 +1,4411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Kardex — flashcard drawers</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-256.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#F6F2E7">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --paper:#F6F2E7;
+  --paper-raised:#FCFAF3;
+  --paper-dark:#EAE2CC;
+  --ink:#232323;
+  --ink-soft:#6B6459;
+  --teal:#2F6F62;
+  --teal-dark:#1F4E44;
+  --maroon:#9B3B34;
+  --kraft:#D2AE7C;
+  --kraft-dark:#B08A54;
+  --kraft-shadow:#8f7040;
+  --line:#DAD0B4;
+  --hole:#00000014;
+  --shadow: 0 1px 2px rgba(35,35,35,.06), 0 6px 16px rgba(35,35,35,.08);
+  --shadow-lg: 0 10px 30px rgba(35,35,35,.16), 0 2px 6px rgba(35,35,35,.08);
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:
+    radial-gradient(ellipse at top left, #fbf8ef 0%, var(--paper) 55%);
+  color:var(--ink);
+  font-family:'IBM Plex Sans', sans-serif;
+  overflow:hidden;
+}
+.mono{font-family:'IBM Plex Mono', monospace;}
+button{font-family:inherit;cursor:pointer;}
+
+/* ---------- App shell ---------- */
+#app{display:flex; height:100vh;}
+
+/* ---------- Sidebar : the drawer cabinet ---------- */
+#sidebar{
+  width:272px;
+  flex-shrink:0;
+  background:
+    linear-gradient(180deg, #3a2f22, #2c231a 40%);
+  color:#EFE6D4;
+  display:flex;
+  flex-direction:column;
+  position:relative;
+  box-shadow: 4px 0 18px rgba(0,0,0,.25);
+  z-index:5;
+}
+#sidebar::after{ /* wood grain seams */
+  content:"";
+  position:absolute; inset:0;
+  background-image: repeating-linear-gradient(180deg, rgba(255,255,255,.02) 0 2px, transparent 2px 64px);
+  pointer-events:none;
+}
+.brand{
+  padding:22px 20px 14px;
+  display:flex; align-items:baseline; gap:8px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.brand .mark{
+  font-family:'Fraunces', serif;
+  font-weight:700;
+  font-size:22px;
+  letter-spacing:.2px;
+  color:#F3E9CE;
+}
+.brand .sub{
+  font-size:10.5px;
+  color:#B9A984;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+}
+#tree{
+  flex:1;
+  overflow-y:auto;
+  padding:10px 10px 10px;
+}
+#tree::-webkit-scrollbar{width:8px;}
+#tree::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12); border-radius:8px;}
+
+.tnode{ user-select:none; }
+.trow{
+  display:flex; align-items:center; gap:7px;
+  padding:7px 8px 7px 6px;
+  border-radius:7px;
+  font-size:13.5px;
+  color:#E5D9BC;
+  cursor:pointer;
+  white-space:nowrap;
+  position:relative;
+}
+.trow:hover{ background:rgba(255,255,255,.07); }
+.trow.active{ background:linear-gradient(90deg, rgba(210,174,124,.28), rgba(210,174,124,.1)); color:#FBF3DC; }
+.trow.dragover{ outline:2px dashed var(--kraft); outline-offset:-2px; background:rgba(210,174,124,.22); }
+.caret{
+  width:14px; height:14px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  color:#9C8F6E;
+  transition:transform .15s ease;
+}
+.tnode.collapsed > .trow .caret{ transform:rotate(-90deg); }
+.tab-ico{
+  width:16px; height:12px; flex-shrink:0;
+  background:linear-gradient(180deg, var(--kraft), var(--kraft-dark));
+  border-radius:1px 3px 2px 2px;
+  position:relative;
+  box-shadow: inset 0 -3px 3px rgba(0,0,0,.12);
+}
+.tab-ico::before{
+  content:""; position:absolute; left:2px; top:-3px; width:7px; height:4px;
+  background:var(--kraft-dark); border-radius:2px 2px 0 0;
+}
+.tname{ overflow:hidden; text-overflow:ellipsis; flex:1; }
+.tcount{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:10.5px; color:#9C8F6E;
+}
+.children{ margin-left:17px; border-left:1px dotted rgba(255,255,255,.12); padding-left:2px; }
+.tnode.collapsed > .children{ display:none; }
+
+.starred-row{
+  display:flex; align-items:center; gap:8px;
+  margin:10px 10px 2px;
+  padding:8px 10px;
+  border-radius:7px;
+  font-size:13.5px;
+  color:#E5D9BC;
+  cursor:pointer;
+  border:1px solid rgba(220,180,90,.25);
+  background:rgba(220,180,90,.06);
+}
+.starred-row:hover{ background:rgba(220,180,90,.13); }
+.starred-row.active{ background:rgba(220,180,90,.22); border-color:rgba(220,180,90,.55); color:#FBF3DC; }
+.starred-row .star-ico{ color:#E0B23E; font-size:14px; }
+.starred-row .tname{ flex:1; }
+.starred-row .tcount{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:#C7A94E; }
+
+.sidebar-foot{
+  padding:14px 16px 18px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+.new-folder-btn{
+  width:100%;
+  background:transparent;
+  border:1px dashed #6b5c3f;
+  color:#CBB98F;
+  padding:9px 10px;
+  border-radius:8px;
+  font-size:12.5px;
+  letter-spacing:.02em;
+  display:flex; align-items:center; gap:7px;
+  transition: background .15s, border-color .15s;
+}
+.new-folder-btn:hover{ background:rgba(255,255,255,.06); border-color:#CBB98F; }
+.account-box{
+  display:flex; align-items:center; gap:9px;
+  margin-bottom:12px;
+  padding:6px 8px;
+  border-radius:8px;
+}
+.account-avatar{
+  width:26px; height:26px; border-radius:50%;
+  flex-shrink:0; object-fit:cover;
+  border:1px solid rgba(255,255,255,.15);
+}
+.account-avatar-fallback{
+  display:flex; align-items:center; justify-content:center;
+  background:var(--kraft-dark); color:#2c231a;
+  font-family:'IBM Plex Mono', monospace; font-size:12px; font-weight:600;
+}
+.account-name{
+  flex:1; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:12.5px; color:#E5D9BC;
+}
+.account-signout, .account-gear{
+  flex-shrink:0;
+  background:transparent; border:none;
+  color:#9C8F6E;
+  display:flex; align-items:center; justify-content:center;
+  padding:5px; border-radius:5px;
+}
+.account-signout:hover, .account-gear:hover{ color:#F3E9CE; background:rgba(255,255,255,.08); }
+
+/* ---------- Main pane ---------- */
+#main{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  position:relative;
+}
+#topbar{
+  display:flex; align-items:center; gap:10px 16px;
+  padding:18px 30px 14px;
+  border-bottom:1px solid var(--line);
+  background:var(--paper);
+  flex-shrink:0;      /* never let flexbox compress this below its wrapped content height */
+  flex-wrap:wrap;      /* drop search + buttons to their own row rather than crushing the crumbs */
+  row-gap:10px;
+}
+#crumbs{
+  font-family:'Fraunces', serif;
+  font-size:20px;
+  display:flex; align-items:center; gap:8px;
+  flex-wrap:wrap;
+  flex:1 1 200px;
+  min-width:0;
+}
+#crumbs .crumb{ cursor:pointer; color:var(--ink-soft); }
+#crumbs .crumb:hover{ color:var(--teal-dark); text-decoration:underline; text-decoration-color:var(--teal); text-underline-offset:4px;}
+#crumbs .crumb.current{ color:var(--ink); font-weight:600; cursor:default; }
+#crumbs .crumb.current:hover{ text-decoration:none; }
+#crumbs .sep{ color:var(--kraft-dark); font-size:15px; }
+
+.search-wrap{
+  position:relative;
+  width:230px;
+  flex:0 1 180px;
+  min-width:140px;
+}
+.search-wrap input{
+  width:100%;
+  padding:8px 12px 8px 32px;
+  border-radius:20px;
+  border:1px solid var(--line);
+  background:var(--paper-raised);
+  font-size:13px;
+  color:var(--ink);
+  outline:none;
+}
+.search-wrap input:focus{ border-color:var(--teal); box-shadow:0 0 0 3px rgba(47,111,98,.12); }
+.search-wrap svg{ position:absolute; left:11px; top:9px; opacity:.5; }
+
+.action-btn{
+  border:1px solid var(--line);
+  background:var(--paper-raised);
+  padding:8px 14px;
+  border-radius:20px;
+  font-size:12.5px;
+  font-weight:500;
+  display:flex; align-items:center; gap:6px;
+  color:var(--ink);
+  box-shadow:var(--shadow);
+  white-space:nowrap;
+}
+.action-btn:hover{ border-color:var(--teal); color:var(--teal-dark); }
+.action-btn.primary{
+  background:var(--teal);
+  border-color:var(--teal);
+  color:#F3EFDF;
+}
+.action-btn.primary:hover{ background:var(--teal-dark); color:#fff; }
+.action-btn.icon-only{ padding:8px; width:34px; height:34px; justify-content:center; }
+
+/* ---------- Mobile search overlay: blurred backdrop, bar + results ---------- */
+.search-overlay{
+  align-items:flex-start;
+  justify-content:center;
+  background:rgba(20,16,10,.45);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  z-index:60;
+  padding:64px 16px 16px;
+}
+.search-overlay-panel{
+  width:100%; max-width:480px;
+  display:flex; flex-direction:column; gap:12px;
+  max-height:calc(100vh - 90px);
+}
+.search-overlay-bar{
+  display:flex; align-items:center; gap:10px;
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px 14px;
+  box-shadow:var(--shadow-lg);
+  flex-shrink:0;
+}
+.search-overlay-bar svg{ opacity:.5; flex-shrink:0; }
+.search-overlay-bar input{
+  flex:1; min-width:0; border:none; outline:none; background:transparent;
+  font-size:15px; color:var(--ink); font-family:inherit;
+}
+.search-overlay-close{
+  border:none; background:transparent; color:var(--ink-soft);
+  width:24px; height:24px; display:flex; align-items:center; justify-content:center;
+  font-size:14px; flex-shrink:0; border-radius:50%;
+}
+.search-overlay-close:hover{ color:var(--ink); background:var(--paper-dark); }
+.search-overlay-results{
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:var(--shadow-lg);
+  overflow-y:auto;
+  padding:6px;
+}
+.search-overlay-hint{
+  padding:16px 12px; text-align:center;
+  font-size:12.5px; color:var(--ink-soft);
+}
+.search-result-row{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 10px; border-radius:9px;
+  cursor:pointer;
+}
+.search-result-row:hover{ background:var(--paper-dark); }
+.search-result-row .sr-ico{
+  flex-shrink:0; width:30px; height:30px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--paper-dark); color:var(--teal-dark);
+}
+.search-result-row .sr-text{ min-width:0; flex:1; }
+.search-result-row .sr-name{ font-size:13.5px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.search-result-row .sr-meta{ font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace; margin-top:1px; }
+.search-result-section{
+  font-family:'IBM Plex Mono', monospace; text-transform:uppercase; letter-spacing:.08em;
+  font-size:10px; color:var(--ink-soft); padding:8px 10px 4px;
+}
+
+#content{
+  flex:1;
+  overflow-y:auto;
+  padding:26px 30px 60px;
+}
+
+/* Empty state */
+.empty{
+  margin-top:60px;
+  text-align:center;
+  color:var(--ink-soft);
+}
+.empty .stamp{
+  display:inline-block;
+  font-family:'Caveat', cursive;
+  font-size:26px;
+  color:var(--maroon);
+  border:2px solid var(--maroon);
+  border-radius:10px;
+  padding:6px 18px;
+  transform:rotate(-4deg);
+  opacity:.75;
+}
+
+.section-label{
+  font-family:'IBM Plex Mono', monospace;
+  text-transform:uppercase;
+  letter-spacing:.14em;
+  font-size:10.5px;
+  color:var(--ink-soft);
+  margin:6px 0 12px;
+}
+
+/* ---------- Home dashboard ---------- */
+.home-head{ margin-bottom:22px; }
+.home-head h1{
+  font-family:'Fraunces', serif;
+  font-weight:700;
+  font-size:26px;
+  margin:0 0 4px;
+  color:var(--ink);
+}
+.home-head p{
+  margin:0;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:12.5px;
+  color:var(--ink-soft);
+}
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));
+  gap:14px;
+  margin-bottom:32px;
+}
+.stat-box{
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-left:3px solid var(--kraft-dark);
+  border-radius:10px;
+  padding:16px 16px 14px;
+  box-shadow:var(--shadow);
+}
+.stat-box .stat-num{
+  font-family:'Fraunces', serif;
+  font-weight:700;
+  font-size:26px;
+  color:var(--ink);
+  line-height:1.1;
+  margin-bottom:4px;
+}
+.stat-box .stat-num.dash{ color:var(--ink-soft); opacity:.6; }
+.stat-box .stat-label{
+  font-family:'IBM Plex Mono', monospace;
+  text-transform:uppercase;
+  letter-spacing:.1em;
+  font-size:10px;
+  color:var(--ink-soft);
+}
+.stat-box.accuracy{ border-left-color:var(--teal); }
+.stat-box.due{ border-left-color:var(--teal-dark); }
+.stat-box.focus{ border-left-color:var(--maroon); }
+.stat-box.clickable{ cursor:pointer; transition: transform .12s ease, box-shadow .12s ease; }
+.stat-box.clickable:hover{ transform:translateY(-2px); box-shadow:var(--shadow-lg); }
+.stat-box.focus .stat-num{ font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ---------- Mobile: collapse the stat cards into one summary row ---------- */
+.stat-summary-toggle{ display:none; }
+@media (max-width:900px){
+  .stat-summary-toggle{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    width:100%;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-left:3px solid var(--kraft-dark);
+    border-radius:10px;
+    padding:13px 15px;
+    margin-bottom:10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+    box-shadow:var(--shadow);
+  }
+  .stat-summary-toggle .sst-text b{ color:var(--ink); font-weight:600; }
+  .stat-summary-toggle .sst-chevron{ flex-shrink:0; transition:transform .18s ease; opacity:.6; }
+  .stat-summary-wrap.expanded .sst-chevron{ transform:rotate(180deg); }
+  .stat-grid{ display:none; margin-bottom:18px; }
+  .stat-summary-wrap.expanded .stat-grid{ display:grid; }
+}
+
+/* Folder grid tiles (manila tabs) */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(148px, 1fr));
+  gap:16px;
+  margin-bottom:34px;
+}
+.folder-tile{
+  position:relative;
+  padding-top:14px;
+  cursor:pointer;
+}
+.folder-tile .tab{
+  width:56px; height:16px;
+  background:linear-gradient(180deg, var(--kraft), var(--kraft-dark));
+  border-radius:5px 5px 0 0;
+  margin-left:12px;
+  box-shadow: inset 0 -4px 5px rgba(0,0,0,.1);
+}
+.folder-tile .body{
+  background:linear-gradient(160deg, var(--kraft) 0%, var(--kraft-dark) 100%);
+  border-radius:3px 8px 8px 8px;
+  padding:16px 14px 12px;
+  box-shadow:var(--shadow);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.folder-tile:hover .body{ transform:translateY(-3px); box-shadow:var(--shadow-lg); }
+.folder-tile.dragover .body{ outline:2px dashed var(--teal-dark); outline-offset:2px; }
+.folder-tile .fname{
+  font-family:'Fraunces', serif;
+  font-weight:600;
+  font-size:15px;
+  color:#3a2c17;
+  margin-bottom:4px;
+  overflow-wrap:break-word;
+}
+.folder-tile .fmeta{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:10.5px;
+  color:#5c4726;
+  opacity:.8;
+}
+
+/* Deck tiles (index-card stack look) */
+.deck-tile{
+  position:relative;
+  cursor:pointer;
+  padding-top:6px;
+}
+.deck-tile .stack::before, .deck-tile .stack::after{
+  content:"";
+  position:absolute;
+  left:6px; right:-6px;
+  height:100%;
+  background:var(--paper-dark);
+  border:1px solid var(--line);
+  border-radius:8px;
+  top:6px;
+  z-index:0;
+}
+.deck-tile .stack::after{ top:11px; left:11px; right:-11px; opacity:.6;}
+.deck-tile .card{
+  position:relative; z-index:2;
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:16px 14px 14px;
+  box-shadow:var(--shadow);
+  transition: transform .12s ease, box-shadow .12s ease;
+  border-left:3px solid var(--maroon);
+  height:100%;
+  display:flex;
+  flex-direction:column;
+}
+.deck-tile:hover .card{ transform:translateY(-3px) rotate(-.4deg); box-shadow:var(--shadow-lg); }
+.deck-tile .dname{
+  font-family:'Fraunces', serif;
+  font-weight:600;
+  font-size:15px;
+  margin-bottom:10px;
+}
+.deck-tile .drow{
+  display:flex; justify-content:space-between; align-items:center;
+  margin-top:auto;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:10.5px;
+  color:var(--ink-soft);
+}
+.due-dot{
+  display:inline-block; width:6px; height:6px; border-radius:50%;
+  background:var(--maroon); margin-right:5px; vertical-align:1px;
+}
+
+/* Drag ghost affordance */
+[draggable="true"]{ }
+.dragging{ opacity:.4; }
+
+/* ---------- Study mode ---------- */
+#study{
+  display:none;
+  flex:1;
+  flex-direction:column;
+  align-items:center;
+  padding:30px 20px 40px;
+  overflow-y:auto;
+}
+#study.active{ display:flex; }
+#studyBody{ width:100%; flex:1; min-height:0; display:flex; flex-direction:column; align-items:center; }
+.study-head{
+  width:100%; max-width:560px;
+  display:flex; align-items:center; gap:12px;
+  margin-bottom:18px;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:12px;
+  color:var(--ink-soft);
+}
+.study-head #studyTitle{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.timer-chip{
+  background:var(--paper-dark);
+  padding:3px 9px;
+  border-radius:12px;
+  font-size:11px;
+  letter-spacing:.02em;
+}
+.back-btn{
+  border:1px solid var(--line); background:var(--paper-raised);
+  width:32px; height:32px; border-radius:9px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--ink); box-shadow:var(--shadow);
+}
+.back-btn:hover{ border-color:var(--teal); color:var(--teal-dark); }
+.progress-track{
+  width:100%; max-width:560px; height:4px; background:var(--paper-dark);
+  border-radius:4px; margin-bottom:36px; overflow:hidden;
+}
+.progress-fill{ height:100%; background:var(--teal); transition:width .25s ease; }
+
+.card-stage{
+  position:relative;
+  width:100%; max-width:480px;
+  aspect-ratio:3/2;
+  perspective:1600px;
+  margin-bottom:26px;
+}
+.star-toggle{
+  position:absolute; top:-13px; right:-10px;
+  z-index:5;
+  width:34px; height:34px;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background:var(--paper-raised);
+  box-shadow:var(--shadow);
+  color:var(--ink-soft);
+  font-size:16px;
+  display:flex; align-items:center; justify-content:center;
+  transition: color .15s, transform .15s;
+}
+.star-toggle:hover{ transform:scale(1.08); }
+.star-toggle.active{ color:#D6A72E; border-color:#D6A72E; }
+.flash-card{
+  width:100%; height:100%;
+  position:relative;
+  transform-style:preserve-3d;
+  transition:transform .5s cubic-bezier(.4,.2,.2,1);
+  cursor:pointer;
+}
+.flash-card.flipped{ transform:rotateY(180deg); }
+.flash-card.no-anim{ transition:none !important; }
+.face{
+  position:absolute; inset:0;
+  backface-visibility:hidden;
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:var(--shadow-lg);
+  padding:20px 24px 22px 46px;
+  color:var(--ink);
+  display:flex;
+  flex-direction:column;
+}
+.face.back{ transform:rotateY(180deg); color:var(--teal-dark); }
+.face .holes{
+  position:absolute; left:14px; top:20px; bottom:20px;
+  display:flex; flex-direction:column; justify-content:space-between;
+}
+.face .holes span{
+  width:9px; height:9px; border-radius:50%;
+  background:var(--hole);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.18);
+}
+.face .face-text{
+  flex:1;
+  display:flex; align-items:center; justify-content:center;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:6px 4px;
+  width:100%;
+}
+.face .face-text-inner{
+  text-align:center;
+  font-family:'Fraunces', serif;
+  font-size:clamp(16px, 3vw, 21px);
+  line-height:1.42;
+  overflow-wrap:break-word;
+  word-break:break-word;
+  width:100%;
+}
+.flip-hint{
+  margin-top:14px;
+  text-align:center;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:9.5px; color:var(--ink-soft); opacity:.55;
+  letter-spacing:.06em; text-transform:uppercase;
+}
+.study-center{
+  flex:1;
+  width:100%;
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center;
+  min-height:0;
+}
+
+.study-controls{
+  display:flex; align-items:center; gap:14px;
+  margin-bottom:20px;
+}
+.nav-btn{
+  width:38px; height:38px; border-radius:50%;
+  border:1px solid var(--line); background:var(--paper-raised);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:var(--shadow);
+  color:var(--ink);
+}
+.nav-btn:hover{ border-color:var(--teal); color:var(--teal-dark); }
+.shuffle-btn{
+  border:none; background:none; color:var(--ink-soft);
+  font-size:12px; display:flex; align-items:center; gap:5px;
+}
+.shuffle-btn:hover{ color:var(--teal-dark); }
+
+.grade-row{ display:flex; gap:10px; }
+.peek-back-row{ display:flex; justify-content:center; margin-top:22px; }
+.grade-btn{
+  padding:10px 20px;
+  border-radius:20px;
+  border:1px solid var(--line);
+  background:var(--paper-raised);
+  font-size:13px; font-weight:500;
+  box-shadow:var(--shadow);
+}
+.grade-btn.again{ color:var(--maroon); }
+.grade-btn.again:hover{ background:var(--maroon); color:#fff; border-color:var(--maroon); }
+.grade-btn.good{ color:var(--teal-dark); }
+.grade-btn.good:hover{ background:var(--teal); color:#fff; border-color:var(--teal); }
+
+.study-done{
+  text-align:center;
+  flex:1;
+  width:100%;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:0;
+}
+.study-done .stamp{
+  font-family:'Caveat', cursive; font-size:34px; color:var(--teal-dark);
+  border:2px solid var(--teal-dark); border-radius:10px; padding:8px 22px;
+  display:inline-block; transform:rotate(-3deg); margin-bottom:18px;
+}
+
+.trend-row{
+  display:flex; align-items:center; gap:7px;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:13px;
+  margin:6px 0 22px;
+}
+.trend-chip{
+  background:var(--paper-dark);
+  padding:4px 10px;
+  border-radius:12px;
+  color:var(--ink);
+}
+.trend-chip.current{ background:var(--teal); color:#fff; font-weight:500; }
+.trend-arrow{ font-size:13px; }
+.trend-arrow.good{ color:var(--teal-dark); }
+.trend-arrow.bad{ color:var(--maroon); }
+.trend-arrow.flat{ color:var(--ink-soft); }
+.time-solo{ font-size:12.5px; color:var(--ink-soft); margin:6px 0 22px; }
+
+.done-actions{ display:flex; gap:8px; }
+.tough-btn{
+  margin-top:14px;
+  color:var(--maroon);
+  border-color:rgba(155,59,52,.35);
+}
+.tough-btn:hover{ background:var(--maroon); color:#fff; border-color:var(--maroon); }
+
+/* ---------- Starred smart-folder view ---------- */
+.starred-header{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:18px;
+}
+.starred-list{ display:flex; flex-direction:column; gap:8px; max-width:640px; }
+.starred-item{
+  display:flex; align-items:center; gap:12px;
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-left:3px solid #D6A72E;
+  border-radius:8px;
+  padding:11px 14px;
+  box-shadow:var(--shadow);
+}
+.unstar-btn{
+  border:none; background:none; color:#D6A72E; font-size:17px;
+  flex-shrink:0;
+}
+.si-text{ min-width:0; }
+.si-front{ font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.si-path{ font-size:10px; color:var(--ink-soft); margin-top:2px; }
+
+.starred-toolbar{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin-bottom:18px; max-width:640px;
+}
+.starred-filter{ flex:1; min-width:180px; position:relative; }
+.starred-filter input{
+  width:100%; padding:8px 12px; border-radius:20px; border:1px solid var(--line);
+  background:var(--paper-raised); font-size:13px; color:var(--ink); outline:none;
+}
+.starred-filter input:focus{ border-color:var(--teal); box-shadow:0 0 0 3px rgba(47,111,98,.12); }
+.sort-toggle{
+  display:flex; border:1px solid var(--line); border-radius:20px; overflow:hidden;
+  background:var(--paper-raised); flex-shrink:0;
+}
+.sort-toggle button{
+  border:none; background:transparent; padding:7px 14px; font-size:11.5px;
+  color:var(--ink-soft); white-space:nowrap;
+}
+.sort-toggle button.active{ background:var(--teal); color:#F3EFDF; }
+.sort-toggle button:hover:not(.active){ color:var(--teal-dark); }
+
+.starred-group{ max-width:640px; margin-bottom:14px; }
+.starred-group-header{
+  display:flex; align-items:center; gap:9px; padding:7px 4px;
+  cursor:pointer; border-radius:7px;
+}
+.starred-group-header:hover{ background:rgba(35,35,35,.04); }
+.starred-group-header .caret{
+  width:14px; height:14px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  color:var(--ink-soft); transition:transform .15s ease; font-size:12px;
+}
+.starred-group.collapsed .starred-group-header .caret{ transform:rotate(-90deg); }
+.starred-group.collapsed .starred-list{ display:none; }
+.starred-group-title{ font-family:'Fraunces', serif; font-size:15px; color:var(--ink); white-space:nowrap; }
+.starred-group-path{ font-size:10px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.starred-group-count{
+  font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--ink-soft);
+  background:var(--paper-dark); padding:2px 8px; border-radius:10px; flex-shrink:0;
+}
+.starred-group-header .mini-btn{
+  margin-left:auto; flex-shrink:0;
+  border:1px solid var(--line); background:var(--paper-raised); padding:5px 12px;
+  border-radius:14px; font-size:11px; color:var(--ink);
+}
+.starred-group-header .mini-btn:hover{ border-color:var(--teal); color:var(--teal-dark); }
+.starred-group .starred-list{ margin-top:6px; }
+.si-recent{ font-size:9.5px; color:var(--ink-soft); flex-shrink:0; }
+
+/* ---------- Modal ---------- */
+.overlay{
+  position:fixed; inset:0; background:rgba(30,25,18,.42);
+  display:none; align-items:center; justify-content:center; z-index:50;
+}
+.overlay.active{ display:flex; }
+.modal{
+  background:var(--paper-raised);
+  border-radius:12px;
+  padding:24px 24px 20px;
+  width:320px;
+  box-shadow:var(--shadow-lg);
+  border-top:4px solid var(--maroon);
+  position:relative;
+}
+.modal-close{
+  position:absolute;
+  top:14px; right:14px;
+  width:30px; height:30px;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(155,59,52,.10);
+  border:1px solid rgba(155,59,52,.24);
+  color:var(--maroon);
+  transition:background .15s ease, transform .18s ease, border-color .15s ease;
+}
+.modal-close:hover{ background:rgba(155,59,52,.18); border-color:rgba(155,59,52,.4); transform:rotate(90deg); }
+.modal-close svg{ width:14px; height:14px; }
+.modal h3{
+  font-family:'Fraunces', serif; margin:0 0 14px; font-size:18px;
+}
+.modal input, .modal textarea{
+  width:100%; padding:9px 11px; border-radius:7px; border:1px solid var(--line);
+  font-family:inherit; font-size:13.5px; margin-bottom:12px; outline:none; resize:vertical;
+  background:#fff;
+}
+.modal input:focus, .modal textarea:focus{ border-color:var(--teal); }
+.modal input.input-error{ border-color:var(--maroon) !important; }
+.input-shake{ animation:shakeX .32s ease; }
+@keyframes shakeX{
+  0%, 100%{ transform:translateX(0); }
+  20%{ transform:translateX(-6px); }
+  40%{ transform:translateX(5px); }
+  60%{ transform:translateX(-3px); }
+  80%{ transform:translateX(2px); }
+}
+.modal-row{ display:flex; gap:8px; justify-content:flex-end; margin-top:6px; }
+.modal-row button{
+  padding:8px 16px; border-radius:20px; font-size:12.5px; border:1px solid var(--line); background:#fff;
+}
+.modal-row .confirm{ background:var(--teal); border-color:var(--teal); color:#fff; }
+.modal-row .confirm:hover{ background:var(--teal-dark); }
+.modal-row .cancel:hover{ border-color:var(--ink-soft); }
+.modal-row .confirm-danger{ background:var(--maroon); border-color:var(--maroon); color:#fff; }
+.modal-row .confirm-danger:hover{ background:#7a2d27; }
+
+/* ---------- Deck creation: blank / import tabs ---------- */
+.modal.wide{ width:420px; }
+.mode-tabs{ display:flex; gap:6px; margin-bottom:14px; background:var(--paper-dark); padding:3px; border-radius:9px; }
+.mode-tabs button{
+  flex:1; padding:7px 0; border:none; background:transparent; border-radius:7px;
+  font-size:12.5px; color:var(--ink-soft); font-weight:500;
+}
+.mode-tabs button.active{ background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(35,35,35,.12); }
+.import-pane{ display:none; }
+.import-pane.active{ display:block; }
+.dropzone{
+  border:1.5px dashed var(--line); border-radius:9px; padding:14px; text-align:center;
+  font-size:12px; color:var(--ink-soft); margin-bottom:10px; background:#fffdf7;
+}
+.dropzone.drag{ border-color:var(--teal); background:#f2f8f6; color:var(--teal-dark); }
+.dropzone button{
+  border:1px solid var(--line); background:#fff; border-radius:20px; padding:5px 13px;
+  font-size:12px; color:var(--ink); margin-top:6px;
+}
+.dropzone button:hover{ border-color:var(--teal); color:var(--teal-dark); }
+.dropzone .fname{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--teal-dark); margin-top:6px; }
+#importText{ min-height:110px; font-family:'IBM Plex Mono', monospace; font-size:12px; }
+.import-status{ font-size:12px; margin:-4px 0 12px; min-height:16px; }
+.import-status.ok{ color:var(--teal-dark); }
+.import-status.err{ color:var(--maroon); }
+.import-hint{ font-size:11px; color:var(--ink-soft); margin:-6px 0 12px; line-height:1.5; }
+.import-hint code{ background:var(--paper-dark); padding:1px 5px; border-radius:4px; font-size:10.5px; }
+.highlight{ background:#F5E1A4; padding:0 3px; border-radius:3px; }
+
+/* ---------- Manage cards list ---------- */
+.manage-card-list{ display:flex; flex-direction:column; gap:8px; max-width:640px; }
+.manage-card-item{
+  display:flex; align-items:center; gap:10px;
+  background:var(--paper-raised); border:1px solid var(--line); border-radius:8px;
+  padding:10px 12px;
+}
+.mc-text{ flex:1; min-width:0; }
+.mc-front{ font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mc-back{ font-size:10.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px; }
+.mc-badges{ display:flex; gap:4px; flex-shrink:0; }
+.mc-badge{ font-family:'IBM Plex Mono', monospace; font-size:9.5px; background:var(--paper-dark); padding:2px 7px; border-radius:8px; color:var(--ink-soft); white-space:nowrap; }
+.mini-btn{
+  border:1px solid var(--line); background:var(--paper-raised); padding:5px 12px;
+  border-radius:14px; font-size:11px; color:var(--ink); flex-shrink:0;
+}
+.mini-btn:hover{ border-color:var(--teal); color:var(--teal-dark); }
+
+/* ---------- Settings modal ---------- */
+.settings-section{ margin-bottom:20px; }
+.settings-section:last-of-type{ margin-bottom:14px; }
+.settings-label{
+  font-family:'IBM Plex Mono', monospace; text-transform:uppercase; letter-spacing:.12em;
+  font-size:10.5px; color:var(--ink-soft); margin:0 0 10px;
+}
+.settings-hint{ font-size:12px; color:var(--ink-soft); margin:0 0 10px; line-height:1.5; }
+.settings-account-row{
+  display:flex; align-items:center; gap:10px; padding:9px 11px;
+  border:1px solid var(--line); border-radius:10px; background:#fff;
+}
+.settings-account-row .account-avatar{ border-color:var(--line); }
+.settings-account-name{
+  flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:13px; color:var(--ink);
+}
+.settings-btn-row{ display:flex; gap:8px; }
+.settings-btn-row .action-btn{ flex:1; justify-content:center; }
+.settings-snippet{
+  border:1px solid var(--line); border-radius:9px; background:#fff; margin-bottom:10px; overflow:hidden;
+}
+.settings-snippet:last-child{ margin-bottom:0; }
+.settings-snippet-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:7px 10px; background:var(--paper-dark); font-size:11.5px; font-weight:600; color:var(--ink);
+}
+.settings-pre{
+  margin:0; padding:10px 12px; font-family:'IBM Plex Mono', monospace; font-size:11px;
+  line-height:1.6; color:var(--ink); white-space:pre-wrap; word-break:break-word;
+  max-height:180px; overflow-y:auto;
+}
+
+/* ---------- Card editor modal ---------- */
+.modal.wider{ width:480px; }
+.editor-label{ display:block; font-size:11px; font-weight:500; color:var(--ink-soft); margin-bottom:5px; text-transform:uppercase; letter-spacing:.04em; }
+#basicPane{ display:flex; flex-direction:column; gap:14px; }
+.editor-face-block textarea{ min-height:56px; }
+.img-slot{ display:flex; align-items:center; gap:10px; margin-top:6px; }
+.img-add-btn{
+  border:1px dashed var(--line); background:transparent; padding:6px 13px;
+  border-radius:14px; font-size:12px; color:var(--ink-soft);
+}
+.img-add-btn:hover{ border-color:var(--teal); color:var(--teal-dark); }
+.img-thumb{ width:56px; height:42px; object-fit:cover; border-radius:6px; border:1px solid var(--line); }
+.img-remove-btn{ border:none; background:none; color:var(--maroon); font-size:11.5px; }
+.img-remove-btn:hover{ text-decoration:underline; }
+#clozePane textarea{ min-height:70px; }
+.cloze-preview{ display:flex; gap:10px; margin-top:10px; }
+.cloze-preview > div{ flex:1; min-width:0; background:var(--paper-dark); border-radius:8px; padding:8px 10px; }
+.cloze-preview-label{ font-family:'IBM Plex Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); }
+.cloze-preview-text{ font-family:'Fraunces', serif; font-size:13.5px; margin-top:4px; overflow-wrap:break-word; }
+.editor-links{ margin-top:16px; }
+.link-chip-row{ display:flex; flex-wrap:wrap; gap:6px; min-height:22px; }
+.link-chip{
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--paper-dark); border-radius:14px; padding:4px 6px 4px 11px;
+  font-size:12px; color:var(--ink); max-width:220px;
+}
+.link-chip button{ border:none; background:none; color:var(--ink-soft); font-size:11px; padding:2px; flex-shrink:0; }
+.link-chip button:hover{ color:var(--maroon); }
+
+/* ---------- Format toolbar (bold/italic/underline/highlight) ---------- */
+.fmt-toolbar{ display:flex; gap:4px; margin-bottom:5px; }
+.fmt-btn{
+  width:26px; height:24px;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--line); background:#fff; border-radius:6px;
+  font-size:12.5px; color:var(--ink-soft); line-height:1;
+}
+.fmt-btn:hover{ border-color:var(--teal); color:var(--teal-dark); background:var(--paper-dark); }
+.fmt-btn:active{ transform:translateY(1px); }
+.fmt-btn.fmt-b{ font-weight:700; }
+.fmt-btn.fmt-i{ font-style:italic; }
+.fmt-btn.fmt-u{ text-decoration:underline; }
+.fmt-btn.fmt-h{ background:linear-gradient(transparent 55%, #FCEFC7 55%); }
+.fmt-hint{ font-size:10.5px; color:var(--ink-soft); margin:2px 0 0; }
+
+/* ---------- Tags field ---------- */
+.editor-tags{ margin-top:14px; }
+.editor-tags input{ margin-bottom:0; }
+
+/* ---------- Link picker ---------- */
+.link-pick-row{
+  display:flex; align-items:center; gap:9px;
+  padding:8px 8px; border-radius:7px; cursor:pointer;
+}
+.link-pick-row:hover{ background:var(--paper-dark); }
+.link-pick-row input{ flex-shrink:0; width:auto; margin:0; }
+.lpr-text{ display:flex; flex-direction:column; min-width:0; }
+.lpr-front{ font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lpr-path{ font-size:10px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ---------- Study mode: card images + see-also links ---------- */
+.face .face-text{ flex-direction:column; gap:10px; }
+.card-img{ max-width:100%; max-height:52%; object-fit:contain; border-radius:8px; flex-shrink:0; cursor:zoom-in; transition:filter .12s; }
+.card-img:hover{ filter:brightness(.96); }
+
+.img-lightbox-overlay{
+  background:rgba(15,13,10,.92);
+  z-index:80;
+  flex-direction:column;
+  padding:32px;
+}
+.lightbox-close{
+  position:absolute; top:18px; right:20px;
+  width:38px; height:38px; border-radius:50%;
+  border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08);
+  color:#fff; font-size:16px; line-height:1;
+  display:flex; align-items:center; justify-content:center;
+}
+.lightbox-close:hover{ background:rgba(255,255,255,.18); }
+.lightbox-hint{
+  position:absolute; top:24px; left:50%; transform:translateX(-50%);
+  font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:.06em;
+  text-transform:uppercase; color:rgba(255,255,255,.5);
+}
+.lightbox-scroll{
+  width:100%; height:100%;
+  display:flex; align-items:center; justify-content:center;
+  overflow:auto;
+}
+.lightbox-img{
+  max-width:100%; max-height:100%;
+  object-fit:contain;
+  cursor:zoom-in;
+  border-radius:4px;
+  box-shadow:0 10px 40px rgba(0,0,0,.5);
+}
+.lightbox-img.zoomed{
+  max-width:none; max-height:none;
+  width:auto; height:auto;
+  cursor:zoom-out;
+}
+.see-also-row{
+  display:flex; flex-wrap:wrap; gap:6px; align-items:center; justify-content:center;
+  margin-top:12px; width:100%; max-width:480px;
+}
+.see-also-label{
+  font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase;
+  letter-spacing:.08em; color:var(--ink-soft); margin-right:2px;
+}
+.see-also-chip{
+  border:1px solid var(--line); background:var(--paper-raised); padding:5px 12px;
+  border-radius:14px; font-size:11.5px; color:var(--ink); box-shadow:var(--shadow);
+  max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.see-also-chip:hover{ border-color:var(--teal); color:var(--teal-dark); }
+
+
+/* ---------- Kebab menu triggers ---------- */
+.kebab-btn{
+  border:none; background:rgba(35,35,35,.08); color:var(--ink-soft);
+  width:22px; height:22px; border-radius:6px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; line-height:1; opacity:.45; transition:opacity .12s, background .12s;
+}
+.kebab-btn:hover{ background:rgba(35,35,35,.16); color:var(--ink); }
+.kebab-btn.menu-open{ opacity:1 !important; background:rgba(35,35,35,.16); }
+.folder-tile{ position:relative; }
+.folder-tile .kebab-btn{ position:absolute; top:8px; right:8px; z-index:3; background:rgba(255,255,255,.35); color:#3a2c17; }
+.folder-tile .kebab-btn:hover{ background:rgba(255,255,255,.6); }
+.folder-tile:hover .kebab-btn{ opacity:1; }
+.deck-tile{ position:relative; }
+.deck-tile .kebab-btn{ position:absolute; top:8px; right:8px; z-index:3; }
+.deck-tile:hover .kebab-btn{ opacity:1; }
+.trow .kebab-btn{ background:rgba(255,255,255,.08); color:#C7BB98; margin-left:auto; }
+.trow .kebab-btn:hover{ background:rgba(255,255,255,.18); color:#FBF3DC; }
+.trow:hover .kebab-btn, .trow.active .kebab-btn{ opacity:1; }
+
+/* Touch devices have no real hover — keep the ⋮ menus visible and give them a bigger tap target */
+@media (hover: none), (max-width: 900px){
+  .kebab-btn{ opacity:.85; width:28px; height:28px; font-size:16px; }
+  .folder-tile .kebab-btn, .deck-tile .kebab-btn{ top:6px; right:6px; }
+}
+
+/* ---------- Floating context menu ---------- */
+.ctx-menu{
+  position:fixed; display:none; flex-direction:column;
+  min-width:172px;
+  background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;
+  box-shadow:var(--shadow-lg); padding:6px; z-index:60;
+}
+.ctx-menu.active{ display:flex; }
+.ctx-menu button{
+  display:flex; align-items:center; gap:9px; width:100%; text-align:left;
+  border:none; background:transparent; padding:8px 10px; border-radius:7px;
+  font-size:13px; color:var(--ink);
+}
+.ctx-menu button:hover:not(:disabled){ background:var(--paper-dark); }
+.ctx-menu button.danger{ color:var(--maroon); }
+.ctx-menu button.danger:hover{ background:rgba(155,59,52,.1); }
+.ctx-menu button:disabled{ opacity:.4; cursor:default; }
+.ctx-menu hr{ border:none; border-top:1px solid var(--line); margin:5px 2px; }
+
+/* ---------- Move-to picker ---------- */
+.move-picker{
+  max-height:260px; overflow-y:auto; border:1px solid var(--line); border-radius:8px;
+  padding:8px; margin-bottom:14px; background:#fff;
+}
+.move-row{ padding:7px 10px; border-radius:6px; font-size:13px; cursor:pointer; color:var(--ink); }
+.move-row:hover{ background:var(--paper-dark); }
+.move-row.selected{ background:var(--teal); color:#fff; }
+.move-row.disabled{ opacity:.35; cursor:not-allowed; }
+.move-children{ margin-left:16px; border-left:1px dotted var(--line); padding-left:6px; }
+
+/* ---------- Export folder picker ---------- */
+.export-picker{
+  max-height:300px; overflow-y:auto; border:1px solid var(--line); border-radius:8px;
+  padding:8px; margin-bottom:10px; background:#fff;
+}
+.export-row{
+  display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:6px;
+  font-size:13px; color:var(--ink); cursor:pointer;
+}
+.export-row:hover{ background:var(--paper-dark); }
+.export-row input[type="checkbox"]{ width:15px; height:15px; accent-color:var(--teal); flex-shrink:0; cursor:pointer; }
+.export-row .ename{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.export-row .ekind{ font-size:10.5px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace; flex-shrink:0; }
+.export-children{ margin-left:16px; border-left:1px dotted var(--line); padding-left:6px; }
+.export-picker-actions{ display:flex; gap:8px; margin-bottom:10px; }
+.export-picker-actions button{
+  font-size:11.5px; padding:5px 10px; border-radius:7px; border:1px solid var(--line);
+  background:var(--paper-raised); color:var(--ink-soft); cursor:pointer;
+}
+.export-picker-actions button:hover{ border-color:var(--teal); color:var(--teal-dark); }
+.export-empty-note{ font-size:12px; color:var(--maroon); margin:0 0 12px; display:none; }
+.export-empty-note.show{ display:block; }
+
+/* ---------- Toast feedback ---------- */
+#toast{
+  position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+  background:#232323; color:#F3EFDF; padding:10px 18px; border-radius:20px;
+  font-size:13px; box-shadow:var(--shadow-lg); opacity:0; pointer-events:none;
+  transition:opacity .18s ease, transform .18s ease; z-index:70; max-width:80vw; text-align:center;
+}
+#toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+.action-btn:disabled{ opacity:.5; cursor:not-allowed; }
+.action-btn:disabled:hover{ border-color:var(--line); color:var(--ink); }
+
+.menu-btn{
+  display:none;
+  align-items:center; justify-content:center;
+  border:1px solid var(--line);
+  background:var(--paper-raised);
+  width:36px; height:36px;
+  border-radius:10px;
+  color:var(--ink);
+  box-shadow:var(--shadow);
+  flex-shrink:0;
+}
+.menu-btn:hover{ border-color:var(--teal); color:var(--teal-dark); }
+
+@media (max-width: 900px){
+  #sidebar{ position:fixed; left:0; top:0; bottom:0; transform:translateX(-100%); transition:transform .2s; z-index:30; }
+  #sidebar.open{ transform:translateX(0); }
+  #topbar{ padding:14px 16px; }
+  #content{ padding:18px 16px 50px; }
+  #crumbs{ font-size:17px; order:1; flex-basis:100%; }
+  .action-btn{ order:2; width:auto; flex-basis:auto; padding:8px 13px; font-size:12px; }
+  .search-wrap{ display:none; }
+  #mobileSearchBtn{ order:2; }
+  .menu-btn{ display:inline-flex; order:0; }
+  .sidebar-backdrop.active{ display:block; }
+}
+@media (min-width: 901px){
+  #mobileSearchBtn{ display:none; }
+}
+@media (max-width: 480px){
+  #topbar{ padding:12px 12px; gap:8px 10px; }
+  #crumbs{ font-size:15px; gap:6px; }
+  .action-btn{ padding:8px 11px; font-size:12px; }
+  #content{ padding:14px 12px 44px; }
+  .grid{ grid-template-columns:repeat(auto-fill, minmax(128px, 1fr)); gap:10px; }
+  #study{ padding:16px 14px 24px; }
+  .card-stage{ aspect-ratio:4/5; max-width:420px; margin-bottom:18px; }
+  .progress-track{ margin-bottom:20px; }
+  .study-head{ margin-bottom:14px; }
+}
+.sidebar-backdrop{
+  display:none;
+  position:fixed; inset:0;
+  background:rgba(20,16,10,.45);
+  z-index:4;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+
+  <aside id="sidebar">
+    <div class="brand">
+      <span class="mark">Kardex</span>
+      <span class="sub">card index</span>
+    </div>
+    <div class="starred-row" id="starredRow" onclick="viewStarred()">
+      <span class="star-ico">★</span>
+      <span class="tname">Starred</span>
+      <span class="tcount" id="starredCount">0</span>
+    </div>
+    <nav id="tree"></nav>
+    <div class="sidebar-foot">
+      <div class="account-box" id="accountBox"></div>
+      <button class="new-folder-btn" onclick="openFolderModal(state.currentPath)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        New drawer
+      </button>
+    </div>
+  </aside>
+
+  <main id="main">
+    <div id="topbar">
+      <button class="menu-btn" onclick="toggleSidebar()" aria-label="Toggle drawers">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <div id="crumbs"></div>
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input id="searchInput" type="text" placeholder="Search cards & drawers…" oninput="onSearch(this.value)">
+      </div>
+      <button class="action-btn icon-only" id="mobileSearchBtn" onclick="openSearchOverlay()" aria-label="Search" title="Search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+      </button>
+      <button class="action-btn" onclick="openFolderModal(state.currentPath)">+ Drawer</button>
+      <button class="action-btn primary" onclick="openDeckModal(state.currentPath)">+ Deck</button>
+      <button class="action-btn" id="pasteBtn" style="display:none;" onclick="pasteInto(state.currentPath[state.currentPath.length-1])"></button>
+      <input type="file" id="backupFileInput" accept=".zip" style="display:none" onchange="onBackupFileChosen(event)">
+    </div>
+
+    <div id="content"></div>
+
+    <div id="study">
+      <div class="study-head">
+        <button class="back-btn" onclick="studyBack()" aria-label="Back" title="Back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <span id="studyTitle">—</span>
+        <span id="cardTimer" class="mono timer-chip">⏱ 0s</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+
+      <div id="studyBody">
+        <div class="study-center">
+          <div class="card-stage">
+            <button class="star-toggle" id="starToggle" onclick="toggleStar(event)" title="Star this card">☆</button>
+            <div class="flash-card" id="flashCard" onclick="flipCard()">
+              <div class="face front">
+                <div class="holes"><span></span><span></span><span></span></div>
+                <div class="face-text" id="frontText"></div>
+              </div>
+              <div class="face back">
+                <div class="holes"><span></span><span></span><span></span></div>
+                <div class="face-text" id="backText"></div>
+              </div>
+            </div>
+          </div>
+          <div class="flip-hint">tap card to flip</div>
+          <div class="see-also-row" id="seeAlsoRow"></div>
+
+
+          <div class="study-controls">
+            <button class="nav-btn" onclick="prevCard()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button class="shuffle-btn" onclick="shuffleDeck()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+              Shuffle
+            </button>
+            <button class="nav-btn" onclick="nextCard()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+
+          <div class="grade-row">
+            <button class="grade-btn again" onclick="gradeCard(false)">Review again</button>
+            <button class="grade-btn good" onclick="gradeCard(true)">Got it</button>
+          </div>
+
+          <div class="peek-back-row" id="peekBackRow" style="display:none;">
+            <button class="action-btn primary" onclick="returnFromPeek()">← Back to <span id="peekBackLabel"></span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="study-done" id="studyDone" style="display:none">
+        <div class="stamp">reviewed ✓</div>
+        <div class="mono" style="font-size:12px; color:var(--ink-soft); margin:14px 0 4px;" id="doneSummary"></div>
+        <div id="doneTrend"></div>
+        <div class="done-actions">
+          <button class="action-btn primary" onclick="restartDeck()">Study again</button>
+          <button class="action-btn" onclick="exitStudy()">Back to drawers</button>
+        </div>
+        <button class="action-btn tough-btn" id="toughRedoBtn" style="display:none;" onclick="redoTough()"></button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="overlay" id="folderOverlay">
+  <div class="modal">
+    <h3>Label a new drawer</h3>
+    <input id="folderNameInput" type="text" placeholder="e.g. Cranial Nerves" maxlength="40">
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal('folderOverlay')">Cancel</button>
+      <button class="confirm" onclick="confirmFolder()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="deckOverlay">
+  <div class="modal wide">
+    <h3>Start a new deck</h3>
+    <input id="deckNameInput" type="text" placeholder="e.g. Brachial Plexus" maxlength="40">
+    <div class="mode-tabs">
+      <button id="tabBlank" class="active" onclick="setDeckMode('blank')">Blank deck</button>
+      <button id="tabImport" onclick="setDeckMode('import')">Paste / upload</button>
+    </div>
+    <div class="import-pane" id="importPane">
+      <div class="dropzone" id="dropzone">
+        Drop a <span class="mono">.md</span> or <span class="mono">.json</span> file here
+        <div><button type="button" onclick="document.getElementById('deckFileInput').click()">Choose file</button></div>
+        <div class="fname" id="fileNameLabel"></div>
+      </div>
+      <input type="file" id="deckFileInput" accept=".md,.markdown,.json,.txt" style="display:none" onchange="onDeckFileChosen(event)">
+      <textarea id="importText" placeholder="…or paste your Markdown / JSON cards here" oninput="onImportTextChange()"></textarea>
+      <div class="import-status" id="importStatus"></div>
+      <div class="import-hint">Markdown blocks separated by <code>---</code>, each with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:** The [[answer]] is hidden</code>), plus optional <code>**Tags:**</code> and <code>**Links:** 2, 5</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links}</code>.</div>
+    </div>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal('deckOverlay')">Cancel</button>
+      <button class="confirm" onclick="confirmDeck()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="renameOverlay">
+  <div class="modal">
+    <h3 id="renameTitle">Rename</h3>
+    <input id="renameNameInput" type="text" maxlength="40">
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal('renameOverlay')">Cancel</button>
+      <button class="confirm" onclick="confirmRename()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="deleteOverlay">
+  <div class="modal">
+    <h3>Delete this?</h3>
+    <p id="deleteMsg" style="font-size:13px; color:var(--ink-soft); margin:0 0 16px; line-height:1.5;"></p>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal('deleteOverlay')">Cancel</button>
+      <button class="confirm confirm-danger" onclick="doDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="moveOverlay">
+  <div class="modal" style="width:340px;">
+    <h3>Move to…</h3>
+    <div class="move-picker" id="movePickerTree"></div>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal('moveOverlay')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="modal wide" style="max-height:86vh; overflow-y:auto;">
+    <button class="modal-close" onclick="closeModal('settingsOverlay')" title="Close" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <h3 style="padding-right:28px;">Settings</h3>
+
+    <div class="settings-section">
+      <p class="settings-label">Account</p>
+      <div class="settings-account-row" id="settingsAccountRow"></div>
+    </div>
+
+    <div class="settings-section">
+      <p class="settings-label">Backup</p>
+      <div class="settings-btn-row">
+        <button class="action-btn" onclick="closeModal('settingsOverlay'); document.getElementById('backupFileInput').click();">Import</button>
+        <button class="action-btn" onclick="closeModal('settingsOverlay'); openExportModal();">Export</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <p class="settings-label">Deck import formats</p>
+      <p class="settings-hint">Paste either of these into the "Paste / upload" tab when creating a deck.</p>
+
+      <div class="settings-snippet">
+        <div class="settings-snippet-head">
+          <span>Markdown</span>
+          <button class="mini-btn" onclick="copySettingsSnippet('settingsSnippetMd', this)">Copy</button>
+        </div>
+        <pre class="settings-pre" id="settingsSnippetMd"></pre>
+      </div>
+
+      <div class="settings-snippet">
+        <div class="settings-snippet-head">
+          <span>JSON</span>
+          <button class="mini-btn" onclick="copySettingsSnippet('settingsSnippetJson', this)">Copy</button>
+        </div>
+        <pre class="settings-pre" id="settingsSnippetJson"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="exportOverlay">
+  <div class="modal wide" style="max-height:90vh; overflow-y:auto;">
+    <button class="modal-close" onclick="closeModal('exportOverlay')" title="Close" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <h3 style="padding-right:28px;">Export drawers</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin:0 0 12px; line-height:1.5;">Pick the drawers or decks to include — anything left unchecked stays out of the file.</p>
+    <div class="export-picker-actions">
+      <button type="button" onclick="selectAllExport()">Select all</button>
+      <button type="button" onclick="selectNoneExport()">Select none</button>
+    </div>
+    <div class="export-picker" id="exportPickerTree"></div>
+    <p class="export-empty-note" id="exportEmptyNote">Pick at least one drawer or deck to export.</p>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal('exportOverlay')">Cancel</button>
+      <button class="confirm" id="exportConfirmBtn" onclick="confirmExportSelection()">Export</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="cardEditorOverlay">
+  <div class="modal wider" style="max-height:90vh; overflow-y:auto;">
+    <button class="modal-close" onclick="closeCardEditor()" title="Close" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <h3 id="cardEditorTitle" style="padding-right:28px;">Add card</h3>
+    <div class="mode-tabs">
+      <button id="tabCardBasic" class="active" onclick="setCardEditorMode('basic')">Basic (front/back)</button>
+      <button id="tabCardCloze" onclick="setCardEditorMode('cloze')">Cloze (fill-blank)</button>
+    </div>
+
+    <div class="editor-pane" id="basicPane">
+      <div class="editor-face-block">
+        <label class="editor-label">Front</label>
+        <div class="fmt-toolbar">
+          <button type="button" class="fmt-btn fmt-b" title="Bold" onmousedown="event.preventDefault()" onclick="wrapSelection('editFront','**','**')">B</button>
+          <button type="button" class="fmt-btn fmt-i" title="Italic" onmousedown="event.preventDefault()" onclick="wrapSelection('editFront','*','*')">I</button>
+          <button type="button" class="fmt-btn fmt-u" title="Underline" onmousedown="event.preventDefault()" onclick="wrapSelection('editFront','__','__')">U</button>
+          <button type="button" class="fmt-btn fmt-h" title="Highlight" onmousedown="event.preventDefault()" onclick="wrapSelection('editFront','==','==')">H</button>
+        </div>
+        <textarea id="editFront" rows="2" placeholder="Question or term…" onpaste="onEditPaste(event,'front')"></textarea>
+        <div class="img-slot" id="frontImgSlot"></div>
+      </div>
+      <div class="editor-face-block">
+        <label class="editor-label">Back</label>
+        <div class="fmt-toolbar">
+          <button type="button" class="fmt-btn fmt-b" title="Bold" onmousedown="event.preventDefault()" onclick="wrapSelection('editBack','**','**')">B</button>
+          <button type="button" class="fmt-btn fmt-i" title="Italic" onmousedown="event.preventDefault()" onclick="wrapSelection('editBack','*','*')">I</button>
+          <button type="button" class="fmt-btn fmt-u" title="Underline" onmousedown="event.preventDefault()" onclick="wrapSelection('editBack','__','__')">U</button>
+          <button type="button" class="fmt-btn fmt-h" title="Highlight" onmousedown="event.preventDefault()" onclick="wrapSelection('editBack','==','==')">H</button>
+        </div>
+        <textarea id="editBack" rows="2" placeholder="Answer…" onpaste="onEditPaste(event,'back')"></textarea>
+        <div class="img-slot" id="backImgSlot"></div>
+      </div>
+    </div>
+
+    <div class="editor-pane" id="clozePane" style="display:none;">
+      <label class="editor-label">Sentence — wrap the hidden part in [[double brackets]]</label>
+      <div class="fmt-toolbar">
+        <button type="button" class="fmt-btn fmt-b" title="Bold" onmousedown="event.preventDefault()" onclick="wrapSelection('editCloze','**','**')">B</button>
+        <button type="button" class="fmt-btn fmt-i" title="Italic" onmousedown="event.preventDefault()" onclick="wrapSelection('editCloze','*','*')">I</button>
+        <button type="button" class="fmt-btn fmt-u" title="Underline" onmousedown="event.preventDefault()" onclick="wrapSelection('editCloze','__','__')">U</button>
+        <button type="button" class="fmt-btn fmt-h" title="Highlight" onmousedown="event.preventDefault()" onclick="wrapSelection('editCloze','==','==')">H</button>
+      </div>
+      <textarea id="editCloze" rows="3" placeholder="The [[median]] nerve is compressed in carpal tunnel syndrome" oninput="onClozeInput()" onpaste="onEditPaste(event,'cloze')"></textarea>
+      <div class="img-slot" id="clozeImgSlot"></div>
+      <div class="cloze-preview">
+        <div><span class="cloze-preview-label">Front</span><div id="clozePreviewFront" class="cloze-preview-text"></div></div>
+        <div><span class="cloze-preview-label">Back</span><div id="clozePreviewBack" class="cloze-preview-text"></div></div>
+      </div>
+    </div>
+
+    <div class="editor-tags">
+      <label class="editor-label">Tags</label>
+      <input type="text" id="editTags" placeholder="e.g. anatomy, upper-limb">
+      <p class="fmt-hint">Comma-separated. Used for search and future filtering.</p>
+    </div>
+
+    <div class="editor-links">
+      <label class="editor-label">See also</label>
+      <div class="link-chip-row" id="linkChipRow"></div>
+      <button class="mini-btn" style="margin-top:8px;" onclick="openLinkPicker()">+ Link a card</button>
+    </div>
+
+
+    <div class="modal-row" style="justify-content:space-between; margin-top:18px; flex-wrap:wrap;">
+      <button class="cancel" id="deleteFromEditorBtn" style="display:none; color:var(--maroon);" onclick="deleteFromEditor()">Delete card</button>
+      <div style="display:flex; gap:8px; margin-left:auto; flex-wrap:wrap; justify-content:flex-end;">
+        <button class="cancel" onclick="closeCardEditor()">Cancel</button>
+        <button class="cancel" id="saveAddAnotherBtn" onclick="saveCardEditorAndAddAnother()">Save &amp; add another</button>
+        <button class="confirm" onclick="saveCardEditor()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="linkPickerOverlay">
+  <div class="modal" style="width:380px;">
+    <h3>Link a card</h3>
+    <input type="text" id="linkPickerSearch" placeholder="Search cards…" oninput="onLinkPickerSearch(this.value)" style="margin-bottom:10px;">
+    <div class="move-picker" id="linkPickerList" style="max-height:280px;"></div>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal('linkPickerOverlay')">Cancel</button>
+      <button class="confirm" onclick="confirmLinkPicker()">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="cardDeleteOverlay">
+  <div class="modal">
+    <h3>Delete card?</h3>
+    <p id="cardDeleteMsg" style="font-size:13px; color:var(--ink-soft); margin:0 0 16px; line-height:1.5;"></p>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal('cardDeleteOverlay')">Cancel</button>
+      <button class="confirm confirm-danger" onclick="doDeleteCard()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="ctx-menu" id="ctxMenu"></div>
+<div id="toast"></div>
+
+<div class="overlay search-overlay" id="searchOverlay" onclick="if(event.target===this) closeSearchOverlay()">
+  <div class="search-overlay-panel">
+    <div class="search-overlay-bar">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+      <input id="overlaySearchInput" type="text" placeholder="Search cards & drawers…" oninput="onOverlaySearch(this.value)">
+      <button class="search-overlay-close" onclick="closeSearchOverlay()" aria-label="Close search">✕</button>
+    </div>
+    <div class="search-overlay-results" id="overlaySearchResults"></div>
+  </div>
+</div>
+
+<div class="overlay img-lightbox-overlay" id="imgLightboxOverlay" onclick="if(event.target===this) closeImgLightbox()">
+  <button class="lightbox-close" onclick="closeImgLightbox()" aria-label="Close" title="Close">✕</button>
+  <div class="lightbox-hint" id="lightboxHint">tap image to zoom</div>
+  <div class="lightbox-scroll" id="lightboxScroll">
+    <img id="lightboxImg" class="lightbox-img" onclick="toggleLightboxZoom(event)" alt="">
+  </div>
+</div>
+
+<script>
+/* ---------------------------------------------------------
+   DATA — mock file-system: folders contain subfolders + decks
+--------------------------------------------------------- */
+let uid = 1000;
+const nextId = () => 'n' + (uid++);
+
+const IMAGE_DB_NAME = 'kardex-images';
+const IMAGE_STORE_NAME = 'images';
+const BACKUP_STORAGE_KEY = 'kardex-local-backup-v1';
+
+/* ---------------- Supabase config ----------------
+   Same project as index.html — fill in with your own values:
+   Supabase dashboard → Project Settings → API
+--------------------------------------------------- */
+const SUPABASE_URL = 'https://cvwqsxeydimszufybffv.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2d3FzeGV5ZGltc3p1ZnliZmZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1MzM4ODgsImV4cCI6MjEwMDEwOTg4OH0.Tct26EfeZDJkIrJ4lUQQg2KaQLCacLadOkdBV_R27E0';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// True once you've swapped in a real project URL/key. While false, the app
+// skips auth entirely and just runs off the local browser backup — this is
+// what stops it from redirect-looping when previewed without real credentials.
+const SUPABASE_CONFIGURED = !SUPABASE_URL.includes('YOUR-PROJECT-REF') && !SUPABASE_ANON_KEY.includes('YOUR-ANON-PUBLIC-KEY');
+
+let currentUser = null;   // set once signed in
+let accessToken = null;   // the user's Supabase access token, sent so RLS can see auth.uid()
+let imageDbPromise = null;
+
+/* ---------------- Image cloud storage (Supabase Storage) ----------------
+   Images are compressed client-side, cached locally in IndexedDB for instant
+   redraws, and mirrored to a per-user folder in this Storage bucket so any
+   signed-in device can pull them down. Requires a bucket with this name in
+   the Supabase project, with RLS policies scoping each user to their own
+   folder — see SETUP.md.
+--------------------------------------------------------- */
+const IMAGE_BUCKET = 'kardex-images';
+const IMAGE_MAX_DIM = 1600;      // longest edge, in px, after resize
+const IMAGE_QUALITY = 0.82;      // WebP/JPEG quality, 0-1
+
+// Resizes + re-encodes an image file before it's ever stored anywhere, so
+// storage and bandwidth stay cheap without the person having to think about
+// it. Falls back to the original file untouched if compression fails or
+// doesn't actually help (e.g. an already-tiny icon).
+async function compressImageForUpload(file){
+  const originalMime = file.type || 'image/png';
+  try {
+    if (!('createImageBitmap' in window)) return { blob: file, mimeType: originalMime };
+    const bitmap = await createImageBitmap(file);
+    let { width, height } = bitmap;
+    const scale = Math.min(1, IMAGE_MAX_DIM / Math.max(width, height));
+    width = Math.max(1, Math.round(width * scale));
+    height = Math.max(1, Math.round(height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    if (bitmap.close) bitmap.close();
+
+    // Prefer WebP (smaller than JPEG at equal quality); GIFs are left alone
+    // so animation isn't destroyed.
+    if (originalMime === 'image/gif') return { blob: file, mimeType: originalMime };
+    const targetMime = 'image/webp';
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, targetMime, IMAGE_QUALITY));
+    if (!blob) return { blob: file, mimeType: originalMime };
+
+    const shrankPixels = scale < 1;
+    const shrankBytes = blob.size < file.size;
+    if (shrankPixels || shrankBytes) return { blob, mimeType: targetMime };
+    return { blob: file, mimeType: originalMime }; // compression didn't actually help — keep original
+  } catch (err) {
+    console.warn('Image compression skipped, using original', err);
+    return { blob: file, mimeType: originalMime };
+  }
+}
+
+function storageExtCandidates(){
+  return ['.webp', '.jpg', '.png', '.gif', '.bin'];
+}
+
+// Fire-and-forget: mirrors a locally-cached image up to Storage so other
+// devices can find it. Safe to call repeatedly — a duplicate upload for a
+// hash that's already there is treated as a no-op, not an error.
+async function uploadImageToCloud(hash, mimeType, blob){
+  if (!currentUser || !SUPABASE_CONFIGURED) return; // local-only mode — nothing to sync to
+  try {
+    const path = `${currentUser.id}/${hash}${mimeToExtension(mimeType)}`;
+    const { error } = await supabaseClient.storage.from(IMAGE_BUCKET).upload(path, blob, {
+      contentType: mimeType,
+      upsert: false,
+      cacheControl: '31536000'
+    });
+    if (error && !/already exists|duplicate/i.test(error.message || '')){
+      console.warn('Image cloud sync failed', error);
+    }
+  } catch (err) {
+    console.warn('Image cloud sync failed', err);
+  }
+}
+
+// Used when an image hash is referenced (e.g. a card synced from another
+// device) but isn't in this browser's local IndexedDB cache yet.
+async function downloadImageFromCloud(hash){
+  if (!currentUser || !SUPABASE_CONFIGURED) return null;
+  for (const ext of storageExtCandidates()){
+    try {
+      const path = `${currentUser.id}/${hash}${ext}`;
+      const { data, error } = await supabaseClient.storage.from(IMAGE_BUCKET).download(path);
+      if (data && !error) return { blob: data, mimeType: data.type || undefined };
+    } catch (err) { /* try the next extension */ }
+  }
+  return null;
+}
+
+function requestToPromise(request){
+  return new Promise((resolve, reject)=>{
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('IndexedDB request failed'));
+  });
+}
+function openImageDb(){
+  if (imageDbPromise) return imageDbPromise;
+  imageDbPromise = new Promise((resolve, reject)=>{
+    const req = indexedDB.open(IMAGE_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IMAGE_STORE_NAME)){
+        db.createObjectStore(IMAGE_STORE_NAME, { keyPath: 'hash' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('Could not open image store'));
+  });
+  return imageDbPromise;
+}
+function readFileAsDataUrl(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read image'));
+    reader.readAsDataURL(file);
+  });
+}
+async function computeSha256(buffer){
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function storeImageFromFile(file){
+  // Compress first — everything downstream (hash, local cache, cloud
+  // upload) operates on the compressed bytes, so the full-size original
+  // never touches storage or bandwidth anywhere.
+  const { blob, mimeType } = await compressImageForUpload(file);
+  const dataUrl = await readFileAsDataUrl(blob);
+  const buffer = await blob.arrayBuffer();
+  const hash = await computeSha256(buffer);
+  const db = await openImageDb();
+  const tx = db.transaction(IMAGE_STORE_NAME, 'readwrite');
+  const store = tx.objectStore(IMAGE_STORE_NAME);
+  const existing = await requestToPromise(store.get(hash));
+  if (!existing){
+    await requestToPromise(store.put({ hash, mimeType, dataUrl }));
+  }
+  uploadImageToCloud(hash, mimeType, blob); // background — don't block the UI on network
+  return hash;
+}
+async function storeImageFromDataUrl(dataUrl, mimeType, hashOverride, opts){
+  const match = dataUrl.match(/^data:(.+);base64,(.*)$/);
+  if (!match) return null;
+  const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
+  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const hash = hashOverride || await computeSha256(buffer);
+  const resolvedMime = mimeType || match[1];
+  const db = await openImageDb();
+  const tx = db.transaction(IMAGE_STORE_NAME, 'readwrite');
+  const store = tx.objectStore(IMAGE_STORE_NAME);
+  const existing = await requestToPromise(store.get(hash));
+  if (!existing){
+    await requestToPromise(store.put({ hash, mimeType: resolvedMime, dataUrl }));
+  }
+  // skipUpload: used when we just pulled this exact image down from the
+  // cloud, so re-uploading it immediately would be a wasted round trip.
+  if (!(opts && opts.skipUpload)){
+    const blob = bytes.buffer.byteLength ? new Blob([bytes], { type: resolvedMime }) : null;
+    if (blob) uploadImageToCloud(hash, resolvedMime, blob);
+  }
+  return hash;
+}
+async function getImageRecord(hash){
+  if (!hash) return null;
+  const db = await openImageDb();
+  const tx = db.transaction(IMAGE_STORE_NAME, 'readonly');
+  const store = tx.objectStore(IMAGE_STORE_NAME);
+  return requestToPromise(store.get(hash));
+}
+async function listImageRecords(){
+  const db = await openImageDb();
+  const tx = db.transaction(IMAGE_STORE_NAME, 'readonly');
+  const store = tx.objectStore(IMAGE_STORE_NAME);
+  return requestToPromise(store.getAll());
+}
+async function resolveImageRef(ref){
+  if (!ref) return null;
+  if (typeof ref === 'string' && ref.startsWith('data:')) return ref;
+  if (typeof ref === 'string' && ref.length){
+    const record = await getImageRecord(ref);
+    if (record) return record.dataUrl;
+    // Not cached in this browser — likely a card synced in from another
+    // device. Pull the image down once from Storage, then cache it locally
+    // so every future render is instant again.
+    const cloud = await downloadImageFromCloud(ref);
+    if (!cloud) return null;
+    const dataUrl = await readFileAsDataUrl(cloud.blob);
+    const mimeType = cloud.mimeType || cloud.blob.type || 'application/octet-stream';
+    await storeImageFromDataUrl(dataUrl, mimeType, ref, { skipUpload: true }).catch(()=>{});
+    return dataUrl;
+  }
+  return null;
+}
+async function persistTextState(){
+  const payload = {
+    version: 1,
+    updatedAt: Date.now(),
+    uid,
+    tree: root,
+    reviewLog
+  };
+  localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(payload));
+  if (!currentUser || !accessToken) return; // not signed in yet — local backup only
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/kardex_state`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${accessToken}`,
+        'Prefer': 'resolution=merge-duplicates'   // upsert: insert, or overwrite this user's row
+      },
+      body: JSON.stringify({ id: currentUser.id, payload, updated_at: new Date().toISOString() })
+    });
+  } catch (err) {
+    console.warn('Supabase sync skipped', err);
+  }
+}
+function applyPersistedPayload(parsed){
+  if (!parsed || !parsed.tree) return;
+  root.name = parsed.tree.name || root.name;
+  root.children = Array.isArray(parsed.tree.children) ? parsed.tree.children : root.children;
+  root.collapsed = parsed.tree.collapsed ?? root.collapsed;
+  root.id = parsed.tree.id || root.id;
+  reviewLog = Array.isArray(parsed.reviewLog) ? parsed.reviewLog : [];
+  srsMapCache = null;
+  uid = parsed.uid || uid;
+  rebuildIndex();
+}
+async function restorePersistedState(){
+  // Signed in: try the cloud copy for this user first, since that's the
+  // source of truth across devices.
+  if (currentUser && accessToken){
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/kardex_state?id=eq.${currentUser.id}&select=payload`,
+        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${accessToken}` } }
+      );
+      if (res.ok){
+        const rows = await res.json();
+        if (rows.length && rows[0].payload){
+          applyPersistedPayload(rows[0].payload);
+          return;
+        }
+      } else {
+        console.warn('Supabase load failed', res.status, await res.text());
+      }
+    } catch (err) {
+      console.warn('Could not reach Supabase, falling back to local backup', err);
+    }
+  }
+  // Fallback (offline, first run, or Supabase unreachable): local backup.
+  try {
+    const raw = localStorage.getItem(BACKUP_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    applyPersistedPayload(parsed);
+  } catch (err) {
+    console.warn('Could not restore local backup', err);
+  }
+}
+function arrayBufferToBase64(buffer){
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary);
+}
+function mimeToExtension(mimeType){
+  if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') return '.jpg';
+  if (mimeType === 'image/png') return '.png';
+  if (mimeType === 'image/webp') return '.webp';
+  if (mimeType === 'image/gif') return '.gif';
+  return '.bin';
+}
+function collectCardIdsAndImageHashes(node, cardIds, hashes){
+  if (node.type === 'folder'){
+    node.children.forEach(c => collectCardIdsAndImageHashes(c, cardIds, hashes));
+  } else {
+    node.cards.forEach(c => {
+      cardIds.add(c.id);
+      if (c.img){
+        if (c.img.front) hashes.add(c.img.front);
+        if (c.img.back) hashes.add(c.img.back);
+      }
+    });
+  }
+}
+async function exportBackup(treeToExport){
+  const tree = treeToExport || root;
+  if (!window.JSZip){ showToast('Backup export is unavailable right now.'); return; }
+  try {
+    const cardIds = new Set();
+    const neededHashes = new Set();
+    collectCardIdsAndImageHashes(tree, cardIds, neededHashes);
+    const zip = new JSZip();
+    const imageRecords = await listImageRecords();
+    const manifestImages = [];
+    for (const record of imageRecords){
+      if (!neededHashes.has(record.hash)) continue;
+      const match = record.dataUrl.match(/^data:(.+);base64,(.*)$/);
+      if (!match) continue;
+      const mimeType = record.mimeType || match[1];
+      const ext = mimeToExtension(mimeType);
+      const fileName = `${record.hash}${ext}`;
+      const response = await fetch(record.dataUrl);
+      const blob = await response.blob();
+      zip.file(`images/${fileName}`, blob);
+      manifestImages.push({ hash: record.hash, fileName, mimeType });
+    }
+    const filteredReviewLog = reviewLog.filter(r => cardIds.has(r.cardId));
+    const snapshot = { version: 1, exportedAt: Date.now(), uid, tree, reviewLog: filteredReviewLog };
+    zip.file('snapshot.json', JSON.stringify(snapshot));
+    zip.file('manifest.json', JSON.stringify({ version: 1, exportedAt: Date.now(), imageCount: manifestImages.length, images: manifestImages }));
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `kardex-backup-${new Date().toISOString().slice(0,10)}.zip`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    showToast('Backup exported');
+  } catch (err) {
+    console.error(err);
+    showToast('Could not export backup');
+  }
+}
+
+/* --- export picker: choose which drawers/decks to include --- */
+let exportChecked = new Set();
+function collectAllNodeIds(node){
+  let ids = [node.id];
+  if (node.type === 'folder') node.children.forEach(c => { ids = ids.concat(collectAllNodeIds(c)); });
+  return ids;
+}
+function setExportState(node, checked){
+  if (checked) exportChecked.add(node.id); else exportChecked.delete(node.id);
+  if (node.type === 'folder') node.children.forEach(c => setExportState(c, checked));
+}
+function hasSelectedDescendant(node){
+  if (node.type !== 'folder') return false;
+  return node.children.some(c => exportChecked.has(c.id) || hasSelectedDescendant(c));
+}
+function openExportModal(){
+  closeCtxMenu();
+  exportChecked = new Set(collectAllNodeIds(root)); // everything selected by default
+  renderExportPicker();
+  document.getElementById('exportOverlay').classList.add('active');
+}
+function renderExportPicker(){
+  const el = document.getElementById('exportPickerTree');
+  el.innerHTML = '';
+  if (!root.children.length){
+    el.innerHTML = '<div style="padding:8px; font-size:13px; color:var(--ink-soft);">No drawers or decks yet.</div>';
+  } else {
+    root.children.forEach(child => el.appendChild(buildExportPickerNode(child)));
+  }
+  updateExportConfirmState();
+}
+function buildExportPickerNode(node){
+  const wrap = document.createElement('div');
+  const row = document.createElement('div');
+  row.className = 'export-row';
+  const checked = exportChecked.has(node.id);
+  const indeterminate = !checked && hasSelectedDescendant(node);
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = checked;
+  cb.indeterminate = indeterminate;
+  const onToggle = () => { setExportState(node, cb.checked); renderExportPicker(); };
+  cb.onchange = onToggle;
+  row.appendChild(cb);
+  const name = document.createElement('span');
+  name.className = 'ename';
+  name.textContent = node.name;
+  row.appendChild(name);
+  const kind = document.createElement('span');
+  kind.className = 'ekind';
+  kind.textContent = node.type === 'folder' ? 'drawer' : 'deck';
+  row.appendChild(kind);
+  row.onclick = (e) => { if (e.target !== cb){ cb.checked = !cb.checked; onToggle(); } };
+  wrap.appendChild(row);
+  if (node.type === 'folder' && node.children.length){
+    const childWrap = document.createElement('div');
+    childWrap.className = 'export-children';
+    node.children.forEach(k => childWrap.appendChild(buildExportPickerNode(k)));
+    wrap.appendChild(childWrap);
+  }
+  return wrap;
+}
+function selectAllExport(){ setExportState(root, true); renderExportPicker(); }
+function selectNoneExport(){ setExportState(root, false); renderExportPicker(); }
+function updateExportConfirmState(){
+  const any = root.children.some(c => exportChecked.has(c.id) || hasSelectedDescendant(c));
+  document.getElementById('exportConfirmBtn').disabled = !any;
+  document.getElementById('exportEmptyNote').classList.toggle('show', !any);
+}
+function filterTreeForExport(node){
+  if (node.type === 'deck'){
+    return exportChecked.has(node.id) ? node : null;
+  }
+  const keptChildren = node.children.map(filterTreeForExport).filter(Boolean);
+  if (exportChecked.has(node.id) || keptChildren.length){
+    return { ...node, children: keptChildren };
+  }
+  return null;
+}
+async function confirmExportSelection(){
+  const any = root.children.some(c => exportChecked.has(c.id) || hasSelectedDescendant(c));
+  if (!any) return;
+  const filteredRoot = filterTreeForExport(root) || { ...root, children: [] };
+  closeModal('exportOverlay');
+  await exportBackup(filteredRoot);
+}
+function cloneImportedNode(node, nodeIdMap, cardIdMap){
+  if (node.type === 'folder'){
+    const clone = folder(node.name, []);
+    nodeIdMap.set(node.id, clone.id);
+    clone.collapsed = !!node.collapsed;
+    (node.children || []).forEach(child => clone.children.push(cloneImportedNode(child, nodeIdMap, cardIdMap)));
+    return clone;
+  }
+  const clone = deck(node.name, []);
+  nodeIdMap.set(node.id, clone.id);
+  (node.cards || []).forEach(cardItem => {
+    const nc = card(cardItem.f, cardItem.b, cardItem.tags || []);
+    nc.type = cardItem.type || 'basic';
+    nc.clozeSource = cardItem.clozeSource || null;
+    nc.starred = !!cardItem.starred;
+    nc.starredAt = cardItem.starredAt || null;
+    nc.createdAt = cardItem.createdAt || Date.now();
+    nc.img = { front: cardItem.img ? cardItem.img.front : null, back: cardItem.img ? cardItem.img.back : null };
+    cardIdMap.set(cardItem.id, nc.id);
+    clone.cards.push(nc);
+  });
+  return clone;
+}
+function remapImportedLinks(node, cardIdMap){
+  if (!node) return;
+  if (node.type === 'folder'){
+    (node.children || []).forEach(child => remapImportedLinks(child, cardIdMap));
+    return;
+  }
+  if (node.type !== 'deck') return;
+  node.cards.forEach(cardItem => {
+    cardItem.links = (cardItem.links || []).map(id => cardIdMap.get(id) || id);
+  });
+  (node.children || []).forEach(child => remapImportedLinks(child, cardIdMap));
+}
+async function importBackup(file){
+  if (!window.JSZip){ showToast('Backup import is unavailable right now.'); return; }
+  try {
+    const zip = await JSZip.loadAsync(file);
+    const manifest = JSON.parse(await zip.file('manifest.json').async('text'));
+    const snapshot = JSON.parse(await zip.file('snapshot.json').async('text'));
+    const imageEntries = Array.isArray(manifest.images) ? manifest.images : [];
+    for (const entry of imageEntries){
+      const imageFile = zip.file(`images/${entry.fileName}`);
+      if (!imageFile) continue;
+      const arrayBuffer = await imageFile.async('arraybuffer');
+      const hash = await computeSha256(arrayBuffer);
+      if (hash !== entry.hash) throw new Error('Image hash mismatch');
+      const mimeType = entry.mimeType || 'application/octet-stream';
+      const dataUrl = `data:${mimeType};base64,${arrayBufferToBase64(arrayBuffer)}`;
+      await storeImageFromDataUrl(dataUrl, mimeType, hash);
+    }
+    const importedFolder = folder(`Imported backup ${new Date().toLocaleString()}`, []);
+    const nodeIdMap = new Map();
+    const cardIdMap = new Map();
+    (snapshot.tree && snapshot.tree.children ? snapshot.tree.children : []).forEach(child => {
+      importedFolder.children.push(cloneImportedNode(child, nodeIdMap, cardIdMap));
+    });
+    remapImportedLinks(importedFolder, cardIdMap);
+    root.children.push(importedFolder);
+    reviewLog = [...reviewLog, ...(snapshot.reviewLog || []).map(entry => ({ ...entry, cardId: cardIdMap.get(entry.cardId) || entry.cardId }))];
+    srsMapCache = null;
+    uid = Math.max(uid, (snapshot.uid || uid) + 1);
+    rebuildIndex();
+    closeModal('deckOverlay');
+    persistTextState();
+    render();
+    showToast('Backup imported');
+  } catch (err) {
+    console.error(err);
+    showToast('Could not import backup');
+  }
+}
+async function onBackupFileChosen(e){
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  await importBackup(file);
+  e.target.value = '';
+}
+
+function card(f,b,tags=[]){
+  return { id: nextId(), f, b, tags, starred:false, starredAt:null,
+    type:'basic',            // 'basic' | 'cloze'
+    clozeSource:null,        // raw authored text for cloze cards, e.g. "The [[median]] nerve is compressed…"
+    img:{ front:null, back:null }, // data URLs
+    links:[],                // ids of related "see also" cards, kept bidirectional
+    createdAt: Date.now()    // when this card was added — powers the "added today" home stat
+  };
+}
+/* Turns "The [[median]] nerve…" into a blanked front and an answer-revealed back. */
+function clozeToFB(source){
+  const m = source.match(/\[\[(.+?)\]\]/);
+  if (!m) return { f: source, b: source };
+  const answer = m[1];
+  const f = source.slice(0, m.index) + '▁▁▁▁▁' + source.slice(m.index + m[0].length);
+  const b = source.slice(0, m.index) + '==' + answer + '==' + source.slice(m.index + m[0].length);
+  return { f, b };
+}
+function findCardAnywhere(id){
+  const entry = cardIndex.get(id);
+  return entry ? entry.card : null;
+}
+function gatherAllCardsWithLocation(){
+  return cardIndexList;
+}
+function truncate(str, n){ return (str||'').length > n ? str.slice(0, n-1)+'…' : (str||''); }
+/* Strip bold/underline/italic/highlight markup for plain-text previews (list rows) instead of rendering it */
+function stripMarkup(str){
+  return (str||'').replace(/\*\*(.+?)\*\*/g,'$1').replace(/__(.+?)__/g,'$1').replace(/\*(.+?)\*/g,'$1').replace(/==(.+?)==/g,'$1');
+}
+let mockStarSeq = 0;
+function star(c){ c.starred = true; c.starredAt = Date.now() - (mockStarSeq++) * 3600*1000; return c; }
+function deck(name, cards){ return { id: nextId(), type:'deck', name, cards, lastStudied: pickDate(), sessions: [] }; }
+function folder(name, children){ return { id: nextId(), type:'folder', name, children, collapsed:false }; }
+
+function pickDate(){
+  const opts = ['2 days ago','yesterday','today','5 days ago','a week ago', null];
+  return opts[Math.floor(Math.random()*opts.length)];
+}
+
+/* Default tree for a brand-new user: a single Welcome drawer with a short
+   tutorial deck. Once someone has actually saved data (locally or in
+   Supabase), restorePersistedState() overwrites all of this. */
+const root = folder('Kardex', [
+  folder('Welcome', [
+    deck('Welcome to Kardex', [
+      card('How do I organize my cards?', 'Cards live in decks, and decks live in drawers — just like a real card catalog. Use **+ Drawer** to make a topic folder, then **+ Deck** inside it to add a set of cards.'),
+      card('How do I add a card by hand?', 'Open a deck and click **+ Add card**. You get a normal form: a **Front** field, a **Back** field, an optional **Tags** field, and an image slot for each side — drag a file in, click to browse, or paste an image straight from your clipboard.'),
+      card('Can I format the text on a card?', 'Yes — select any text in the Front or Back box and use the **B / I / U / H** buttons just above it to bold, italicize, underline, or highlight it. It works by wrapping your selection in plain markers (like **this**), so it plays nicely with your phone\'s own copy/paste menu instead of fighting it.'),
+      card('What are tags for?', 'Tags are free-form labels — add a few comma-separated words in the **Tags** field (e.g. "anatomy, upper-limb") to help you search and group related cards later.'),
+      card('What is a cloze card?', 'Switch the **Cloze (fill-blank)** tab when adding a card, then wrap the part you want hidden in [[double brackets]] — e.g. "The [[median]] nerve is compressed in carpal tunnel syndrome." Kardex turns that into a fill-in-the-blank automatically.'),
+      card('Can I add a lot of cards at once?', 'Yes — when starting a new deck, choose the **Paste / upload** tab instead of typing cards one by one. Paste or upload a block of Markdown or JSON formatted cards, and Kardex creates them all in one go. Open **Settings** (the gear icon) to see the exact Markdown and JSON formats, with a Copy button for each.'),
+      card('How do I study a deck?', 'Open a deck and click **Study**. Flip each card, then grade it "Got it" or "Review again" — Kardex tracks your speed and accuracy over time.'),
+      card('How do I flag a tricky card?', 'Tap the star while studying (or on any card) to pin it. Starred cards show up in the **Starred** drawer, so you can drill just your weak spots.'),
+      card('What happens to my tough cards?', 'After a study session, Kardex offers to **redo tough cards** — the ones you marked "Review again" — so you can reinforce them right away.'),
+      card('Ready to make this yours?', 'Delete this Welcome drawer whenever you like, then use **+ Drawer** and **+ Deck** to start building your own card index. Good luck studying!'),
+    ]),
+  ]),
+]);
+
+/* ---------------------------------------------------------
+   INDEX — O(1) lookups for nodes, parents, and cards, instead of
+   walking the whole tree on every call. Rebuilt after any structural
+   change (add/delete/move/copy/import); editing a card's own fields
+   in place does NOT require a rebuild, since the index stores direct
+   references into the same tree objects.
+--------------------------------------------------------- */
+let nodeIndex = new Map();    // id -> folder|deck node
+let parentIndex = new Map();  // id -> parent folder node (root has none)
+let cardIndex = new Map();    // card id -> { card, deck, pathLabel }
+let cardIndexList = [];       // cached Array.from(cardIndex.values())
+
+function rebuildIndex(){
+  nodeIndex = new Map();
+  parentIndex = new Map();
+  cardIndex = new Map();
+  nodeIndex.set(root.id, root);
+  (function walk(node, pathLabel){
+    node.children.forEach(c=>{
+      nodeIndex.set(c.id, c);
+      parentIndex.set(c.id, node);
+      if (c.type==='folder') walk(c, pathLabel ? pathLabel+' / '+c.name : c.name);
+      else c.cards.forEach(cd => cardIndex.set(cd.id, { card: cd, deck: c, pathLabel }));
+    });
+  })(root, '');
+  cardIndexList = Array.from(cardIndex.values());
+}
+
+rebuildIndex(); // build the lookup indexes for the initial tree above
+
+/* ---------------------------------------------------------
+   REVIEW LOG — every graded card (good/again) lands here as
+   { cardId, ts, good }. Powers the home-screen stats: reviews
+   today, accuracy on starred cards, and which topic needs the
+   most re-review based on "again" presses. Starts empty for a
+   new user — gradeCard() appends real entries as they study.
+--------------------------------------------------------- */
+let reviewLog = [];
+
+const state = {
+  currentPath: [root.id],   // array of folder ids from root
+  search: '',
+  studying: null,           // { deck, order, pos, flipped, toughIds, times, cardStartTs, isRealDeck, logSession }
+  viewingStarred: false,
+  starredSort: 'subject',   // 'subject' | 'recent'
+  starredFilter: '',
+  starredCollapsed: new Set(), // deck ids collapsed in the starred drawer
+  managingDeckId: null,     // set while browsing/editing a deck's cards
+  clipboard: null,          // { id, mode: 'copy' | 'cut' }
+  peekStack: [],            // saved study sessions, pushed when following a "see also" link mid-study
+  homeStatsExpanded: false, // mobile dashboard: stat cards collapsed to one row by default
+};
+
+/* ---------------------------------------------------------
+   HELPERS
+--------------------------------------------------------- */
+function findFolder(path){
+  let node = root;
+  for (let i=1;i<path.length;i++){
+    node = node.children.find(c => c.id === path[i] && c.type==='folder');
+    if (!node) return null;
+  }
+  return node;
+}
+function nodeById(id){
+  return nodeIndex.get(id) || null;
+}
+function parentOf(id){
+  return parentIndex.get(id) || null;
+}
+function countDecksCards(folderNode){
+  let decks=0, cards=0;
+  (function walk(n){
+    n.children.forEach(c=>{
+      if (c.type==='folder') walk(c);
+      else { decks++; cards+=c.cards.length; }
+    });
+  })(folderNode);
+  return {decks, cards};
+}
+function gatherStarred(){
+  const results = [];
+  (function walk(node, pathLabel){
+    node.children.forEach(c=>{
+      if (c.type==='folder') walk(c, pathLabel ? pathLabel+' / '+c.name : c.name);
+      else c.cards.forEach(cd=>{ if (cd.starred) results.push({ card: cd, deck: c, pathLabel }); });
+    });
+  })(root, '');
+  return results;
+}
+function fmtTime(seconds){
+  if (seconds < 60) return Math.round(seconds)+'s';
+  const m = Math.floor(seconds/60), s = Math.round(seconds%60);
+  return m+':'+String(s).padStart(2,'0');
+}
+
+/* ---------------------------------------------------------
+   HOME STATS — derived live from cardIndexList + reviewLog,
+   never stored separately, so they can't drift out of sync.
+--------------------------------------------------------- */
+function isToday(ts){
+  if (!ts) return false;
+  const d = new Date(ts), n = new Date();
+  return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
+}
+function cardsAddedToday(){
+  return cardIndexList.filter(i => isToday(i.card.createdAt)).length;
+}
+function reviewsToday(){
+  return reviewLog.filter(r => isToday(r.ts)).length;
+}
+/* Accuracy across every logged review of a currently-starred card. */
+function starredAccuracy(){
+  const relevant = reviewLog.filter(r => {
+    const entry = cardIndex.get(r.cardId);
+    return entry && entry.card.starred;
+  });
+  if (!relevant.length) return null;
+  const good = relevant.filter(r => r.good).length;
+  return Math.round((good/relevant.length)*100);
+}
+/* Deck with the most "again" presses in the last 14 days — the topic most worth revisiting. */
+function focusTopic(){
+  const DAY = 24*3600*1000;
+  const cutoff = Date.now() - 14*DAY;
+  const counts = new Map(); // deckId -> {deck, pathLabel, count}
+  reviewLog.forEach(r => {
+    if (r.good || r.ts < cutoff) return;
+    const entry = cardIndex.get(r.cardId);
+    if (!entry) return;
+    const key = entry.deck.id;
+    const cur = counts.get(key) || { deck: entry.deck, pathLabel: entry.pathLabel, count: 0 };
+    cur.count++;
+    counts.set(key, cur);
+  });
+  let best = null;
+  counts.forEach(v => { if (!best || v.count > best.count) best = v; });
+  return best;
+}
+
+/* ---------------------------------------------------------
+   SPACED REPETITION — simplified SM-2. Deliberately NOT stored
+   as a field on cards; "due-ness" is derived live from reviewLog,
+   same philosophy as the home stats above so it can never drift
+   out of sync with what was actually studied. A card with no
+   review history is due immediately (new cards start "due today").
+
+   Our study buttons are binary (Again/Good), so they map onto
+   SM-2's 0–5 quality scale as q=2 and q=5 rather than exposing
+   a graded slider — keeps the UI simple while using the real
+   formula underneath.
+
+   Cached per computation and invalidated (srsMapCache = null)
+   anywhere reviewLog changes, so repeated reads within the same
+   render (e.g. one per deck tile) don't each re-walk the log.
+--------------------------------------------------------- */
+let srsMapCache = null;
+function computeAllSRS(){
+  const DAY = 24*3600*1000;
+  const byCard = new Map();
+  reviewLog.forEach(r=>{
+    if (!byCard.has(r.cardId)) byCard.set(r.cardId, []);
+    byCard.get(r.cardId).push(r);
+  });
+  const srsByCard = new Map();
+  byCard.forEach((entries, cardId)=>{
+    entries.sort((a,b)=>a.ts-b.ts);
+    let ease = 2.5, interval = 0, reps = 0, dueDate = 0;
+    entries.forEach(r=>{
+      const q = r.good ? 5 : 2;
+      ease = Math.max(1.3, ease + (0.1 - (5-q)*(0.08+(5-q)*0.02)));
+      if (!r.good){
+        reps = 0;
+        interval = 0; // failed → due again immediately (same day)
+      } else {
+        if (reps === 0) interval = 1;
+        else if (reps === 1) interval = 6;
+        else interval = Math.round(interval * ease);
+        reps += 1;
+      }
+      dueDate = r.ts + interval*DAY;
+    });
+    srsByCard.set(cardId, { ease, interval, reps, dueDate });
+  });
+  return srsByCard;
+}
+function getSRSMap(){
+  if (!srsMapCache) srsMapCache = computeAllSRS();
+  return srsMapCache;
+}
+function isCardDue(cardId, srsMap){
+  const s = (srsMap || getSRSMap()).get(cardId);
+  return !s || s.dueDate <= Date.now();
+}
+function dueCount(){
+  const srsMap = getSRSMap();
+  return cardIndexList.filter(i => isCardDue(i.card.id, srsMap)).length;
+}
+function studyDueCards(){
+  const srsMap = getSRSMap();
+  const due = cardIndexList.filter(i => isCardDue(i.card.id, srsMap)).map(i => i.card);
+  if (!due.length){ showToast('Nothing due right now — nice work staying on top of it.'); return; }
+  startStudy({ id:'due-'+nextId(), name:'Due Today', cards: due }, { real:false });
+}
+
+/* ---------------------------------------------------------
+   SIDEBAR TREE RENDER
+--------------------------------------------------------- */
+function renderTree(){
+  const el = document.getElementById('tree');
+  el.innerHTML = '';
+  el.appendChild(renderTreeNode(root, [root.id]));
+}
+function renderTreeNode(node, path){
+  const wrap = document.createElement('div');
+  wrap.className = 'tnode' + (node.collapsed ? ' collapsed' : '');
+
+  const row = document.createElement('div');
+  const isActive = !state.viewingStarred && path.join('/') === state.currentPath.join('/');
+  row.className = 'trow' + (isActive ? ' active':'');
+  const {decks} = countDecksCards(node);
+
+  row.innerHTML = `
+    <span class="caret">${node.children.some(c=>c.type==='folder') ? '▾' : ''}</span>
+    <span class="tab-ico"></span>
+    <span class="tname">${escapeHtml(node.name)}</span>
+    <span class="tcount">${decks}</span>
+    <button class="kebab-btn" title="More">⋮</button>
+  `;
+  row.querySelector('.kebab-btn').onclick = (e)=>{ e.stopPropagation(); openCtxMenu(e, node.id); };
+  row.onclick = (e)=>{
+    if (e.target.closest('.caret') && node.children.some(c=>c.type==='folder')){
+      node.collapsed = !node.collapsed;
+      renderTree();
+      return;
+    }
+    state.currentPath = path;
+    state.viewingStarred = false;
+    state.managingDeckId = null;
+    closeSidebar();
+    render();
+  };
+  // drag target for moving decks/folders in
+  row.ondragover = (e)=>{ e.preventDefault(); row.classList.add('dragover'); };
+  row.ondragleave = ()=> row.classList.remove('dragover');
+  row.ondrop = (e)=>{
+    e.preventDefault(); row.classList.remove('dragover');
+    const draggedId = e.dataTransfer.getData('text/plain');
+    moveItem(draggedId, node.id);
+  };
+  wrap.appendChild(row);
+
+  const kids = node.children.filter(c=>c.type==='folder');
+  if (kids.length){
+    const childWrap = document.createElement('div');
+    childWrap.className = 'children';
+    kids.forEach(k => childWrap.appendChild(renderTreeNode(k, [...path, k.id])));
+    wrap.appendChild(childWrap);
+  }
+  return wrap;
+}
+
+/* ---------------------------------------------------------
+   MOVE (drag & drop)
+--------------------------------------------------------- */
+function moveItem(itemId, targetFolderId){
+  if (!itemId || itemId===targetFolderId) return;
+  const item = nodeById(itemId);
+  const target = nodeById(targetFolderId);
+  if (!item || !target || target.type!=='folder') return;
+  // prevent dropping a folder into itself or one of its own descendants
+  if (item.type==='folder' && isInvalidMoveTarget(item, target)) return;
+  const oldParent = parentOf(item.id);
+  if (!oldParent || oldParent.id === target.id) return;
+  oldParent.children = oldParent.children.filter(c=>c.id!==item.id);
+  target.children.push(item);
+  rebuildIndex();
+  // If you're currently browsing inside the folder that just moved (or the
+  // folder itself), the breadcrumb path no longer traces an unbroken
+  // parent->child chain from root, since findFolder() walks the tree by
+  // ancestry rather than by id. Rebuild the path from the item's new
+  // location, keeping whatever deeper segments are still valid under it.
+  const idx = state.currentPath.indexOf(itemId);
+  if (idx !== -1){
+    const tail = state.currentPath.slice(idx + 1);
+    state.currentPath = pathToNode(itemId).concat(tail);
+  }
+  render();
+}
+function pathToNode(id){
+  const path = [id];
+  let p = parentOf(id);
+  while (p){ path.unshift(p.id); p = parentOf(p.id); }
+  return path;
+}
+function isInvalidMoveTarget(item, destFolder){
+  if (item.id === destFolder.id) return true;
+  if (item.type !== 'folder') return false;
+  let invalid = false;
+  (function chk(node){
+    if (node.id === destFolder.id) invalid = true;
+    if (node.children) node.children.forEach(chk);
+  })(item);
+  return invalid;
+}
+
+/* ---------------------------------------------------------
+   BREADCRUMBS + CONTENT RENDER
+--------------------------------------------------------- */
+function renderCrumbs(){
+  const el = document.getElementById('crumbs');
+  el.innerHTML = '';
+  state.currentPath.forEach((id, i)=>{
+    const n = nodeById(id);
+    const span = document.createElement('span');
+    span.className = 'crumb' + (i===state.currentPath.length-1 ? ' current':'');
+    span.textContent = n.name;
+    span.onclick = ()=>{ state.currentPath = state.currentPath.slice(0,i+1); state.viewingStarred=false; state.managingDeckId=null; render(); };
+    el.appendChild(span);
+    if (i < state.currentPath.length-1){
+      const sep = document.createElement('span');
+      sep.className='sep'; sep.textContent='/';
+      el.appendChild(sep);
+    }
+  });
+}
+
+function viewStarred(){
+  state.viewingStarred = true;
+  state.managingDeckId = null;
+  state.search = '';
+  document.getElementById('searchInput').value = '';
+  closeSidebar();
+  render();
+}
+
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarBackdrop').classList.toggle('active');
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarBackdrop').classList.remove('active');
+}
+
+function renderCrumbsStarred(){
+  const el = document.getElementById('crumbs');
+  el.innerHTML = `<span class="crumb current">★ Starred</span>`;
+}
+
+function renderStarredContent(){
+  const el = document.getElementById('content');
+  el.innerHTML = '';
+  const allItems = gatherStarred();
+
+  if (!allItems.length){
+    el.innerHTML = `<div class="empty">
+      <div class="stamp">no starred cards yet</div>
+      <p class="mono" style="margin-top:16px; font-size:12.5px;">Tap the star on any card while studying to pin it here.</p>
+    </div>`;
+    return;
+  }
+
+  const header = document.createElement('div');
+  header.className = 'starred-header';
+  header.innerHTML = `<div class="section-label" style="margin:0;">${allItems.length} starred card${allItems.length!==1?'s':''}</div>`;
+  const studyBtn = document.createElement('button');
+  studyBtn.className = 'action-btn primary';
+  studyBtn.textContent = 'Study all starred';
+  studyBtn.onclick = ()=> startStudy({ id:'starred', name:'Starred', cards: allItems.map(i=>i.card) }, { real:false });
+  header.appendChild(studyBtn);
+  el.appendChild(header);
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'starred-toolbar';
+  toolbar.innerHTML = `
+    <div class="starred-filter">
+      <input type="text" placeholder="Filter starred cards…" value="${escapeHtml(state.starredFilter)}" oninput="onStarredFilter(this.value)">
+    </div>
+    <div class="sort-toggle">
+      <button class="${state.starredSort==='subject'?'active':''}" onclick="setStarredSort('subject')">By subject</button>
+      <button class="${state.starredSort==='recent'?'active':''}" onclick="setStarredSort('recent')">Recently starred</button>
+    </div>`;
+  el.appendChild(toolbar);
+
+  const q = state.starredFilter.trim().toLowerCase();
+  const items = q ? allItems.filter(i =>
+    i.card.f.toLowerCase().includes(q) ||
+    i.card.b.toLowerCase().includes(q) ||
+    i.deck.name.toLowerCase().includes(q) ||
+    i.pathLabel.toLowerCase().includes(q)
+  ) : allItems;
+
+  if (!items.length){
+    el.innerHTML += `<div class="empty" style="margin-top:30px;"><div class="stamp">no matches</div></div>`;
+    return;
+  }
+
+  if (state.starredSort === 'recent'){
+    const sorted = [...items].sort((a,b)=> (b.card.starredAt||0) - (a.card.starredAt||0));
+    const list = document.createElement('div');
+    list.className = 'starred-list';
+    sorted.forEach(i => list.appendChild(starredItemRow(i)));
+    el.appendChild(list);
+    return;
+  }
+
+  // group by subject (deck), sections sorted alphabetically by full path
+  const groups = new Map();
+  items.forEach(i=>{
+    if (!groups.has(i.deck.id)) groups.set(i.deck.id, { deck:i.deck, pathLabel:i.pathLabel, items:[] });
+    groups.get(i.deck.id).items.push(i);
+  });
+  const sortedGroups = [...groups.values()].sort((a,b)=>
+    (a.pathLabel+' / '+a.deck.name).toLowerCase().localeCompare((b.pathLabel+' / '+b.deck.name).toLowerCase())
+  );
+
+  sortedGroups.forEach(g=>{
+    const collapsed = state.starredCollapsed.has(g.deck.id);
+    const groupEl = document.createElement('div');
+    groupEl.className = 'starred-group' + (collapsed ? ' collapsed' : '');
+
+    const headerEl = document.createElement('div');
+    headerEl.className = 'starred-group-header';
+    headerEl.innerHTML = `
+      <span class="caret">▾</span>
+      <span class="starred-group-title">${escapeHtml(g.deck.name)}</span>
+      <span class="starred-group-path mono">${escapeHtml(g.pathLabel)}</span>
+      <span class="starred-group-count mono">${g.items.length}</span>
+      <button class="mini-btn study-group-btn">Study</button>
+    `;
+    headerEl.onclick = (e)=>{
+      if (e.target.closest('.study-group-btn')) return;
+      if (state.starredCollapsed.has(g.deck.id)) state.starredCollapsed.delete(g.deck.id);
+      else state.starredCollapsed.add(g.deck.id);
+      renderStarredContent();
+    };
+    headerEl.querySelector('.study-group-btn').onclick = (e)=>{
+      e.stopPropagation();
+      startStudy({ id:'starred-'+g.deck.id, name: g.deck.name + ' — starred', cards: g.items.map(i=>i.card) }, { real:false });
+    };
+    groupEl.appendChild(headerEl);
+
+    const list = document.createElement('div');
+    list.className = 'starred-list';
+    g.items.forEach(i => list.appendChild(starredItemRow(i)));
+    groupEl.appendChild(list);
+
+    el.appendChild(groupEl);
+  });
+}
+
+function starredItemRow(i){
+  const { card: cd, deck: dk, pathLabel } = i;
+  const row = document.createElement('div');
+  row.className = 'starred-item';
+  row.innerHTML = `
+    <button class="unstar-btn" title="Unstar">★</button>
+    <div class="si-text">
+      <div class="si-front">${escapeHtml(cd.f)}</div>
+      <div class="si-path mono">${escapeHtml(pathLabel)} / ${escapeHtml(dk.name)}</div>
+    </div>`;
+  row.querySelector('.unstar-btn').onclick = ()=>{ cd.starred = false; renderStarredContent(); updateStarredCount(); };
+  return row;
+}
+
+function onStarredFilter(v){ state.starredFilter = v; renderStarredContent(); }
+function setStarredSort(s){ state.starredSort = s; renderStarredContent(); }
+
+function updateStarredCount(){
+  document.getElementById('starredCount').textContent = gatherStarred().length;
+}
+
+/* ---------------------------------------------------------
+   MANAGE CARDS — browse/edit/delete a single deck's cards
+--------------------------------------------------------- */
+function openCardManager(deckId){
+  closeCtxMenu();
+  state.managingDeckId = deckId;
+  state.viewingStarred = false;
+  closeSidebar();
+  render();
+}
+function renderManageCards(){
+  const deck = nodeById(state.managingDeckId);
+  if (!deck || deck.type!=='deck'){ state.managingDeckId = null; render(); return; }
+
+  const crumbsEl = document.getElementById('crumbs');
+  crumbsEl.innerHTML = `<span class="crumb" onclick="state.managingDeckId=null; render();">${escapeHtml(deck.name)}</span><span class="sep">/</span><span class="crumb current">Manage cards</span>`;
+
+  const el = document.getElementById('content');
+  el.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.className = 'starred-header';
+  header.innerHTML = `<div class="section-label" style="margin:0;">${deck.cards.length} card${deck.cards.length!==1?'s':''}</div>`;
+  const addBtn = document.createElement('button');
+  addBtn.className = 'action-btn primary';
+  addBtn.textContent = '+ Add card';
+  addBtn.onclick = ()=> openCardEditor(deck.id, null);
+  header.appendChild(addBtn);
+  el.appendChild(header);
+
+  if (!deck.cards.length){
+    el.innerHTML += `<div class="empty" style="margin-top:20px;"><div class="stamp">no cards yet</div>
+      <p class="mono" style="margin-top:16px; font-size:12.5px;">Add your first card to start this deck.</p></div>`;
+    return;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'manage-card-list';
+  deck.cards.forEach(c=>{
+    const badges = [];
+    if (c.type === 'cloze') badges.push('<span class="mc-badge">cloze</span>');
+    if (c.img && (c.img.front || c.img.back)) badges.push('<span class="mc-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1.5px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>');
+    if (c.links && c.links.length) badges.push(`<span class="mc-badge">⛓ ${c.links.length}</span>`);
+
+    const row = document.createElement('div');
+    row.className = 'manage-card-item';
+    row.innerHTML = `
+      <div class="mc-text">
+        <div class="mc-front">${escapeHtml(truncate(stripMarkup(c.f), 70))}</div>
+        <div class="mc-back mono">${escapeHtml(truncate(stripMarkup(c.b), 70))}</div>
+      </div>
+      <div class="mc-badges">${badges.join('')}</div>
+      <button class="mini-btn mc-edit-btn">Edit</button>
+      <button class="unstar-btn mc-del-btn" title="Delete card">✕</button>
+    `;
+    row.querySelector('.mc-edit-btn').onclick = ()=> openCardEditor(deck.id, c.id);
+    row.querySelector('.mc-del-btn').onclick = ()=> confirmDeleteCard(deck.id, c.id);
+    list.appendChild(row);
+  });
+  el.appendChild(list);
+}
+
+/* --- delete a single card --- */
+let cardDeleteTarget = null;
+function confirmDeleteCard(deckId, cardId){
+  const deck = nodeById(deckId);
+  const c = deck && deck.cards.find(cc=>cc.id===cardId);
+  cardDeleteTarget = { deckId, cardId };
+  document.getElementById('cardDeleteMsg').textContent = c
+    ? `Delete this card? "${truncate(c.f, 60)}"`
+    : 'Delete this card?';
+  document.getElementById('cardDeleteOverlay').classList.add('active');
+}
+function doDeleteCard(){
+  if (!cardDeleteTarget) return;
+  const deck = nodeById(cardDeleteTarget.deckId);
+  const removedId = cardDeleteTarget.cardId;
+  if (deck){
+    // strip this card from any other card's "see also" links before removing it
+    cardIndexList.forEach(({card:cd})=>{ if (cd.links) cd.links = cd.links.filter(l=>l!==removedId); });
+    deck.cards = deck.cards.filter(c=>c.id!==removedId);
+    rebuildIndex();
+    persistTextState();
+    showToast('Card deleted');
+  }
+  closeModal('cardDeleteOverlay');
+  cardDeleteTarget = null;
+  updateStarredCount();
+  if (state.managingDeckId) renderManageCards();
+}
+
+/* ---------------------------------------------------------
+   CARD EDITOR — add/edit a single card: basic or cloze, images, links
+--------------------------------------------------------- */
+let cardEditorState = null; // { deckId, cardId, type, imgFront, imgBack, links, prevLinks }
+
+function openCardEditor(deckId, cardId){
+  const deck = nodeById(deckId);
+  if (!deck) return;
+  closeCtxMenu();
+
+  let type='basic', front='', back='', clozeSource='', imgFront=null, imgBack=null, links=[], tags=[];
+  if (cardId){
+    const c = deck.cards.find(cc=>cc.id===cardId);
+    if (c){
+      type = c.type || 'basic';
+      front = c.f; back = c.b;
+      clozeSource = c.clozeSource || '';
+      imgFront = c.img ? c.img.front : null;
+      imgBack = c.img ? c.img.back : null;
+      links = c.links ? [...c.links] : [];
+      tags = c.tags ? [...c.tags] : [];
+    }
+  }
+  cardEditorState = { deckId, cardId, type, imgFront, imgBack, links, prevLinks:[...links] };
+
+  document.getElementById('cardEditorTitle').textContent = cardId ? 'Edit card' : 'Add card';
+  document.getElementById('deleteFromEditorBtn').style.display = cardId ? 'inline-flex' : 'none';
+  document.getElementById('saveAddAnotherBtn').style.display = cardId ? 'none' : 'inline-flex';
+  document.getElementById('editFront').value = front;
+  document.getElementById('editBack').value = back;
+  document.getElementById('editCloze').value = clozeSource;
+  document.getElementById('editTags').value = tags.join(', ');
+  ['editFront','editBack','editCloze'].forEach(id=> document.getElementById(id).classList.remove('input-error'));
+
+  setCardEditorMode(type);
+  onClozeInput();
+  renderCardEditorImages();
+  renderCardEditorLinks();
+
+  document.getElementById('cardEditorOverlay').classList.add('active');
+  setTimeout(()=> document.getElementById(type==='cloze' ? 'editCloze' : 'editFront').focus(), 50);
+}
+function setCardEditorMode(mode){
+  cardEditorState.type = mode;
+  document.getElementById('tabCardBasic').classList.toggle('active', mode==='basic');
+  document.getElementById('tabCardCloze').classList.toggle('active', mode==='cloze');
+  document.getElementById('basicPane').style.display = mode==='basic' ? 'flex' : 'none';
+  document.getElementById('clozePane').style.display = mode==='cloze' ? 'block' : 'none';
+}
+function closeCardEditor(){
+  closeModal('cardEditorOverlay');
+  cardEditorState = null;
+}
+function deleteFromEditor(){
+  if (!cardEditorState || !cardEditorState.cardId) return;
+  const { deckId, cardId } = cardEditorState;
+  closeModal('cardEditorOverlay');
+  cardEditorState = null;
+  confirmDeleteCard(deckId, cardId);
+}
+
+/* --- cloze live preview --- */
+function onClozeInput(){
+  const source = document.getElementById('editCloze').value;
+  const { f, b } = clozeToFB(source || '');
+  document.getElementById('clozePreviewFront').innerHTML = formatInlineMarkdown(f);
+  document.getElementById('clozePreviewBack').innerHTML = formatInlineMarkdown(b);
+}
+
+/* --- formatting toolbar: wraps the current selection in a textarea with
+   marker characters (**bold**, *italic*, __underline__, ==highlight==) —
+   the same markers formatInlineMarkdown() already renders at study time.
+   Works off selectionStart/selectionEnd rather than any native browser
+   formatting API, so it plays fine alongside a phone's own selection
+   handles/copy-paste menu instead of fighting them. If nothing is selected,
+   it drops an empty pair of markers and places the cursor between them so
+   you can just start typing. --- */
+function wrapSelection(textareaId, prefix, suffix){
+  const el = document.getElementById(textareaId);
+  if (!el) return;
+  const start = el.selectionStart, end = el.selectionEnd;
+  const value = el.value;
+  const selected = value.slice(start, end);
+  const already = selected.startsWith(prefix) && selected.endsWith(suffix) && selected.length >= prefix.length + suffix.length;
+  let newValue, selStart, selEnd;
+  if (already){
+    // toggle off if the selection already carries this exact marker
+    const inner = selected.slice(prefix.length, selected.length - suffix.length);
+    newValue = value.slice(0, start) + inner + value.slice(end);
+    selStart = start; selEnd = start + inner.length;
+  } else {
+    newValue = value.slice(0, start) + prefix + selected + suffix + value.slice(end);
+    selStart = start + prefix.length;
+    selEnd = selStart + selected.length;
+  }
+  el.value = newValue;
+  el.focus();
+  el.setSelectionRange(selStart, selEnd);
+  el.dispatchEvent(new Event('input', { bubbles: true })); // e.g. keeps the cloze preview in sync
+}
+
+/* --- images: file picker or paste, per face --- */
+function triggerImgPick(face){
+  const input = document.getElementById('fileInput_'+face);
+  if (input) input.click();
+}
+async function onEditImageChosen(e, face){
+  const file = e.target.files && e.target.files[0];
+  if (!file || !file.type || !file.type.startsWith('image/')) return;
+  try {
+    const hash = await storeImageFromFile(file);
+    if (face==='cloze'){ cardEditorState.imgFront = hash; cardEditorState.imgBack = hash; }
+    else if (face==='front') cardEditorState.imgFront = hash;
+    else cardEditorState.imgBack = hash;
+    await renderCardEditorImages();
+  } catch (err) {
+    showToast('Could not load that image');
+  }
+}
+async function onEditPaste(e, face){
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const it of items){
+    if (it.type && it.type.startsWith('image/')){
+      const file = it.getAsFile();
+      if (!file) continue;
+      try {
+        const hash = await storeImageFromFile(file);
+        if (face==='cloze'){ cardEditorState.imgFront = hash; cardEditorState.imgBack = hash; }
+        else if (face==='front') cardEditorState.imgFront = hash;
+        else cardEditorState.imgBack = hash;
+        await renderCardEditorImages();
+      } catch (err) {
+        showToast('Could not load that image');
+      }
+      e.preventDefault();
+      return;
+    }
+  }
+}
+function removeEditImage(face){
+  if (face==='cloze'){ cardEditorState.imgFront = null; cardEditorState.imgBack = null; }
+  else if (face==='front') cardEditorState.imgFront = null;
+  else cardEditorState.imgBack = null;
+  renderCardEditorImages();
+}
+async function renderCardEditorImages(){
+  await renderImgSlot('frontImgSlot', cardEditorState.imgFront, 'front');
+  await renderImgSlot('backImgSlot', cardEditorState.imgBack, 'back');
+  await renderImgSlot('clozeImgSlot', cardEditorState.imgFront, 'cloze');
+}
+async function renderImgSlot(slotId, imageRef, face){
+  const slot = document.getElementById(slotId);
+  const resolved = await resolveImageRef(imageRef);
+  if (resolved){
+    slot.innerHTML = `<img src="${resolved}" class="img-thumb" alt="">
+      <button type="button" class="img-remove-btn" onclick="removeEditImage('${face}')">✕ Remove image</button>`;
+  } else {
+    slot.innerHTML = `<button type="button" class="img-add-btn" onclick="triggerImgPick('${face}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2.5px; margin-right:2px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> Add image</button>
+      <input type="file" accept="image/*" style="display:none" id="fileInput_${face}" onchange="onEditImageChosen(event,'${face}')">`;
+  }
+}
+
+/* --- see-also links --- */
+function renderCardEditorLinks(){
+  const el = document.getElementById('linkChipRow');
+  const links = cardEditorState.links || [];
+  if (!links.length){
+    el.innerHTML = '<span class="mono" style="font-size:11.5px; color:var(--ink-soft);">No linked cards yet</span>';
+    return;
+  }
+  el.innerHTML = links.map(id=>{
+    const t = findCardAnywhere(id);
+    const label = t ? truncate(t.f, 34) : '(deleted card)';
+    return `<span class="link-chip">${escapeHtml(label)}<button type="button" onclick="removeEditorLink('${id}')">✕</button></span>`;
+  }).join('');
+}
+function removeEditorLink(id){
+  cardEditorState.links = cardEditorState.links.filter(l=>l!==id);
+  renderCardEditorLinks();
+}
+function syncBidirectionalLinks(cardId, prevLinks, newLinks){
+  prevLinks.filter(id=>!newLinks.includes(id)).forEach(id=>{
+    const t = findCardAnywhere(id);
+    if (t && t.links) t.links = t.links.filter(l=>l!==cardId);
+  });
+  newLinks.filter(id=>!prevLinks.includes(id)).forEach(id=>{
+    const t = findCardAnywhere(id);
+    if (t){ t.links = t.links || []; if (!t.links.includes(cardId)) t.links.push(cardId); }
+  });
+}
+
+/* --- save ---
+   saveCardEditorCore() does the validate-and-persist work shared by both
+   "Save" and "Save & add another" — it never closes the modal or shows a
+   toast itself, so callers decide what happens to the modal afterward.
+   Returns the deckId on success, or null if validation failed (in which
+   case it has already flagged the offending field). */
+function saveCardEditorCore(){
+  const s = cardEditorState;
+  if (!s) return null;
+  const deck = nodeById(s.deckId);
+  if (!deck){ closeCardEditor(); return null; }
+
+  let f, b, clozeSource = null;
+  if (s.type === 'cloze'){
+    const el = document.getElementById('editCloze');
+    clozeSource = el.value.trim();
+    if (!clozeSource || !/\[\[.+?\]\]/.test(clozeSource)){
+      flagEmptyName(el, 'Wrap the hidden part in [[double brackets]]');
+      return null;
+    }
+    const r = clozeToFB(clozeSource);
+    f = r.f; b = r.b;
+  } else {
+    const fEl = document.getElementById('editFront'), bEl = document.getElementById('editBack');
+    f = fEl.value.trim(); b = bEl.value.trim();
+    if (!f){ flagEmptyName(fEl, 'Add a front side'); return null; }
+    if (!b){ flagEmptyName(bEl, 'Add a back side'); return null; }
+  }
+
+  let targetCard = s.cardId ? deck.cards.find(c=>c.id===s.cardId) : null;
+  let isNewCard = false;
+  if (!targetCard){
+    targetCard = card(f, b);
+    deck.cards.push(targetCard);
+    s.cardId = targetCard.id;
+    isNewCard = true;
+  }
+  targetCard.f = f;
+  targetCard.b = b;
+  targetCard.type = s.type;
+  targetCard.clozeSource = clozeSource;
+  targetCard.img = { front: s.imgFront || null, back: s.imgBack || null };
+  targetCard.links = [...s.links];
+  targetCard.tags = document.getElementById('editTags').value
+    .split(',')
+    .map(t => t.trim())
+    .filter(Boolean);
+
+  syncBidirectionalLinks(s.cardId, s.prevLinks, s.links);
+  if (isNewCard) rebuildIndex();
+
+  updateStarredCount();
+  persistTextState();
+  if (state.managingDeckId) renderManageCards();
+
+  return s.deckId;
+}
+function saveCardEditor(){
+  const deckId = saveCardEditorCore();
+  if (!deckId) return;
+  closeModal('cardEditorOverlay');
+  cardEditorState = null;
+  showToast('Card saved');
+}
+function saveCardEditorAndAddAnother(){
+  const deckId = saveCardEditorCore();
+  if (!deckId) return;
+  showToast('Card saved');
+  // Re-open a blank "Add card" form for the same deck instead of closing —
+  // this is the whole point of the button, so bulk-adding cards doesn't
+  // mean re-clicking "+ Add card" after every single one.
+  openCardEditor(deckId, null);
+}
+
+/* ---------------------------------------------------------
+   LINK PICKER — search & multi-select cards for "see also"
+--------------------------------------------------------- */
+let linkPickerSelected = new Set();
+function openLinkPicker(){
+  linkPickerSelected = new Set(cardEditorState.links);
+  document.getElementById('linkPickerSearch').value = '';
+  renderLinkPicker('');
+  document.getElementById('linkPickerOverlay').classList.add('active');
+  setTimeout(()=> document.getElementById('linkPickerSearch').focus(), 50);
+}
+function onLinkPickerSearch(v){ renderLinkPicker(v); }
+function renderLinkPicker(query){
+  const el = document.getElementById('linkPickerList');
+  el.innerHTML = '';
+  const q = query.trim().toLowerCase();
+  const all = gatherAllCardsWithLocation().filter(i => i.card.id !== cardEditorState.cardId);
+  const filtered = q ? all.filter(i =>
+    i.card.f.toLowerCase().includes(q) ||
+    i.card.b.toLowerCase().includes(q) ||
+    i.deck.name.toLowerCase().includes(q) ||
+    i.pathLabel.toLowerCase().includes(q)
+  ) : all;
+
+  if (!filtered.length){
+    el.innerHTML = `<div class="mono" style="font-size:12px; color:var(--ink-soft); padding:10px 4px;">No cards match</div>`;
+    return;
+  }
+  filtered.forEach(i=>{
+    const row = document.createElement('label');
+    row.className = 'link-pick-row';
+    const checked = linkPickerSelected.has(i.card.id);
+    row.innerHTML = `
+      <input type="checkbox" ${checked?'checked':''}>
+      <span class="lpr-text">
+        <span class="lpr-front">${escapeHtml(truncate(i.card.f, 60))}</span>
+        <span class="lpr-path mono">${escapeHtml(i.pathLabel)} / ${escapeHtml(i.deck.name)}</span>
+      </span>`;
+    row.querySelector('input').onchange = (e)=>{
+      if (e.target.checked) linkPickerSelected.add(i.card.id);
+      else linkPickerSelected.delete(i.card.id);
+    };
+    el.appendChild(row);
+  });
+}
+function confirmLinkPicker(){
+  cardEditorState.links = [...linkPickerSelected];
+  closeModal('linkPickerOverlay');
+  renderCardEditorLinks();
+}
+
+function renderHome(el){
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  const head = document.createElement('div');
+  head.className = 'home-head';
+  head.innerHTML = `<h1>${greeting}</h1><p>Your study library at a glance</p>`;
+  el.appendChild(head);
+
+  const added = cardsAddedToday();
+  const reviewed = reviewsToday();
+  const acc = starredAccuracy();
+  const focus = focusTopic();
+  const due = dueCount();
+
+  // On mobile this whole block collapses to a single toggle row so the
+  // drawers/decks below are reachable without scrolling past 5 stat cards.
+  const wrap = document.createElement('div');
+  wrap.className = 'stat-summary-wrap' + (state.homeStatsExpanded ? ' expanded' : '');
+  wrap.id = 'statSummaryWrap';
+
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'stat-summary-toggle';
+  toggle.onclick = toggleHomeStats;
+  toggle.innerHTML = `
+    <span class="sst-text">${due ? `<b>${due}</b> due` : 'All caught up'} · ${added} added · ${reviewed} reviewed</span>
+    <svg class="sst-chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>`;
+  wrap.appendChild(toggle);
+
+  const grid = document.createElement('div');
+  grid.className = 'stat-grid';
+  grid.innerHTML = `
+    <div class="stat-box due${due?' clickable':''}" id="dueBox">
+      <div class="stat-num${due?'':' dash'}">${due || 0}</div>
+      <div class="stat-label">${due ? 'Due today' : 'All caught up'}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num">${added}</div>
+      <div class="stat-label">Added today</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num">${reviewed}</div>
+      <div class="stat-label">Reviewed today</div>
+    </div>
+    <div class="stat-box accuracy">
+      <div class="stat-num${acc===null?' dash':''}">${acc===null ? '—' : acc+'%'}</div>
+      <div class="stat-label">Starred accuracy</div>
+    </div>
+    <div class="stat-box focus${focus?' clickable':''}" id="focusBox">
+      <div class="stat-num${focus?'':' dash'}">${focus ? escapeHtml(focus.deck.name) : 'All caught up'}</div>
+      <div class="stat-label">${focus ? `Focus · ${focus.count} again` : 'Needs revision'}</div>
+    </div>`;
+  wrap.appendChild(grid);
+  el.appendChild(wrap);
+
+  if (due){
+    grid.querySelector('#dueBox').onclick = () => studyDueCards();
+  }
+  if (focus){
+    grid.querySelector('#focusBox').onclick = () => startStudy(focus.deck);
+  }
+}
+function toggleHomeStats(){
+  state.homeStatsExpanded = !state.homeStatsExpanded;
+  document.getElementById('statSummaryWrap').classList.toggle('expanded', state.homeStatsExpanded);
+}
+
+function renderContent(){
+  const el = document.getElementById('content');
+  el.innerHTML = '';
+
+  if (state.search.trim()){
+    renderSearchResults(el);
+    return;
+  }
+
+  if (state.currentPath.length === 1){
+    renderHome(el);
+  }
+
+  const folderNode = findFolder(state.currentPath);
+  const subfolders = folderNode.children.filter(c=>c.type==='folder');
+  const decks = folderNode.children.filter(c=>c.type==='deck');
+
+  if (!subfolders.length && !decks.length){
+    el.insertAdjacentHTML('beforeend', `<div class="empty">
+      <div class="stamp">empty drawer</div>
+      <p class="mono" style="margin-top:16px; font-size:12.5px;">Add a deck or a new drawer to get started.</p>
+    </div>`);
+    return;
+  }
+
+  if (subfolders.length){
+    const label = document.createElement('div');
+    label.className='section-label'; label.textContent = 'Drawers';
+    el.appendChild(label);
+    const grid = document.createElement('div'); grid.className='grid';
+    subfolders.forEach(f=> grid.appendChild(folderTile(f)));
+    el.appendChild(grid);
+  }
+  if (decks.length){
+    const label = document.createElement('div');
+    label.className='section-label'; label.textContent = 'Decks';
+    el.appendChild(label);
+    const grid = document.createElement('div'); grid.className='grid';
+    decks.forEach(d=> grid.appendChild(deckTile(d)));
+    el.appendChild(grid);
+  }
+}
+
+function folderTile(f){
+  const {decks, cards} = countDecksCards(f);
+  const div = document.createElement('div');
+  div.className='folder-tile';
+  div.draggable = true;
+  div.innerHTML = `
+    <button class="kebab-btn" title="More">⋮</button>
+    <div class="tab"></div>
+    <div class="body">
+      <div class="fname">${escapeHtml(f.name)}</div>
+      <div class="fmeta">${decks} deck${decks!==1?'s':''} · ${cards} card${cards!==1?'s':''}</div>
+    </div>`;
+  div.querySelector('.kebab-btn').onclick = (e)=>{ e.stopPropagation(); openCtxMenu(e, f.id); };
+  div.onclick = ()=>{ state.currentPath = [...state.currentPath, f.id]; state.viewingStarred=false; state.managingDeckId=null; render(); };
+  div.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', f.id); div.classList.add('dragging'); };
+  div.ondragend = ()=> div.classList.remove('dragging');
+  div.ondragover = (e)=>{ e.preventDefault(); div.classList.add('dragover'); };
+  div.ondragleave = ()=> div.classList.remove('dragover');
+  div.ondrop = (e)=>{ e.preventDefault(); div.classList.remove('dragover'); moveItem(e.dataTransfer.getData('text/plain'), f.id); };
+  return div;
+}
+
+function deckTile(d){
+  const srsMap = getSRSMap();
+  const due = d.cards.filter(c => isCardDue(c.id, srsMap)).length;
+  const div = document.createElement('div');
+  div.className='deck-tile';
+  div.draggable = true;
+  div.innerHTML = `
+    <button class="kebab-btn" title="More">⋮</button>
+    <div class="stack"></div>
+    <div class="card">
+      <div class="dname">${escapeHtml(d.name)}</div>
+      <div class="drow">
+        <span>${d.cards.length} card${d.cards.length!==1?'s':''}</span>
+        <span>${due ? `<span class="due-dot"></span>${due} due` : (d.lastStudied ? d.lastStudied : '<span class="due-dot"></span>new')}</span>
+      </div>
+    </div>`;
+  div.querySelector('.kebab-btn').onclick = (e)=>{ e.stopPropagation(); openCtxMenu(e, d.id); };
+  div.onclick = ()=> startStudy(d);
+  div.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', d.id); div.classList.add('dragging'); };
+  div.ondragend = ()=> div.classList.remove('dragging');
+  return div;
+}
+
+function renderSearchResults(el){
+  const q = state.search.trim().toLowerCase();
+  const foldersFound = [];
+  const decksFound = [];
+  (function walk(n){
+    n.children.forEach(c=>{
+      if (c.type==='folder'){
+        if (c.name.toLowerCase().includes(q)) foldersFound.push(c);
+        walk(c);
+      } else {
+        const cardHit = c.cards.some(cd => cd.f.toLowerCase().includes(q) || cd.b.toLowerCase().includes(q));
+        if (c.name.toLowerCase().includes(q) || cardHit) decksFound.push(c);
+      }
+    });
+  })(root);
+
+  const label = document.createElement('div');
+  label.className='section-label'; label.textContent = `Results for "${state.search}"`;
+  el.appendChild(label);
+
+  if (!foldersFound.length && !decksFound.length){
+    el.innerHTML += `<div class="empty"><div class="stamp">no matches</div></div>`;
+    return;
+  }
+  if (foldersFound.length){
+    const grid = document.createElement('div'); grid.className='grid';
+    foldersFound.forEach(f=>grid.appendChild(folderTile(f)));
+    el.appendChild(grid);
+  }
+  if (decksFound.length){
+    const grid = document.createElement('div'); grid.className='grid';
+    decksFound.forEach(d=>grid.appendChild(deckTile(d)));
+    el.appendChild(grid);
+  }
+}
+
+function onSearch(v){ state.search = v; state.viewingStarred = false; state.managingDeckId = null; render(); }
+
+/* --- mobile search overlay: same underlying search, presented as a
+   blurred spotlight-style panel instead of replacing the page content --- */
+function openSearchOverlay(){
+  document.getElementById('overlaySearchInput').value = '';
+  renderOverlaySearchResults('');
+  document.getElementById('searchOverlay').classList.add('active');
+  setTimeout(()=> document.getElementById('overlaySearchInput').focus(), 50);
+}
+function closeSearchOverlay(){
+  document.getElementById('searchOverlay').classList.remove('active');
+}
+function onOverlaySearch(v){ renderOverlaySearchResults(v); }
+function goToOverlayResult(kind, id){
+  closeSearchOverlay();
+  state.viewingStarred = false;
+  state.managingDeckId = null;
+  if (kind === 'folder'){
+    state.currentPath = pathToNode(id);
+    render();
+  } else {
+    const d = nodeById(id);
+    state.currentPath = pathToNode(id).slice(0, -1);
+    if (d) startStudy(d);
+    else render();
+  }
+}
+function renderOverlaySearchResults(q){
+  const el = document.getElementById('overlaySearchResults');
+  const query = q.trim().toLowerCase();
+  if (!query){
+    el.innerHTML = `<div class="search-overlay-hint">Start typing to search drawers, decks &amp; cards</div>`;
+    return;
+  }
+  const foldersFound = [];
+  const decksFound = [];
+  (function walk(n){
+    n.children.forEach(c=>{
+      if (c.type==='folder'){
+        if (c.name.toLowerCase().includes(query)) foldersFound.push(c);
+        walk(c);
+      } else {
+        const cardHit = c.cards.some(cd => cd.f.toLowerCase().includes(query) || cd.b.toLowerCase().includes(query));
+        if (c.name.toLowerCase().includes(query) || cardHit) decksFound.push(c);
+      }
+    });
+  })(root);
+
+  if (!foldersFound.length && !decksFound.length){
+    el.innerHTML = `<div class="search-overlay-hint">No matches for "${escapeHtml(q)}"</div>`;
+    return;
+  }
+
+  const folderIcoSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>`;
+  const deckIcoSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="14" height="14" rx="2"/><path d="M8 20h12a2 2 0 0 0 2-2V8"/></svg>`;
+
+  let html = '';
+  if (foldersFound.length){
+    html += `<div class="search-result-section">Drawers</div>`;
+    foldersFound.forEach(f=>{
+      const {decks, cards} = countDecksCards(f);
+      html += `<div class="search-result-row" onclick="goToOverlayResult('folder','${f.id}')">
+        <div class="sr-ico">${folderIcoSvg}</div>
+        <div class="sr-text"><div class="sr-name">${escapeHtml(f.name)}</div><div class="sr-meta">${decks} deck${decks!==1?'s':''} · ${cards} card${cards!==1?'s':''}</div></div>
+      </div>`;
+    });
+  }
+  if (decksFound.length){
+    html += `<div class="search-result-section">Decks</div>`;
+    decksFound.forEach(d=>{
+      html += `<div class="search-result-row" onclick="goToOverlayResult('deck','${d.id}')">
+        <div class="sr-ico">${deckIcoSvg}</div>
+        <div class="sr-text"><div class="sr-name">${escapeHtml(d.name)}</div><div class="sr-meta">${d.cards.length} card${d.cards.length!==1?'s':''}</div></div>
+      </div>`;
+    });
+  }
+  el.innerHTML = html;
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* Render **bold**, __underline__, *italic*, ==highlight== after escaping the rest */
+function formatInlineMarkdown(str){
+  return escapeHtml(str || '')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<u>$1</u>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/==(.+?)==/g, '<span class="highlight">$1</span>');
+}
+
+/* ---------------------------------------------------------
+   MODALS — create folder / deck
+--------------------------------------------------------- */
+let modalTargetPath = null;
+function openFolderModal(path){
+  modalTargetPath = path;
+  document.getElementById('folderNameInput').value='';
+  document.getElementById('folderOverlay').classList.add('active');
+  setTimeout(()=>document.getElementById('folderNameInput').focus(), 50);
+}
+function openDeckModal(path){
+  modalTargetPath = path;
+  document.getElementById('deckNameInput').value='';
+  setDeckMode('blank');
+  document.getElementById('importText').value='';
+  document.getElementById('fileNameLabel').textContent='';
+  document.getElementById('importStatus').textContent='';
+  document.getElementById('importStatus').className='import-status';
+  importedCards = null;
+  document.getElementById('deckOverlay').classList.add('active');
+  setTimeout(()=>document.getElementById('deckNameInput').focus(), 50);
+}
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+
+/* --- image lightbox: view a card image at full quality, with tap-to-zoom --- */
+async function openImgLightbox(src){
+  const img = document.getElementById('lightboxImg');
+  const resolved = await resolveImageRef(src);
+  img.src = resolved || '';
+  img.classList.remove('zoomed');
+  document.getElementById('lightboxScroll').scrollTop = 0;
+  document.getElementById('lightboxScroll').scrollLeft = 0;
+  document.getElementById('lightboxHint').style.display = '';
+  document.getElementById('imgLightboxOverlay').classList.add('active');
+}
+function closeImgLightbox(){
+  document.getElementById('imgLightboxOverlay').classList.remove('active');
+  const img = document.getElementById('lightboxImg');
+  img.classList.remove('zoomed');
+  img.src = '';
+}
+function toggleLightboxZoom(e){
+  e.stopPropagation();
+  const img = e.currentTarget;
+  img.classList.toggle('zoomed');
+  document.getElementById('lightboxHint').style.display = img.classList.contains('zoomed') ? 'none' : '';
+}
+
+/* ---------------------------------------------------------
+   IMPORT — parse Markdown or JSON into cards
+--------------------------------------------------------- */
+let deckMode = 'blank';       // 'blank' | 'import'
+let importedCards = null;     // parsed cards waiting to be committed
+
+function setDeckMode(mode){
+  deckMode = mode;
+  document.getElementById('tabBlank').classList.toggle('active', mode==='blank');
+  document.getElementById('tabImport').classList.toggle('active', mode==='import');
+  document.getElementById('importPane').classList.toggle('active', mode==='import');
+}
+
+function clozeIsValid(source){ return !!source && /\[\[.+?\]\]/.test(source); }
+
+function parseMarkdownCards(markdown){
+  const blocks = markdown.split(/^---\s*$/m).map(b=>b.trim()).filter(b=>b);
+  const cards = [];
+  for (const block of blocks){
+    const idMatch = block.match(/###\s*Card\s*(\d+)/i);
+    const refId = idMatch ? parseInt(idMatch[1]) : null;
+    const typeMatch = block.match(/\*\*Type:\*\*\s*(\w+)/i);
+    const type = typeMatch ? typeMatch[1].trim().toLowerCase() : 'basic';
+    const tMatch = block.match(/\*\*Tags:\*\*\s*(.*)/);
+    const tags = tMatch ? tMatch[1].split(',').map(t=>t.trim()).filter(t=>t) : [];
+    const linksMatch = block.match(/\*\*Links:\*\*\s*(.*)/);
+    const links = linksMatch ? linksMatch[1].split(',').map(s=>parseInt(s.trim(),10)).filter(n=>!isNaN(n)) : [];
+
+    if (type === 'cloze'){
+      const clozeMatch = block.match(/\*\*Cloze:\*\*\s*([\s\S]*?)\s*(?:\*\*(?:Tags|Links):\*\*|$)/);
+      const clozeSource = clozeMatch ? clozeMatch[1].trim() : '';
+      if (!clozeIsValid(clozeSource)) continue; // skip malformed cloze blocks (no [[...]])
+      const { f, b } = clozeToFB(clozeSource);
+      cards.push({ refId, type:'cloze', question:f, answer:b, clozeSource, tags, links });
+      continue;
+    }
+
+    if (!/\*\*Q:\*\*/.test(block)) continue; // skip blocks with no question (stray text)
+    const qMatch = block.match(/\*\*Q:\*\*\s*([\s\S]*?)\s*\*\*A:\*\*/);
+    const aMatch = block.match(/\*\*A:\*\*\s*([\s\S]*?)\s*\*\*(?:Tags|Links):\*\*/);
+    const aNoTagsMatch = !aMatch ? block.match(/\*\*A:\*\*\s*([\s\S]*)/) : null;
+    const question = qMatch ? qMatch[1].trim() : '';
+    const answer = (aMatch ? aMatch[1] : (aNoTagsMatch ? aNoTagsMatch[1] : '')).trim();
+    if (!question || !answer) continue;
+    cards.push({ refId, type:'basic', question, answer, clozeSource:null, tags, links });
+  }
+  return cards;
+}
+
+function parseJSONCards(text){
+  const data = JSON.parse(text);
+  const arr = Array.isArray(data) ? data : (Array.isArray(data.cards) ? data.cards : null);
+  if (!arr) throw new Error('JSON must be an array of cards (or {"cards":[...]})');
+  return arr.map(item => {
+    const type = (item.type || 'basic').toString().toLowerCase();
+    let tags = item.tags ?? [];
+    if (typeof tags === 'string') tags = tags.split(',').map(t=>t.trim()).filter(t=>t);
+    let links = item.links ?? [];
+    if (!Array.isArray(links)) links = [];
+    if (type === 'cloze'){
+      const clozeSource = (item.cloze ?? '').toString().trim();
+      const { f, b } = clozeToFB(clozeSource);
+      return { refId: item.id ?? null, type:'cloze', question:f, answer:b, clozeSource, tags, links };
+    }
+    const question = (item.question ?? item.q ?? item.front ?? '').toString().trim();
+    const answer = (item.answer ?? item.a ?? item.back ?? '').toString().trim();
+    return { refId: item.id ?? null, type:'basic', question, answer, clozeSource:null, tags, links };
+  });
+}
+
+function parseDeckInput(text){
+  const trimmed = text.trim();
+  if (!trimmed) throw new Error('Nothing to parse yet — paste or upload a file first.');
+  // Try JSON first if it looks like JSON, otherwise treat as Markdown
+  if (trimmed.startsWith('[') || trimmed.startsWith('{')){
+    const cards = parseJSONCards(trimmed);
+    if (!cards.length) throw new Error('No cards found in that JSON.');
+    const bad = cards.filter(c => c.type==='cloze' ? !clozeIsValid(c.clozeSource) : (!c.question || !c.answer));
+    if (bad.length) throw new Error(`${bad.length} card(s) missing a question/answer, or a valid [[cloze]] blank.`);
+    return cards;
+  }
+  const cards = parseMarkdownCards(trimmed);
+  if (!cards.length) throw new Error('No cards found. Check for **Q:**/**A:** or **Type:** cloze + **Cloze:** blocks separated by ---.');
+  return cards;
+}
+
+function onImportTextChange(){
+  const text = document.getElementById('importText').value;
+  const statusEl = document.getElementById('importStatus');
+  if (!text.trim()){
+    statusEl.textContent = '';
+    statusEl.className = 'import-status';
+    importedCards = null;
+    return;
+  }
+  try{
+    importedCards = parseDeckInput(text);
+    statusEl.textContent = `✓ Parsed ${importedCards.length} card${importedCards.length!==1?'s':''}`;
+    statusEl.className = 'import-status ok';
+  } catch(err){
+    importedCards = null;
+    statusEl.textContent = '✗ ' + err.message;
+    statusEl.className = 'import-status err';
+  }
+}
+
+function onDeckFileChosen(e){
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('fileNameLabel').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.getElementById('importText').value = reader.result;
+    onImportTextChange();
+  };
+  reader.onerror = () => {
+    const statusEl = document.getElementById('importStatus');
+    statusEl.textContent = '✗ Could not read that file.';
+    statusEl.className = 'import-status err';
+  };
+  reader.readAsText(file);
+}
+
+document.addEventListener('dragover', e=>{
+  if (document.getElementById('deckOverlay').classList.contains('active') && deckMode==='import'){
+    e.preventDefault();
+    document.getElementById('dropzone').classList.add('drag');
+  }
+});
+document.addEventListener('dragleave', e=>{
+  const dz = document.getElementById('dropzone');
+  if (dz) dz.classList.remove('drag');
+});
+document.addEventListener('drop', e=>{
+  const dz = document.getElementById('dropzone');
+  if (!dz) return;
+  if (document.getElementById('deckOverlay').classList.contains('active') && deckMode==='import'){
+    e.preventDefault();
+    dz.classList.remove('drag');
+    const file = e.dataTransfer.files[0];
+    if (file){
+      document.getElementById('fileNameLabel').textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = () => {
+        document.getElementById('importText').value = reader.result;
+        onImportTextChange();
+      };
+      reader.readAsText(file);
+    }
+  }
+});
+function confirmFolder(){
+  const nameInput = document.getElementById('folderNameInput');
+  const name = nameInput.value.trim();
+  if (!name){ flagEmptyName(nameInput, 'Name your drawer first'); return; }
+  const parent = findFolder(modalTargetPath);
+  parent.children.push(folder(name, []));
+  rebuildIndex();
+  closeModal('folderOverlay');
+  persistTextState();
+  render();
+}
+function confirmDeck(){
+  const nameInput = document.getElementById('deckNameInput');
+  const name = nameInput.value.trim();
+  if (!name){ flagEmptyName(nameInput, 'Name your deck first'); return; }
+  const parent = findFolder(modalTargetPath);
+
+  if (deckMode === 'import'){
+    // (Re)parse on submit in case the user tabbed away without triggering input events
+    try{
+      importedCards = parseDeckInput(document.getElementById('importText').value);
+    } catch(err){
+      const statusEl = document.getElementById('importStatus');
+      statusEl.textContent = '✗ ' + err.message;
+      statusEl.className = 'import-status err';
+      return;
+    }
+    const refMap = new Map();
+    const newCards = importedCards.map((c, idx)=>{
+      const nc = card(c.question, c.answer, c.tags);
+      nc.type = c.type || 'basic';
+      nc.clozeSource = c.clozeSource || null;
+      refMap.set(c.refId != null ? c.refId : (idx+1), nc);
+      return nc;
+    });
+    importedCards.forEach((c, idx)=>{
+      const src = newCards[idx];
+      (c.links || []).forEach(refNum=>{
+        const target = refMap.get(refNum);
+        if (target && target !== src){
+          if (!src.links.includes(target.id)) src.links.push(target.id);
+          if (!target.links.includes(src.id)) target.links.push(src.id);
+        }
+      });
+    });
+    parent.children.push(deck(name, newCards));
+    rebuildIndex();
+    closeModal('deckOverlay');
+    persistTextState();
+    render();
+  } else {
+    const newDeck = deck(name, []);
+    parent.children.push(newDeck);
+    rebuildIndex();
+    closeModal('deckOverlay');
+    persistTextState();
+    openCardManager(newDeck.id);
+    openCardEditor(newDeck.id, null);
+  }
+}
+['folderOverlay','deckOverlay','renameOverlay','deleteOverlay','moveOverlay','linkPickerOverlay','cardDeleteOverlay'].forEach(id=>{
+  document.getElementById(id).addEventListener('click', e=>{
+    if (e.target.id===id) closeModal(id);
+  });
+});
+document.getElementById('cardEditorOverlay').addEventListener('click', e=>{
+  if (e.target.id==='cardEditorOverlay') closeCardEditor();
+});
+document.addEventListener('keydown', e=>{
+  if (e.key==='Enter'){
+    if (document.getElementById('folderOverlay').classList.contains('active')) confirmFolder();
+    if (document.getElementById('deckOverlay').classList.contains('active')) confirmDeck();
+    if (document.getElementById('renameOverlay').classList.contains('active')) confirmRename();
+  }
+  if (e.key==='Escape'){
+    closeModal('folderOverlay'); closeModal('deckOverlay'); closeModal('renameOverlay');
+    closeModal('deleteOverlay'); closeModal('moveOverlay'); closeSidebar(); closeCtxMenu();
+    closeModal('linkPickerOverlay'); closeModal('cardDeleteOverlay'); closeCardEditor();
+    closeImgLightbox(); closeSearchOverlay();
+  }
+});
+
+/* ---------------------------------------------------------
+   CONTEXT MENU — rename / move / copy / cut / paste / delete
+--------------------------------------------------------- */
+function openCtxMenu(e, id){
+  const node = nodeById(id);
+  if (!node) return;
+  const menu = document.getElementById('ctxMenu');
+  const isRoot = id === root.id;
+  const isFolder = node.type === 'folder';
+  const pasteReason = isFolder ? pasteReasonFor(id) : null;
+  const canPasteHere = isFolder && clipboardIsValid() && !pasteReason;
+
+  let html = '';
+  if (!isRoot && !isFolder){
+    html += `<button onclick="openCardManager('${id}')">✎ Manage cards</button><hr>`;
+  }
+  if (!isRoot){
+    html += `<button onclick="startRename('${id}')">✎ Rename</button>`;
+    html += `<button onclick="openMoveModal('${id}')">⇥ Move to…</button>`;
+    html += `<button onclick="clipboardCopy('${id}')">⧉ Copy</button>`;
+    html += `<button onclick="clipboardCut('${id}')">✂ Cut</button>`;
+  }
+  if (isFolder && clipboardIsValid()){
+    if (!isRoot) html += `<hr>`;
+    const label = pasteReason === 'already-here' ? '📋 Already here'
+      : pasteReason ? '📋 Can\'t paste here'
+      : '📋 Paste here';
+    html += `<button ${canPasteHere?'':'disabled'} onclick="pasteInto('${id}')">${label}</button>`;
+  }
+  if (!isRoot){
+    html += `<hr>`;
+    html += `<button class="danger" onclick="confirmDelete('${id}')">🗑 Delete</button>`;
+  }
+  menu.innerHTML = html || `<button disabled>No actions</button>`;
+  positionCtxMenu(e, menu);
+  menu.classList.add('active');
+}
+function positionCtxMenu(e, menu){
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const x = e.clientX, y = e.clientY;
+  menu.style.left = x+'px';
+  menu.style.top = y+'px';
+  menu.classList.add('active');
+  requestAnimationFrame(()=>{
+    const r = menu.getBoundingClientRect();
+    let nx = x, ny = y;
+    if (r.right > vw-8) nx = Math.max(8, vw - r.width - 8);
+    if (r.bottom > vh-8) ny = Math.max(8, vh - r.height - 8);
+    menu.style.left = nx+'px';
+    menu.style.top = ny+'px';
+  });
+}
+function closeCtxMenu(){
+  document.getElementById('ctxMenu').classList.remove('active');
+}
+document.addEventListener('click', e=>{
+  const menu = document.getElementById('ctxMenu');
+  if (menu.classList.contains('active') && !menu.contains(e.target)) closeCtxMenu();
+});
+
+/* --- rename --- */
+let renameTargetId = null;
+function startRename(id){
+  closeCtxMenu();
+  const node = nodeById(id);
+  if (!node) return;
+  renameTargetId = id;
+  document.getElementById('renameTitle').textContent = node.type==='folder' ? 'Rename drawer' : 'Rename deck';
+  const input = document.getElementById('renameNameInput');
+  input.value = node.name;
+  document.getElementById('renameOverlay').classList.add('active');
+  setTimeout(()=>{ input.focus(); input.select(); }, 50);
+}
+function confirmRename(){
+  const name = document.getElementById('renameNameInput').value.trim();
+  if (!name || !renameTargetId) return;
+  const node = nodeById(renameTargetId);
+  if (node){ node.name = name; showToast(`Renamed to "${name}"`); }
+  closeModal('renameOverlay');
+  renameTargetId = null;
+  persistTextState();
+  render();
+}
+
+/* --- delete --- */
+let deleteTargetId = null;
+function confirmDelete(id){
+  closeCtxMenu();
+  const node = nodeById(id);
+  if (!node) return;
+  deleteTargetId = id;
+  let msg;
+  if (node.type==='folder'){
+    const {decks, cards} = countDecksCards(node);
+    msg = `Delete drawer "${node.name}"? This removes ${decks} deck${decks!==1?'s':''} and ${cards} card${cards!==1?'s':''} inside it.`;
+  } else {
+    msg = `Delete deck "${node.name}"? This removes ${node.cards.length} card${node.cards.length!==1?'s':''}.`;
+  }
+  document.getElementById('deleteMsg').textContent = msg;
+  document.getElementById('deleteOverlay').classList.add('active');
+}
+function doDelete(){
+  if (!deleteTargetId) return;
+  const parent = parentOf(deleteTargetId);
+  const node = nodeById(deleteTargetId);
+  if (parent){
+    // collect ids of every card about to be removed, so we can strip dangling "see also" links to them
+    const removedCardIds = [];
+    if (node){
+      (function collect(n){
+        if (n.type==='folder') n.children.forEach(collect);
+        else n.cards.forEach(c=>removedCardIds.push(c.id));
+      })(node);
+    }
+    parent.children = parent.children.filter(c=>c.id!==deleteTargetId);
+    if (removedCardIds.length){
+      cardIndexList.forEach(({card:cd})=>{ if (cd.links) cd.links = cd.links.filter(l=>!removedCardIds.includes(l)); });
+    }
+    rebuildIndex();
+    if (state.currentPath.includes(deleteTargetId)){
+      const idx = state.currentPath.indexOf(deleteTargetId);
+      state.currentPath = state.currentPath.slice(0, idx);
+      if (!state.currentPath.length) state.currentPath = [root.id];
+    }
+    if (state.managingDeckId === deleteTargetId) state.managingDeckId = null;
+    if (state.clipboard && state.clipboard.id === deleteTargetId) state.clipboard = null;
+    if (node) showToast(`Deleted "${node.name}"`);
+  }
+  closeModal('deleteOverlay');
+  deleteTargetId = null;
+  persistTextState();
+  render();
+}
+
+/* --- move (tap-to-pick, works without drag & drop) --- */
+let moveTargetId = null;
+let moveSelectedFolderId = null;
+function openMoveModal(id){
+  closeCtxMenu();
+  moveTargetId = id;
+  moveSelectedFolderId = null;
+  renderMovePicker();
+  document.getElementById('moveOverlay').classList.add('active');
+}
+function renderMovePicker(){
+  const el = document.getElementById('movePickerTree');
+  el.innerHTML = '';
+  el.appendChild(buildMovePickerNode(root));
+}
+function buildMovePickerNode(node){
+  const wrap = document.createElement('div');
+  const item = nodeById(moveTargetId);
+  const disallowed = item.id === node.id || (item.type==='folder' && isInvalidMoveTarget(item, node));
+  const row = document.createElement('div');
+  row.className = 'move-row' + (disallowed ? ' disabled' : '');
+  row.textContent = node.name;
+  if (!disallowed){
+    row.onclick = ()=>{
+      moveSelectedFolderId = node.id;
+      confirmMove();
+    };
+  }
+  wrap.appendChild(row);
+  const kids = node.children.filter(c=>c.type==='folder');
+  if (kids.length){
+    const childWrap = document.createElement('div');
+    childWrap.className = 'move-children';
+    kids.forEach(k=>childWrap.appendChild(buildMovePickerNode(k)));
+    wrap.appendChild(childWrap);
+  }
+  return wrap;
+}
+function confirmMove(){
+  if (!moveTargetId || !moveSelectedFolderId) return;
+  const item = nodeById(moveTargetId);
+  const dest = nodeById(moveSelectedFolderId);
+  moveItem(moveTargetId, moveSelectedFolderId);
+  if (item && dest) showToast(`Moved "${item.name}" into "${dest.name}"`);
+  closeModal('moveOverlay');
+  moveTargetId = null; moveSelectedFolderId = null;
+  persistTextState();
+}
+
+/* --- toast feedback --- */
+let toastTimer = null;
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> el.classList.remove('show'), 2200);
+}
+function flagEmptyName(inputEl, msg){
+  showToast(msg);
+  inputEl.classList.remove('input-shake');
+  void inputEl.offsetWidth; // restart animation if triggered twice in a row
+  inputEl.classList.add('input-shake', 'input-error');
+  inputEl.focus();
+  clearTimeout(inputEl._errTimer);
+  inputEl._errTimer = setTimeout(()=> inputEl.classList.remove('input-error'), 1500);
+}
+
+/* --- copy / cut / paste --- */
+function clipboardCopy(id){
+  closeCtxMenu();
+  const node = nodeById(id);
+  state.clipboard = { id, mode:'copy' };
+  render();
+  if (node) showToast(`Copied "${node.name}" — open a drawer and hit Paste`);
+}
+function clipboardCut(id){
+  closeCtxMenu();
+  const node = nodeById(id);
+  state.clipboard = { id, mode:'cut' };
+  render();
+  if (node) showToast(`Cut "${node.name}" — open a drawer and hit Paste to move it there`);
+}
+function clipboardIsValid(){ return !!(state.clipboard && nodeById(state.clipboard.id)); }
+
+/* Why pasting the current clipboard into targetId would be a no-op/invalid — or null if it's fine. */
+function pasteReasonFor(targetId){
+  if (!clipboardIsValid()) return null;
+  if (state.clipboard.mode === 'copy') return null; // copying always creates a new item, always allowed
+  const target = nodeById(targetId);
+  const source = nodeById(state.clipboard.id);
+  if (!target || !source) return null;
+  if (source.id === target.id) return 'itself';
+  if (source.type==='folder' && isInvalidMoveTarget(source, target)) return 'descendant';
+  const oldParent = parentOf(source.id);
+  if (oldParent && oldParent.id === target.id) return 'already-here';
+  return null;
+}
+
+function pasteInto(targetFolderId){
+  closeCtxMenu();
+  if (!state.clipboard) return;
+  const target = nodeById(targetFolderId);
+  const source = nodeById(state.clipboard.id);
+  if (!target || target.type!=='folder' || !source){
+    state.clipboard = null; render();
+    showToast('That item no longer exists.');
+    return;
+  }
+
+  if (state.clipboard.mode === 'copy'){
+    const clone = deepCloneNode(source);
+    const sourceParent = parentOf(source.id);
+    if (sourceParent && sourceParent.id === target.id) clone.name = source.name + ' (copy)';
+    target.children.push(clone);
+    rebuildIndex();
+    persistTextState();
+    render();
+    showToast(`Copied "${source.name}" into "${target.name}"`);
+    return;
+  }
+
+  // cut / move — only clear the clipboard once something actually moves
+  const reason = pasteReasonFor(targetFolderId);
+  if (reason === 'itself'){
+    showToast("Can't move a drawer into itself.");
+    return;
+  }
+  if (reason === 'descendant'){
+    showToast(`Can't move "${source.name}" into its own subfolder.`);
+    return;
+  }
+  if (reason === 'already-here'){
+    showToast(`"${source.name}" is already in "${target.name}".`);
+    return;
+  }
+  const oldParent = parentOf(source.id);
+  if (!oldParent){
+    showToast('Could not find where that item currently lives.');
+    return;
+  }
+  oldParent.children = oldParent.children.filter(c=>c.id!==source.id);
+  target.children.push(source);
+  rebuildIndex();
+  state.clipboard = null;
+  persistTextState();
+  render();
+  showToast(`Moved "${source.name}" into "${target.name}"`);
+}
+function deepCloneNode(node){
+  if (node.type === 'folder'){
+    return folder(node.name, node.children.map(deepCloneNode));
+  }
+  const cloned = deck(node.name, node.cards.map(c => {
+    const nc = card(c.f, c.b, c.tags);
+    nc.type = c.type || 'basic';
+    nc.clozeSource = c.clozeSource || null;
+    nc.img = {
+      front: c.img ? c.img.front : null,
+      back: c.img ? c.img.back : null
+    };
+    // links deliberately not carried over — a copy shouldn't silently
+    // point at "see also" cards elsewhere that don't point back at it
+    return nc;
+  }));
+  return cloned;
+}
+function updatePasteBtn(){
+  const btn = document.getElementById('pasteBtn');
+  if (!btn) return;
+  if (!clipboardIsValid()){
+    btn.style.display = 'none';
+    if (state.clipboard) state.clipboard = null;
+    return;
+  }
+  const src = nodeById(state.clipboard.id);
+  const targetId = state.currentPath[state.currentPath.length-1];
+  const reason = pasteReasonFor(targetId);
+  btn.style.display = 'flex';
+  btn.disabled = !!reason;
+  if (reason === 'already-here'){
+    btn.textContent = `📋 "${src.name}" is already here`;
+  } else if (reason === 'itself' || reason === 'descendant'){
+    btn.textContent = `📋 Can't paste here`;
+  } else {
+    btn.textContent = (state.clipboard.mode==='cut' ? '📋 Move here: "' : '📋 Paste "') + src.name + '"';
+  }
+}
+
+/* ---------------------------------------------------------
+   STUDY MODE
+--------------------------------------------------------- */
+function startStudy(d, opts={}){
+  const isRealDeck = opts.real !== false;
+  let order = d.cards.map((_,i)=>i);
+  if (isRealDeck && d.cards.length){
+    const srsMap = getSRSMap();
+    const dueIdx = order.filter(i => isCardDue(d.cards[i].id, srsMap));
+    if (dueIdx.length) order = dueIdx;
+    else showToast('Nothing due in this deck yet — studying the full deck.');
+  }
+  state.studying = {
+    deck: d,
+    order,
+    pos: 0,
+    flipped: false,
+    toughIds: new Set(),
+    times: [],
+    cardStartTs: Date.now(),
+    tickHandle: null,
+    isRealDeck,
+    logSession: isRealDeck,
+  };
+  if (isRealDeck) d.lastStudied = 'today';
+  document.getElementById('topbar').style.display='none';
+  document.getElementById('study').classList.add('active');
+  document.getElementById('content').style.display='none';
+  document.getElementById('studyDone').style.display='none';
+  document.getElementById('studyBody').style.display='flex';
+  document.getElementById('studyBody').style.flexDirection='column';
+  document.getElementById('studyBody').style.alignItems='center';
+  renderStudyCard();
+  startTicker();
+}
+function exitStudy(){
+  stopTicker();
+  state.studying = null;
+  state.peekStack = [];
+  document.getElementById('study').classList.remove('active');
+  document.getElementById('topbar').style.display='';
+  document.getElementById('content').style.display='block';
+  render();
+}
+async function renderStudyCard(){
+  const s = state.studying;
+  document.getElementById('studyTitle').textContent = s.deck.name + ` · ${s.pos+1}/${s.order.length}`;
+  document.getElementById('progressFill').style.width = ((s.pos)/s.order.length*100)+'%';
+  const fc = document.getElementById('flashCard');
+  // snap back instantly (no animated reverse-flip) BEFORE swapping content,
+  // so the old back face never briefly shows the new card's text mid-rotation
+  fc.classList.add('no-anim');
+  fc.classList.remove('flipped');
+  s.flipped = false;
+  void fc.offsetWidth; // force reflow so the transform jump is applied without transition
+  fc.classList.remove('no-anim');
+
+  const c = s.deck.cards[s.order[s.pos]];
+  const frontImg = c.img && c.img.front ? `<img class="card-img" src="about:blank" data-image-ref="${c.img.front}" alt="" onclick="event.stopPropagation(); openImgLightbox('${c.img.front}')">` : '';
+  const backImg = c.img && c.img.back ? `<img class="card-img" src="about:blank" data-image-ref="${c.img.back}" alt="" onclick="event.stopPropagation(); openImgLightbox('${c.img.back}')">` : '';
+  document.getElementById('frontText').innerHTML = frontImg + '<div class="face-text-inner">' + formatInlineMarkdown(c.f) + '</div>';
+  document.getElementById('backText').innerHTML = backImg + '<div class="face-text-inner">' + formatInlineMarkdown(c.b) + '</div>';
+  const frontEl = document.getElementById('frontText').querySelector('.card-img');
+  const backEl = document.getElementById('backText').querySelector('.card-img');
+  if (frontEl){ frontEl.src = await resolveImageRef(c.img && c.img.front) || ''; }
+  if (backEl){ backEl.src = await resolveImageRef(c.img && c.img.back) || ''; }
+  s.cardStartTs = Date.now();
+  updateTicker();
+  renderStarToggle();
+  renderSeeAlso(c);
+
+  const isPeek = !!s.isPeek;
+  document.querySelector('.study-controls').style.display = isPeek ? 'none' : 'flex';
+  document.querySelector('.grade-row').style.display = isPeek ? 'none' : 'flex';
+  const peekRow = document.getElementById('peekBackRow');
+  peekRow.style.display = isPeek ? 'flex' : 'none';
+  if (isPeek) document.getElementById('peekBackLabel').textContent = s.peekReturnLabel;
+}
+function renderSeeAlso(c){
+  const el = document.getElementById('seeAlsoRow');
+  const links = (c.links || []).map(id => findCardAnywhere(id)).filter(Boolean);
+  if (!links.length){ el.innerHTML = ''; el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.innerHTML = '<span class="see-also-label">See also</span>' +
+    links.map(t => `<button class="see-also-chip" data-id="${t.id}">${escapeHtml(truncate(t.f, 40))}</button>`).join('');
+  el.querySelectorAll('.see-also-chip').forEach(btn=>{
+    btn.onclick = ()=>{
+      const t = findCardAnywhere(btn.dataset.id);
+      if (t) peekCard(t);
+    };
+  });
+}
+/* --- "see also" peeking: view a linked card without losing your place in the current session --- */
+function peekCard(targetCard){
+  const s = state.studying;
+  if (!s || !targetCard) return;
+  stopTicker();
+  state.peekStack.push(s);
+  state.studying = {
+    deck: { id:'peek-'+targetCard.id, name:'See also', cards:[targetCard] },
+    order: [0],
+    pos: 0,
+    flipped: false,
+    toughIds: new Set(),
+    times: [],
+    cardStartTs: Date.now(),
+    tickHandle: null,
+    isRealDeck: false,
+    logSession: false,
+    isPeek: true,
+    peekReturnLabel: s.deck.name,
+  };
+  renderStudyCard();
+  startTicker();
+}
+function returnFromPeek(){
+  if (!state.peekStack.length) return;
+  stopTicker();
+  state.studying = state.peekStack.pop();
+  renderStudyCard();
+  startTicker();
+}
+function studyBack(){
+  if (state.peekStack.length) returnFromPeek();
+  else exitStudy();
+}
+function flipCard(){
+  const s = state.studying;
+  s.flipped = !s.flipped;
+  document.getElementById('flashCard').classList.toggle('flipped', s.flipped);
+}
+function nextCard(){
+  const s = state.studying;
+  if (s.pos < s.order.length-1){ s.pos++; renderStudyCard(); }
+}
+function prevCard(){
+  const s = state.studying;
+  if (s.pos > 0){ s.pos--; renderStudyCard(); }
+}
+function shuffleDeck(){
+  const s = state.studying;
+  for (let i=s.order.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [s.order[i], s.order[j]] = [s.order[j], s.order[i]];
+  }
+  s.pos = 0;
+  renderStudyCard();
+}
+
+/* --- star toggle on the currently shown card --- */
+function toggleStar(e){
+  e.stopPropagation();
+  const s = state.studying;
+  const c = s.deck.cards[s.order[s.pos]];
+  c.starred = !c.starred;
+  c.starredAt = c.starred ? Date.now() : c.starredAt;
+  renderStarToggle();
+  updateStarredCount();
+  persistTextState();
+}
+function renderStarToggle(){
+  const s = state.studying;
+  const c = s.deck.cards[s.order[s.pos]];
+  const btn = document.getElementById('starToggle');
+  btn.textContent = c.starred ? '★' : '☆';
+  btn.classList.toggle('active', c.starred);
+}
+
+/* --- live per-card timer ---
+   Uses a single module-level handle (rather than one stored on the
+   swappable `state.studying` object) so a stray/leaked interval can
+   never survive a session change, and updateTicker refuses to run
+   once the "reviewed" screen is showing — belt-and-suspenders so the
+   timer can never keep ticking after a session finishes. */
+let _tickHandle = null;
+function startTicker(){
+  stopTicker();
+  _tickHandle = setInterval(updateTicker, 500);
+}
+function stopTicker(){
+  if (_tickHandle){
+    clearInterval(_tickHandle);
+    _tickHandle = null;
+  }
+}
+function updateTicker(){
+  const s = state.studying;
+  const doneVisible = document.getElementById('studyDone').style.display !== 'none';
+  if (!s || doneVisible){
+    stopTicker();
+    return;
+  }
+  const elapsed = (Date.now() - s.cardStartTs)/1000;
+  document.getElementById('cardTimer').textContent = '⏱ ' + fmtTime(elapsed);
+}
+
+/* --- grading, tough tracking, session finish --- */
+function gradeCard(good){
+  const s = state.studying;
+  const c = s.deck.cards[s.order[s.pos]];
+  const elapsed = (Date.now() - s.cardStartTs)/1000;
+  s.times.push(elapsed);
+  if (!good) s.toughIds.add(c.id);
+  reviewLog.push({ cardId: c.id, good, ts: Date.now() });
+  srsMapCache = null;
+  persistTextState();
+  if (s.pos < s.order.length-1){
+    s.pos++;
+    renderStudyCard();
+  } else {
+    finishSession();
+  }
+}
+function finishSession(){
+  const s = state.studying;
+  stopTicker();
+  const total = s.times.reduce((a,b)=>a+b, 0);
+  const avg = total / s.times.length;
+
+  document.getElementById('progressFill').style.width = '100%';
+  document.getElementById('studyBody').style.display = 'none';
+  document.getElementById('studyDone').style.display = 'flex';
+  document.getElementById('doneSummary').textContent = `${s.order.length} cards reviewed in "${s.deck.name}"`;
+
+  const trendEl = document.getElementById('doneTrend');
+  if (s.logSession){
+    const priorAvgs = s.deck.sessions.slice(-2).map(x => x.avgSeconds);
+    s.deck.sessions.push({ date: Date.now(), avgSeconds: avg, totalSeconds: total, cardCount: s.times.length });
+    trendEl.innerHTML = renderTrend([...priorAvgs, avg]);
+  } else {
+    trendEl.innerHTML = `<div class="time-solo mono">⏱ ${fmtTime(avg)} avg / card · ${fmtTime(total)} total</div>`;
+  }
+
+  const toughBtn = document.getElementById('toughRedoBtn');
+  if (s.toughIds.size){
+    toughBtn.style.display = 'inline-flex';
+    toughBtn.textContent = `↻ Redo ${s.toughIds.size} tough card${s.toughIds.size>1?'s':''}`;
+  } else {
+    toughBtn.style.display = 'none';
+  }
+}
+function renderTrend(points){
+  if (points.length < 2){
+    return `<div class="time-solo mono">⏱ ${fmtTime(points[points.length-1])} avg / card <span style="opacity:.6">— first timed run</span></div>`;
+  }
+  let html = '<div class="trend-row">';
+  points.forEach((p, i)=>{
+    const isCurrent = i === points.length-1;
+    html += `<span class="trend-chip${isCurrent?' current':''}">${fmtTime(p)}</span>`;
+    if (!isCurrent){
+      const next = points[i+1];
+      const diff = next - p;
+      let cls = 'flat', glyph = '→';
+      if (diff < -0.15){ cls='good'; glyph='↓'; }
+      else if (diff > 0.15){ cls='bad'; glyph='↑'; }
+      html += `<span class="trend-arrow ${cls}">${glyph}</span>`;
+    }
+  });
+  html += '</div>';
+  return html;
+}
+function redoTough(){
+  const s = state.studying;
+  const cards = s.deck.cards.filter(c => s.toughIds.has(c.id));
+  if (!cards.length) return;
+  startStudy({ id:'tough-'+nextId(), name: s.deck.name + ' — tough spots', cards }, { real:false });
+}
+function restartDeck(){
+  const s = state.studying;
+  startStudy(s.deck, { real: s.isRealDeck });
+}
+
+/* ---------------------------------------------------------
+   RENDER ALL
+--------------------------------------------------------- */
+function render(){
+  renderTree();
+  updateStarredCount();
+  updatePasteBtn();
+  document.getElementById('starredRow').classList.toggle('active', state.viewingStarred);
+  if (state.managingDeckId){
+    renderManageCards();
+  } else if (state.viewingStarred){
+    renderCrumbsStarred();
+    renderStarredContent();
+  } else {
+    renderCrumbs();
+    renderContent();
+  }
+}
+function kardexSignInUrl(){
+  return new URL('index.html', window.location.href).href;
+}
+
+/* ---------------- Redirect loop guard (mirrors index.html) ---------------- */
+function tooManyAuthRedirects(){
+  const KEY = 'kardex_redirect_guard';
+  const now = Date.now();
+  let data;
+  try { data = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch(e){ data = null; }
+  if (!data || now - data.ts > 5000){ data = { count: 1, ts: now }; }
+  else { data.count++; data.ts = now; }
+  sessionStorage.setItem(KEY, JSON.stringify(data));
+  return data.count > 3;
+}
+function showAuthDiagnostic(msg){
+  console.error('[Kardex auth]', msg);
+  const box = document.getElementById('accountBox');
+  if (box) box.innerHTML = `<span class="account-name" style="color:#E0857A;">${msg}</span>`;
+}
+function goToSignIn(){
+  if (tooManyAuthRedirects()){
+    showAuthDiagnostic('Stuck bouncing between the app and sign-in — likely a stale/invalid session. Open DevTools → Application → Storage → "Clear site data" on both pages, then reload and sign in again.');
+    return;
+  }
+  window.location.href = kardexSignInUrl();
+}
+
+async function signOut(){
+  await persistTextState();          // make sure the last edit is saved before leaving
+  await supabaseClient.auth.signOut();
+  window.location.href = kardexSignInUrl();
+}
+
+function renderAccountBox(){
+  const box = document.getElementById('accountBox');
+  if (!box) return;
+  const gearBtn = `
+    <button class="account-gear" onclick="openSettingsModal()" title="Settings">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>`;
+  if (!SUPABASE_CONFIGURED){
+    box.innerHTML = `
+      <div class="account-avatar account-avatar-fallback">•</div>
+      <span class="account-name" title="Cloud sync isn't set up yet — see SETUP.md">Local only (no cloud sync)</span>
+      ${gearBtn}
+    `;
+    return;
+  }
+  if (!currentUser){
+    box.innerHTML = `
+      <div class="account-avatar account-avatar-fallback">•</div>
+      <span class="account-name">Not signed in</span>
+      ${gearBtn}
+    `;
+    return;
+  }
+  const meta = currentUser.user_metadata || {};
+  const name = meta.full_name || meta.name || currentUser.email || 'Signed in';
+  // Google's claim can come back under any of these keys depending on provider/version.
+  const avatar = meta.avatar_url || meta.picture || '';
+  const initial = (name.trim()[0] || '?').toUpperCase();
+
+  box.innerHTML = `
+    ${avatar
+      ? `<img src="${avatar}" alt="" class="account-avatar" referrerpolicy="no-referrer"
+           onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'account-avatar account-avatar-fallback',style:'background:${avatarColor(currentUser.id)}',textContent:'${initial}'}))">`
+      : `<div class="account-avatar account-avatar-fallback" style="background:${avatarColor(currentUser.id)}">${initial}</div>`}
+    <span class="account-name" title="${name}">${name}</span>
+    ${gearBtn}
+  `;
+}
+// Deterministic-but-varied background color per user id, so fallback initials
+// aren't all the same flat kraft tone.
+function avatarColor(seed){
+  const palette = ['#B08A54','#2F6F62','#9B3B34','#4B6E8C','#7A5C8E','#8C6B3F'];
+  let h = 0;
+  for (let i=0;i<(seed||'').length;i++) h = (h*31 + seed.charCodeAt(i)) >>> 0;
+  return palette[h % palette.length];
+}
+
+/* ---------------- Settings modal ---------------- */
+const CARD_FORMAT_MD = `### Card 1
+**Q:** What nerve is compressed in carpal tunnel syndrome?
+**A:** The median nerve
+**Tags:** anatomy, upper-limb
+**Links:** 2, 5
+
+---
+
+### Card 2
+**Type:** cloze
+**Cloze:** The [[median]] nerve is compressed in carpal tunnel syndrome
+**Tags:** anatomy`;
+
+const CARD_FORMAT_JSON = `[
+  {
+    "question": "What nerve is compressed in carpal tunnel syndrome?",
+    "answer": "The median nerve",
+    "tags": ["anatomy", "upper-limb"],
+    "links": [2, 5]
+  },
+  {
+    "type": "cloze",
+    "cloze": "The [[median]] nerve is compressed in carpal tunnel syndrome",
+    "tags": ["anatomy"]
+  }
+]`;
+
+function renderSettingsAccount(){
+  const el = document.getElementById('settingsAccountRow');
+  if (!el) return;
+  if (currentUser){
+    const meta = currentUser.user_metadata || {};
+    const name = meta.full_name || meta.name || currentUser.email || 'Signed in';
+    const avatar = meta.avatar_url || meta.picture || '';
+    const initial = (name.trim()[0] || '?').toUpperCase();
+    el.innerHTML = `
+      ${avatar
+        ? `<img src="${avatar}" alt="" class="account-avatar" referrerpolicy="no-referrer"
+             onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'account-avatar account-avatar-fallback',style:'background:${avatarColor(currentUser.id)}',textContent:'${initial}'}))">`
+        : `<div class="account-avatar account-avatar-fallback" style="background:${avatarColor(currentUser.id)}">${initial}</div>`}
+      <span class="settings-account-name" title="${name}">${name}</span>
+      <button class="mini-btn" onclick="signOut()">Sign out</button>
+    `;
+  } else if (SUPABASE_CONFIGURED){
+    el.innerHTML = `
+      <div class="account-avatar account-avatar-fallback">•</div>
+      <span class="settings-account-name">Not signed in</span>
+      <button class="mini-btn" onclick="goToSignIn()">Sign in</button>
+    `;
+  } else {
+    el.innerHTML = `
+      <div class="account-avatar account-avatar-fallback">•</div>
+      <span class="settings-account-name">Local only — cloud sync isn't configured (see SETUP.md).</span>
+    `;
+  }
+}
+function openSettingsModal(){
+  renderSettingsAccount();
+  document.getElementById('settingsSnippetMd').textContent = CARD_FORMAT_MD;
+  document.getElementById('settingsSnippetJson').textContent = CARD_FORMAT_JSON;
+  document.getElementById('settingsOverlay').classList.add('active');
+}
+async function copySettingsSnippet(elId, btn){
+  const text = document.getElementById(elId).textContent;
+  const label = btn.textContent;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    btn.textContent = 'Copied!';
+  } catch (err) {
+    console.error('Copy failed', err);
+    btn.textContent = 'Copy failed';
+  }
+  setTimeout(()=>{ btn.textContent = label; }, 1500);
+}
+
+async function initAuthAndApp(){
+  // No real Supabase project wired up yet — just run locally, no redirect.
+  if (!SUPABASE_CONFIGURED){
+    renderAccountBox();
+    await restorePersistedState();
+    render();
+    return;
+  }
+
+  const { data: { session }, error } = await supabaseClient.auth.getSession();
+  if (error){
+    showAuthDiagnostic('Could not check session: ' + error.message);
+    return;
+  }
+  if (!session){
+    goToSignIn();
+    return;
+  }
+  currentUser = session.user;
+  accessToken = session.access_token;
+  renderAccountBox();
+
+  await restorePersistedState();
+  render();
+
+  // Keep the token fresh (Supabase auto-refreshes) and bounce to sign-in on sign-out.
+  supabaseClient.auth.onAuthStateChange((event, newSession)=>{
+    if (event === 'SIGNED_OUT'){
+      goToSignIn();
+    } else if (newSession){
+      accessToken = newSession.access_token;
+      currentUser = newSession.user;
+    }
+  });
+}
+
+initAuthAndApp();
+window.addEventListener('beforeunload', ()=> persistTextState());
+</script>
+</body>
+</html>

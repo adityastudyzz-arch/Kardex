@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "name": "kardex",
+  "builds": [
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "kardex.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/$", "dest": "/index.html" },
+    { "src": "/kardex", "dest": "/kardex.html" },
+    { "src": "/(.*)", "dest": "/$1" }
+  ]
+}

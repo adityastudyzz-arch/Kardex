@@ -1,0 +1,31 @@
+{
+  "name": "Kardex",
+  "short_name": "Kardex",
+  "description": "A compact flashcard drawer and study app.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F6F2E7",
+  "theme_color": "#F6F2E7",
+  "icons": [
+    {
+      "src": "icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    }
+  ]
+}
