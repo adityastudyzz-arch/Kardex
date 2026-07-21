@@ -4,10 +4,20 @@
 <meta charset="UTF-8">
 <title>Kardex — flashcard drawers</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-256.png">
+<link rel="apple-touch-icon" href="icon-256.png">
+<link rel="apple-touch-icon" sizes="128x128" href="icon-128.png">
+<link rel="icon" type="image/png" sizes="256x256" href="icon-256.png">
+<link rel="icon" type="image/png" sizes="128x128" href="icon-128.png">
+<link rel="icon" type="image/png" sizes="96x96" href="icon-96.png">
+<link rel="icon" type="image/png" sizes="72x72" href="icon-72.png">
+<link rel="icon" type="image/png" sizes="48x48" href="icon-48.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
 <link rel="manifest" href="site.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kardex">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#F6F2E7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@600&display=swap" rel="stylesheet">
@@ -18,6 +28,7 @@
   --paper:#F6F2E7;
   --paper-raised:#FCFAF3;
   --paper-dark:#EAE2CC;
+  --surface:#fff;
   --ink:#232323;
   --ink-soft:#6B6459;
   --teal:#2F6F62;
@@ -40,6 +51,40 @@ body{
   color:var(--ink);
   font-family:'IBM Plex Sans', sans-serif;
   overflow:hidden;
+  transition:background .35s ease;
+}
+/* Tough mode: a muted, red-tinted variant of the same palette (not a
+   different design) — swaps the teal/kraft accents for warm reds and
+   deepens the paper tones, so every element that already uses these
+   variables (buttons, borders, deck tiles, folder tabs) updates together
+   into something unmistakably "tough" without turning garish. */
+body.tough-mode{
+  --paper:#F9E3DC;
+  --paper-raised:#FDECE5;
+  --paper-dark:#F1CDC0;
+  --surface:#FCEAE3;
+  --teal:#B5453C;
+  --teal-dark:#8A2F27;
+  --kraft:#C97B68;
+  --kraft-dark:#9C4C3D;
+  --kraft-shadow:#7A3A2E;
+  --line:#DFA895;
+  --ink:#3A211D;
+  --ink-soft:#8A5B50;
+  background:
+    radial-gradient(ellipse at top left, #f9d6c9 0%, var(--paper) 55%);
+}
+body.tough-mode::before{
+  content:"";
+  position:fixed; top:0; left:0; right:0; height:4px;
+  background:linear-gradient(90deg, var(--maroon), var(--teal-dark), var(--maroon));
+  z-index:50;
+  pointer-events:none;
+}
+body.tough-mode #topbar{ border-bottom-color:var(--teal-dark); }
+body.tough-mode #sidebar{
+  background: linear-gradient(180deg, #402620, #2A1712 40%);
+  box-shadow: 4px 0 18px rgba(120,30,15,.35);
 }
 .mono{font-family:'IBM Plex Mono', monospace;}
 button{font-family:inherit;cursor:pointer;}
@@ -148,6 +193,40 @@ button{font-family:inherit;cursor:pointer;}
 .starred-row .star-ico{ color:#E0B23E; font-size:14px; }
 .starred-row .tname{ flex:1; }
 .starred-row .tcount{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:#C7A94E; }
+
+.starred-row.tough-row{ border-color:rgba(196,90,74,.32); background:rgba(196,90,74,.08); }
+.starred-row.tough-row:hover{ background:rgba(196,90,74,.15); }
+.starred-row.tough-row.active{ background:rgba(196,90,74,.24); border-color:rgba(196,90,74,.6); color:#FBE6E1; }
+.starred-row.tough-row .tough-ico{ color:#D2685A; font-size:14px; }
+.starred-row.tough-row .tcount{ color:#E39383; }
+
+.tough-mode-row{
+  display:flex; align-items:center; justify-content:space-between;
+  margin:2px 10px 10px;
+  padding:8px 10px;
+  border-radius:7px;
+  font-size:12.5px;
+  color:#CBB4AE;
+  border:1px dashed rgba(196,90,74,.3);
+}
+.tough-mode-row .tmode-label{ letter-spacing:.02em; }
+.toggle-switch{
+  position:relative;
+  width:34px; height:19px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.08);
+  padding:0; flex-shrink:0;
+  transition:background .18s ease, border-color .18s ease;
+}
+.toggle-switch .toggle-knob{
+  position:absolute; top:2px; left:2px;
+  width:13px; height:13px; border-radius:50%;
+  background:#C9BEA8;
+  transition:transform .18s ease, background .18s ease;
+}
+.toggle-switch.on{ background:#9B3B34; border-color:#C4574A; }
+.toggle-switch.on .toggle-knob{ transform:translateX(15px); background:#FBE6E1; }
 
 .sidebar-foot{
   padding:14px 16px 18px;
@@ -266,6 +345,19 @@ button{font-family:inherit;cursor:pointer;}
 }
 .action-btn.primary:hover{ background:var(--teal-dark); color:#fff; }
 .action-btn.icon-only{ padding:8px; width:34px; height:34px; justify-content:center; }
+.resume-btn{
+  border-color:rgba(47,111,98,.4);
+  background:rgba(47,111,98,.08);
+  color:var(--teal-dark);
+  animation:resumePulse 2.2s ease-in-out infinite;
+}
+.resume-btn:hover{ background:var(--teal); color:#fff; }
+.resume-btn svg{ flex-shrink:0; }
+#resumeStudyBtnLabel{ max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+@keyframes resumePulse{
+  0%, 100%{ box-shadow:0 0 0 0 rgba(47,111,98,.28); }
+  50%{ box-shadow:0 0 0 5px rgba(47,111,98,0); }
+}
 
 /* ---------- Mobile search overlay: blurred backdrop, bar + results ---------- */
 .search-overlay{
@@ -601,6 +693,20 @@ button{font-family:inherit;cursor:pointer;}
 }
 .star-toggle:hover{ transform:scale(1.08); }
 .star-toggle.active{ color:#D6A72E; border-color:#D6A72E; }
+.edit-toggle{
+  position:absolute; top:-13px; left:-10px;
+  z-index:5;
+  width:34px; height:34px;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background:var(--paper-raised);
+  box-shadow:var(--shadow);
+  color:var(--ink-soft);
+  font-size:14px;
+  display:flex; align-items:center; justify-content:center;
+  transition: color .15s, transform .15s, border-color .15s;
+}
+.edit-toggle:hover{ transform:scale(1.08); color:var(--teal-dark); border-color:var(--teal); }
 .flash-card{
   width:100%; height:100%;
   position:relative;
@@ -737,6 +843,94 @@ button{font-family:inherit;cursor:pointer;}
 }
 .tough-btn:hover{ background:var(--maroon); color:#fff; border-color:var(--maroon); }
 
+/* ---------- Notebook view : continuous scroll of all cards, formatted, starrable ---------- */
+#notebook{
+  display:none;
+  flex:1;
+  flex-direction:column;
+  align-items:center;
+  padding:30px 20px 60px;
+  overflow-y:auto;
+}
+#notebook.active{ display:flex; }
+.notebook-head{ width:100%; max-width:640px; margin-bottom:22px; }
+#notebookPages{
+  width:100%; max-width:640px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+/* One card per entry (front + back rendered as plain formatted text, no
+   flip, no raw markdown). Each entry is its own visible container — a
+   soft border plus a gentle alternating tint — so on a continuous scroll
+   it's never ambiguous where one card ends and the next begins, and the
+   star button in its corner unambiguously belongs to the card it sits on. */
+.notebook-entry{
+  position:relative;
+  padding:20px 44px 20px 20px;
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-radius:12px;
+  box-shadow:var(--shadow);
+}
+.notebook-entry:nth-child(even){
+  background:var(--paper-dark);
+}
+.notebook-entry .nb-index{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:10.5px; color:var(--ink-soft); opacity:.6;
+  letter-spacing:.06em; text-transform:uppercase;
+  margin-bottom:8px;
+}
+.notebook-entry .nb-front{
+  font-family:'Fraunces', serif;
+  font-size:17px; font-weight:600;
+  line-height:1.45;
+  margin-bottom:10px;
+  overflow-wrap:break-word;
+}
+.notebook-entry .nb-back{
+  font-family:'Fraunces', serif;
+  font-size:15px;
+  line-height:1.5;
+  color:var(--teal-dark);
+  overflow-wrap:break-word;
+}
+.notebook-entry .nb-img{
+  max-width:100%; max-height:220px;
+  border-radius:8px; border:1px solid var(--line);
+  display:block; margin-top:10px; object-fit:contain;
+  background:var(--paper);
+}
+/* the star sits inside this entry's own box, top-right — never floating
+   between two entries — and only reveals itself on hover/focus of THIS
+   entry so its ownership is unmistakable even mid-scroll. Already-starred
+   cards stay visible so you can spot them while flipping through fast. */
+.notebook-entry .nb-star{
+  position:absolute; top:20px; right:6px;
+  width:30px; height:30px; border-radius:50%;
+  border:1px solid var(--line);
+  background:var(--paper-raised);
+  color:var(--ink-soft);
+  font-size:14px;
+  display:flex; align-items:center; justify-content:center;
+  opacity:0;
+  transform:scale(.9);
+  transition:opacity .15s, transform .15s, color .15s, border-color .15s;
+}
+.notebook-entry:hover .nb-star,
+.notebook-entry .nb-star:focus-visible,
+.notebook-entry .nb-star.active{ opacity:1; transform:scale(1); }
+.notebook-entry .nb-star.active{ color:#D6A72E; border-color:#D6A72E; }
+@media (hover:none){
+  /* touch devices have no hover — keep every star visible so it's always tappable */
+  .notebook-entry .nb-star{ opacity:1; transform:scale(1); }
+}
+.notebook-empty{
+  text-align:center; padding:60px 20px;
+  color:var(--ink-soft);
+}
+
 /* ---------- Starred smart-folder view ---------- */
 .starred-header{
   display:flex; align-items:center; justify-content:space-between;
@@ -842,7 +1036,7 @@ button{font-family:inherit;cursor:pointer;}
 .modal input, .modal textarea{
   width:100%; padding:9px 11px; border-radius:7px; border:1px solid var(--line);
   font-family:inherit; font-size:13.5px; margin-bottom:12px; outline:none; resize:vertical;
-  background:#fff;
+  background:var(--surface);
 }
 .modal input:focus, .modal textarea:focus{ border-color:var(--teal); }
 .modal input.input-error{ border-color:var(--maroon) !important; }
@@ -856,7 +1050,7 @@ button{font-family:inherit;cursor:pointer;}
 }
 .modal-row{ display:flex; gap:8px; justify-content:flex-end; margin-top:6px; }
 .modal-row button{
-  padding:8px 16px; border-radius:20px; font-size:12.5px; border:1px solid var(--line); background:#fff;
+  padding:8px 16px; border-radius:20px; font-size:12.5px; border:1px solid var(--line); background:var(--surface);
 }
 .modal-row .confirm{ background:var(--teal); border-color:var(--teal); color:#fff; }
 .modal-row .confirm:hover{ background:var(--teal-dark); }
@@ -871,7 +1065,7 @@ button{font-family:inherit;cursor:pointer;}
   flex:1; padding:7px 0; border:none; background:transparent; border-radius:7px;
   font-size:12.5px; color:var(--ink-soft); font-weight:500;
 }
-.mode-tabs button.active{ background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(35,35,35,.12); }
+.mode-tabs button.active{ background:var(--surface); color:var(--ink); box-shadow:0 1px 3px rgba(35,35,35,.12); }
 .import-pane{ display:none; }
 .import-pane.active{ display:block; }
 .dropzone{
@@ -880,7 +1074,7 @@ button{font-family:inherit;cursor:pointer;}
 }
 .dropzone.drag{ border-color:var(--teal); background:#f2f8f6; color:var(--teal-dark); }
 .dropzone button{
-  border:1px solid var(--line); background:#fff; border-radius:20px; padding:5px 13px;
+  border:1px solid var(--line); background:var(--surface); border-radius:20px; padding:5px 13px;
   font-size:12px; color:var(--ink); margin-top:6px;
 }
 .dropzone button:hover{ border-color:var(--teal); color:var(--teal-dark); }
@@ -889,6 +1083,7 @@ button{font-family:inherit;cursor:pointer;}
 .import-status{ font-size:12px; margin:-4px 0 12px; min-height:16px; }
 .import-status.ok{ color:var(--teal-dark); }
 .import-status.err{ color:var(--maroon); }
+.import-status.warn{ color:var(--kraft-dark); white-space:pre-line; line-height:1.5; }
 .import-hint{ font-size:11px; color:var(--ink-soft); margin:-6px 0 12px; line-height:1.5; }
 .import-hint code{ background:var(--paper-dark); padding:1px 5px; border-radius:4px; font-size:10.5px; }
 .highlight{ background:#F5E1A4; padding:0 3px; border-radius:3px; }
@@ -921,7 +1116,7 @@ button{font-family:inherit;cursor:pointer;}
 .settings-hint{ font-size:12px; color:var(--ink-soft); margin:0 0 10px; line-height:1.5; }
 .settings-account-row{
   display:flex; align-items:center; gap:10px; padding:9px 11px;
-  border:1px solid var(--line); border-radius:10px; background:#fff;
+  border:1px solid var(--line); border-radius:10px; background:var(--surface);
 }
 .settings-account-row .account-avatar{ border-color:var(--line); }
 .settings-account-name{
@@ -931,7 +1126,7 @@ button{font-family:inherit;cursor:pointer;}
 .settings-btn-row{ display:flex; gap:8px; }
 .settings-btn-row .action-btn{ flex:1; justify-content:center; }
 .settings-snippet{
-  border:1px solid var(--line); border-radius:9px; background:#fff; margin-bottom:10px; overflow:hidden;
+  border:1px solid var(--line); border-radius:9px; background:var(--surface); margin-bottom:10px; overflow:hidden;
 }
 .settings-snippet:last-child{ margin-bottom:0; }
 .settings-snippet-head{
@@ -978,7 +1173,7 @@ button{font-family:inherit;cursor:pointer;}
 .fmt-btn{
   width:26px; height:24px;
   display:flex; align-items:center; justify-content:center;
-  border:1px solid var(--line); background:#fff; border-radius:6px;
+  border:1px solid var(--line); background:var(--surface); border-radius:6px;
   font-size:12.5px; color:var(--ink-soft); line-height:1;
 }
 .fmt-btn:hover{ border-color:var(--teal); color:var(--teal-dark); background:var(--paper-dark); }
@@ -1109,7 +1304,7 @@ button{font-family:inherit;cursor:pointer;}
 /* ---------- Move-to picker ---------- */
 .move-picker{
   max-height:260px; overflow-y:auto; border:1px solid var(--line); border-radius:8px;
-  padding:8px; margin-bottom:14px; background:#fff;
+  padding:8px; margin-bottom:14px; background:var(--surface);
 }
 .move-row{ padding:7px 10px; border-radius:6px; font-size:13px; cursor:pointer; color:var(--ink); }
 .move-row:hover{ background:var(--paper-dark); }
@@ -1120,7 +1315,7 @@ button{font-family:inherit;cursor:pointer;}
 /* ---------- Export folder picker ---------- */
 .export-picker{
   max-height:300px; overflow-y:auto; border:1px solid var(--line); border-radius:8px;
-  padding:8px; margin-bottom:10px; background:#fff;
+  padding:8px; margin-bottom:10px; background:var(--surface);
 }
 .export-row{
   display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:6px;
@@ -1173,6 +1368,7 @@ button{font-family:inherit;cursor:pointer;}
   .action-btn{ order:2; width:auto; flex-basis:auto; padding:8px 13px; font-size:12px; }
   .search-wrap{ display:none; }
   #mobileSearchBtn{ order:2; }
+  #resumeStudyBtn{ order:3; }
   .menu-btn{ display:inline-flex; order:0; }
   .sidebar-backdrop.active{ display:block; }
 }
@@ -1213,6 +1409,17 @@ button{font-family:inherit;cursor:pointer;}
       <span class="tname">Starred</span>
       <span class="tcount" id="starredCount">0</span>
     </div>
+    <div class="starred-row tough-row" id="toughRow" onclick="viewTough()">
+      <span class="tough-ico">⚑</span>
+      <span class="tname">Tough cards</span>
+      <span class="tcount" id="toughCount">0</span>
+    </div>
+    <div class="tough-mode-row" id="toughModeRow">
+      <span class="tmode-label">Tough mode</span>
+      <button type="button" class="toggle-switch" id="toughModeToggle" onclick="toggleToughMode()" role="switch" aria-checked="false" title="Only show tough cards when studying a deck, with a red theme to match">
+        <span class="toggle-knob"></span>
+      </button>
+    </div>
     <nav id="tree"></nav>
     <div class="sidebar-foot">
       <div class="account-box" id="accountBox"></div>
@@ -1229,6 +1436,10 @@ button{font-family:inherit;cursor:pointer;}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
       <div id="crumbs"></div>
+      <button class="action-btn resume-btn" id="resumeStudyBtn" style="display:none;" onclick="resumeStudy()" title="Pick up where you left off">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <span id="resumeStudyBtnLabel">Resume</span>
+      </button>
       <div class="search-wrap">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
         <input id="searchInput" type="text" placeholder="Search cards & drawers…" oninput="onSearch(this.value)">
@@ -1257,6 +1468,7 @@ button{font-family:inherit;cursor:pointer;}
       <div id="studyBody">
         <div class="study-center">
           <div class="card-stage">
+            <button class="edit-toggle" id="editToggle" onclick="editCurrentStudyCard(event)" title="Edit this card">✎</button>
             <button class="star-toggle" id="starToggle" onclick="toggleStar(event)" title="Star this card">☆</button>
             <div class="flash-card" id="flashCard" onclick="flipCard()">
               <div class="face front">
@@ -1308,6 +1520,17 @@ button{font-family:inherit;cursor:pointer;}
         <button class="action-btn tough-btn" id="toughRedoBtn" style="display:none;" onclick="redoTough()"></button>
       </div>
     </div>
+
+    <div id="notebook">
+      <div class="study-head notebook-head">
+        <button class="back-btn" onclick="closeNotebook()" aria-label="Back" title="Back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <span id="notebookTitle">—</span>
+        <span class="mono timer-chip" id="notebookCount">0 cards</span>
+      </div>
+      <div id="notebookPages"></div>
+    </div>
   </main>
 </div>
 
@@ -1344,6 +1567,40 @@ button{font-family:inherit;cursor:pointer;}
     <div class="modal-row">
       <button class="cancel" onclick="closeModal('deckOverlay')">Cancel</button>
       <button class="confirm" onclick="confirmDeck()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="unfinishedDeckOverlay">
+  <div class="modal" style="width:360px;">
+    <h3>👺 Hold on…</h3>
+    <p id="unfinishedDeckMsg" style="margin:0 0 16px; color:var(--ink-soft); font-size:13.5px; line-height:1.55;"></p>
+    <div class="modal-row" style="flex-direction:column; align-items:stretch; gap:8px;">
+      <button class="confirm" id="unfinishedResumeBtn" onclick="resolveUnfinishedResume()" style="width:100%;"></button>
+      <button class="cancel" id="unfinishedContinueBtn" onclick="resolveUnfinishedContinue()" style="width:100%;"></button>
+    </div>
+  </div>
+</div>
+
+<audio id="hmmAudio" src="hmmm-snap-meme.mp3" preload="auto"></audio>
+
+<div class="overlay" id="bulkAddOverlay">
+  <div class="modal wide">
+    <h3>Add cards to <span id="bulkAddDeckName" class="mono"></span></h3>
+    <div class="import-pane active">
+      <div class="dropzone" id="bulkDropzone">
+        Drop a <span class="mono">.md</span> or <span class="mono">.json</span> file here
+        <div><button type="button" onclick="document.getElementById('bulkDeckFileInput').click()">Choose file</button></div>
+        <div class="fname" id="bulkFileNameLabel"></div>
+      </div>
+      <input type="file" id="bulkDeckFileInput" accept=".md,.markdown,.json,.txt" style="display:none" onchange="onBulkDeckFileChosen(event)">
+      <textarea id="bulkImportText" placeholder="…or paste your Markdown / JSON cards here" oninput="onBulkImportTextChange()"></textarea>
+      <div class="import-status" id="bulkImportStatus"></div>
+      <div class="import-hint">Same format as new-deck import — Markdown blocks separated by <code>---</code>, each with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:**</code>), plus optional <code>**Tags:**</code>/<code>**Links:**</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links, id}</code>. New cards are checked against ones already in this deck, and any matching card number/ID or exact-duplicate wording is flagged before they're added.</div>
+    </div>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal('bulkAddOverlay')">Cancel</button>
+      <button class="confirm" id="bulkAddConfirmBtn" onclick="confirmBulkAdd()">Add cards</button>
     </div>
   </div>
 </div>
@@ -1576,15 +1833,14 @@ const IMAGE_STORE_NAME = 'images';
 const BACKUP_STORAGE_KEY = 'kardex-local-backup-v1';
 
 /* ---------------- Supabase config ----------------
-   Auth is disabled for now so the app always runs in local-only mode.
-   Remove the placeholder values and restore your project when you want
-   to re-enable login and cloud sync.
+  Configured to match the project's values so auth/UI work.
+  These should match the values in index.html — replace if necessary.
 --------------------------------------------------- */
-const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
+const SUPABASE_URL = 'https://cvwqsxeydimszufybffv.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2d3FzeGV5ZGltc3p1ZnliZmZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1MzM4ODgsImV4cCI6MjEwMDEwOTg4OH0.Tct26EfeZDJkIrJ4lUQQg2KaQLCacLadOkdBV_R27E0';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-// False while using placeholder values, so the app stays local-only.
-const SUPABASE_CONFIGURED = false;
+// True when real keys are present — enables cloud sign-in UI.
+const SUPABASE_CONFIGURED = !SUPABASE_URL.includes('YOUR-PROJECT-REF') && !SUPABASE_ANON_KEY.includes('YOUR-ANON-PUBLIC-KEY');
 
 let currentUser = null;   // set once signed in
 let accessToken = null;   // the user's Supabase access token, sent so RLS can see auth.uid()
@@ -1784,6 +2040,96 @@ async function resolveImageRef(ref){
 let persistTimeoutId = null;
 let lastPersistedPayload = null;
 
+function loadPendingSession(){
+  try {
+    const raw = localStorage.getItem(PENDING_SESSION_KEY);
+    pendingSession = raw ? JSON.parse(raw) : null;
+  } catch(e){ pendingSession = null; }
+}
+/* Snapshots the live study session (if it's a real, loggable deck review —
+   not a peek or a synthetic tough/starred mash-up) so it can be picked back
+   up later from the exact same card, with the timer frozen at whatever it
+   read when you left — not still ticking through the gap you were away.
+   We store elapsed-seconds-on-this-card rather than the raw start
+   timestamp; resumeStudy() turns that back into a fresh cardStartTs. */
+function savePendingSession(){
+  const s = state.studying;
+  if (!s || s.isPeek || !s.logSession || !s.deck || !nodeById(s.deck.id)) return;
+  pendingSession = {
+    deckId: s.deck.id,
+    deckName: s.deck.name,
+    order: s.order,
+    pos: s.pos,
+    toughIds: Array.from(s.toughIds),
+    times: s.times,
+    elapsedOnCard: (Date.now() - s.cardStartTs) / 1000,
+    isRealDeck: s.isRealDeck,
+    savedAt: Date.now(),
+  };
+  try { localStorage.setItem(PENDING_SESSION_KEY, JSON.stringify(pendingSession)); } catch(e){}
+  renderResumeButtons();
+}
+function clearPendingSession(){
+  pendingSession = null;
+  try { localStorage.removeItem(PENDING_SESSION_KEY); } catch(e){}
+  renderResumeButtons();
+}
+function renderResumeButtons(){
+  const btn = document.getElementById('resumeStudyBtn');
+  if (!btn) return;
+  if (pendingSession && nodeById(pendingSession.deckId)){
+    btn.style.display = 'flex';
+    document.getElementById('resumeStudyBtnLabel').textContent = 'Resume: ' + pendingSession.deckName;
+    btn.title = `Pick up "${pendingSession.deckName}" — same card, same timer`;
+  } else {
+    btn.style.display = 'none';
+    if (pendingSession) clearPendingSession(); // stale reference (deck was deleted) — sweep it
+  }
+}
+/* A short, skeptical "hmm" grunt — synthesized so the nudge never depends
+   on an external audio file loading. Two overlapping low tones with a
+   slight downward pitch bend. */
+/* The "hold on" sound cue: loops the provided audio clip for as long as
+   the unfinished-deck modal is up, so it can't play-and-forget under
+   someone's decision. Falls back to a short synthesized grunt only if the
+   audio file can't play at all (e.g. missing from the folder). */
+function playHmmSound(){
+  const el = document.getElementById('hmmAudio');
+  if (el){
+    el.loop = true;
+    el.currentTime = 0;
+    const p = el.play();
+    if (p && p.catch) p.catch(()=> playHmmSoundFallback());
+    return;
+  }
+  playHmmSoundFallback();
+}
+function stopHmmSound(){
+  const el = document.getElementById('hmmAudio');
+  if (el){ el.pause(); el.currentTime = 0; el.loop = false; }
+}
+function playHmmSoundFallback(){
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const now = ctx.currentTime;
+    [220, 165].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.72, now + 0.55);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.11 - i*0.03, now + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.62);
+    });
+    setTimeout(()=>ctx.close(), 900);
+  } catch(e){ /* audio not available — the modal still gets the point across */ }
+}
 function persistLocalState(){
   const payload = {
     version: 1,
@@ -2102,20 +2448,25 @@ async function onBackupFileChosen(e){
 
 function card(f,b,tags=[]){
   return { id: nextId(), f, b, tags, starred:false, starredAt:null,
+    tough:false, toughAt:null, // set when a review grades this card "Review again"; cleared on "Got it"
     type:'basic',            // 'basic' | 'cloze'
     clozeSource:null,        // raw authored text for cloze cards, e.g. "The [[median]] nerve is compressed…"
     img:{ front:null, back:null }, // data URLs
     links:[],                // ids of related "see also" cards, kept bidirectional
+    importRefId:null,        // the "### Card N" number or JSON "id" this card had when imported via MD/JSON,
+                              // kept around so a later MD/JSON import into the same deck can be cross-checked against it
     createdAt: Date.now()    // when this card was added — powers the "added today" home stat
   };
 }
-/* Turns "The [[median]] nerve…" into a blanked front and an answer-revealed back. */
+/* Turns "The [[median]] nerve is compressed at the [[wrist]]…" into a blanked
+   front (every [[...]] hidden) and an answer-revealed back (every [[...]]
+   highlighted). Handles any number of cloze blanks in one card. */
 function clozeToFB(source){
-  const m = source.match(/\[\[(.+?)\]\]/);
-  if (!m) return { f: source, b: source };
-  const answer = m[1];
-  const f = source.slice(0, m.index) + '▁▁▁▁▁' + source.slice(m.index + m[0].length);
-  const b = source.slice(0, m.index) + '==' + answer + '==' + source.slice(m.index + m[0].length);
+  const re = /\[\[(.+?)\]\]/g;
+  if (!re.test(source)) return { f: source, b: source };
+  re.lastIndex = 0;
+  const f = source.replace(re, '▁▁▁▁▁');
+  const b = source.replace(re, (_, answer) => '==' + answer + '==');
   return { f, b };
 }
 function findCardAnywhere(id){
@@ -2154,7 +2505,7 @@ const root = folder('Kardex', [
       card('Can I add a lot of cards at once?', 'Yes — when starting a new deck, choose the **Paste / upload** tab instead of typing cards one by one. Paste or upload a block of Markdown or JSON formatted cards, and Kardex creates them all in one go. Open **Settings** (the gear icon) to see the exact Markdown and JSON formats, with a Copy button for each.'),
       card('How do I study a deck?', 'Open a deck and click **Study**. Flip each card, then grade it "Got it" or "Review again" — Kardex tracks your speed and accuracy over time.'),
       card('How do I flag a tricky card?', 'Tap the star while studying (or on any card) to pin it. Starred cards show up in the **Starred** drawer, so you can drill just your weak spots.'),
-      card('What happens to my tough cards?', 'After a study session, Kardex offers to **redo tough cards** — the ones you marked "Review again" — so you can reinforce them right away.'),
+      card('What happens to my tough cards?', 'Grading a card "Review again" marks it tough — after a session Kardex offers to **redo tough cards** right away, and every tough card also collects in the **Tough cards** drawer in the sidebar, across every deck, until you get it right. Flip on **Tough mode** there and opening any deck studies only its tough cards, with a red theme so you always know it is on.'),
       card('Ready to make this yours?', 'Delete this Welcome drawer whenever you like, then use **+ Drawer** and **+ Deck** to start building your own card index. Good luck studying!'),
     ]),
   ]),
@@ -2199,6 +2550,19 @@ rebuildIndex(); // build the lookup indexes for the initial tree above
 --------------------------------------------------------- */
 let reviewLog = [];
 
+/* ---------------------------------------------------------
+   RESUMABLE STUDY SESSION — a lightweight snapshot of whatever
+   real deck is currently mid-review, kept in localStorage (not
+   the synced tree) so it survives a refresh, a crash, or the
+   user just tapping back — same card, same running timer,
+   whenever they come back to it. Only one can be pending at a
+   time; starting a different deck while one is unfinished asks
+   first (see showUnfinishedDeckPrompt).
+--------------------------------------------------------- */
+const PENDING_SESSION_KEY = 'kardex_pending_session';
+let pendingSession = null;
+let pendingPromptCtx = null; // { newDeck, opts } while the "unfinished deck" modal is open
+
 const state = {
   currentPath: [root.id],   // array of folder ids from root
   search: '',
@@ -2207,11 +2571,17 @@ const state = {
   starredSort: 'subject',   // 'subject' | 'recent'
   starredFilter: '',
   starredCollapsed: new Set(), // deck ids collapsed in the starred drawer
+  viewingTough: false,
+  toughSort: 'subject',     // 'subject' | 'recent'
+  toughFilter: '',
+  toughCollapsed: new Set(),   // deck ids collapsed in the tough-cards drawer
   managingDeckId: null,     // set while browsing/editing a deck's cards
+  notebookDeckId: null,     // set while browsing the notebook (continuous, formatted) view of a deck
   clipboard: null,          // { id, mode: 'copy' | 'cut' }
   peekStack: [],            // saved study sessions, pushed when following a "see also" link mid-study
   homeStatsExpanded: false, // mobile dashboard: stat cards collapsed to one row by default
 };
+loadPendingSession();
 
 /* ---------------------------------------------------------
    HELPERS
@@ -2250,6 +2620,45 @@ function gatherStarred(){
   })(root, '');
   return results;
 }
+function gatherTough(){
+  const results = [];
+  (function walk(node, pathLabel){
+    node.children.forEach(c=>{
+      if (c.type==='folder') walk(c, pathLabel ? pathLabel+' / '+c.name : c.name);
+      else c.cards.forEach(cd=>{ if (cd.tough) results.push({ card: cd, deck: c, pathLabel }); });
+    });
+  })(root, '');
+  return results;
+}
+
+/* ---------------------------------------------------------
+   TOUGH MODE — a toggle that (a) swaps the site into a muted red
+   theme and (b) makes opening any real deck study ONLY the cards
+   already marked tough in it, instead of the whole deck. Persisted
+   to localStorage so it survives reloads.
+--------------------------------------------------------- */
+let toughMode = (function(){
+  try { return localStorage.getItem('kardex_tough_mode') === '1'; }
+  catch(e){ return false; }
+})();
+function applyToughModeClass(){
+  document.body.classList.toggle('tough-mode', toughMode);
+  const toggle = document.getElementById('toughModeToggle');
+  if (toggle){
+    toggle.classList.toggle('on', toughMode);
+    toggle.setAttribute('aria-checked', toughMode ? 'true' : 'false');
+  }
+}
+function toggleToughMode(){
+  toughMode = !toughMode;
+  try { localStorage.setItem('kardex_tough_mode', toughMode ? '1' : '0'); } catch(e){}
+  applyToughModeClass();
+  showToast(toughMode
+    ? 'Tough mode on — opening a deck now studies only its tough cards'
+    : 'Tough mode off');
+}
+applyToughModeClass();
+
 function fmtTime(seconds){
   if (seconds < 60) return Math.round(seconds)+'s';
   const m = Math.floor(seconds/60), s = Math.round(seconds%60);
@@ -2378,7 +2787,7 @@ function renderTreeNode(node, path){
   wrap.className = 'tnode' + (node.collapsed ? ' collapsed' : '');
 
   const row = document.createElement('div');
-  const isActive = !state.viewingStarred && path.join('/') === state.currentPath.join('/');
+  const isActive = !state.viewingStarred && !state.viewingTough && path.join('/') === state.currentPath.join('/');
   row.className = 'trow' + (isActive ? ' active':'');
   const {decks} = countDecksCards(node);
 
@@ -2398,6 +2807,7 @@ function renderTreeNode(node, path){
     }
     state.currentPath = path;
     state.viewingStarred = false;
+    state.viewingTough = false;
     state.managingDeckId = null;
     closeSidebar();
     render();
@@ -2477,7 +2887,7 @@ function renderCrumbs(){
     const span = document.createElement('span');
     span.className = 'crumb' + (i===state.currentPath.length-1 ? ' current':'');
     span.textContent = n.name;
-    span.onclick = ()=>{ state.currentPath = state.currentPath.slice(0,i+1); state.viewingStarred=false; state.managingDeckId=null; render(); };
+    span.onclick = ()=>{ state.currentPath = state.currentPath.slice(0,i+1); state.viewingStarred=false; state.viewingTough=false; state.managingDeckId=null; render(); };
     el.appendChild(span);
     if (i < state.currentPath.length-1){
       const sep = document.createElement('span');
@@ -2489,6 +2899,17 @@ function renderCrumbs(){
 
 function viewStarred(){
   state.viewingStarred = true;
+  state.viewingTough = false;
+  state.managingDeckId = null;
+  state.search = '';
+  document.getElementById('searchInput').value = '';
+  closeSidebar();
+  render();
+}
+
+function viewTough(){
+  state.viewingTough = true;
+  state.viewingStarred = false;
   state.managingDeckId = null;
   state.search = '';
   document.getElementById('searchInput').value = '';
@@ -2629,8 +3050,139 @@ function starredItemRow(i){
 function onStarredFilter(v){ state.starredFilter = v; renderStarredContent(); }
 function setStarredSort(s){ state.starredSort = s; renderStarredContent(); }
 
+/* ---------------------------------------------------------
+   TOUGH CARDS BOARD — every card marked tough (graded "Review
+   again"), gathered across every deck, mirroring the Starred board.
+--------------------------------------------------------- */
+function renderCrumbsTough(){
+  const el = document.getElementById('crumbs');
+  el.innerHTML = `<span class="crumb current">⚑ Tough cards</span>`;
+}
+
+function renderToughContent(){
+  const el = document.getElementById('content');
+  el.innerHTML = '';
+  const allItems = gatherTough();
+
+  if (!allItems.length){
+    el.innerHTML = `<div class="empty">
+      <div class="stamp">no tough cards yet</div>
+      <p class="mono" style="margin-top:16px; font-size:12.5px;">Grade a card "Review again" while studying and it lands here, so you can drill just your weak spots.</p>
+    </div>`;
+    return;
+  }
+
+  const header = document.createElement('div');
+  header.className = 'starred-header tough-header';
+  header.innerHTML = `<div class="section-label" style="margin:0;">${allItems.length} tough card${allItems.length!==1?'s':''}</div>`;
+  const studyBtn = document.createElement('button');
+  studyBtn.className = 'action-btn primary tough-primary';
+  studyBtn.textContent = 'Study all tough cards';
+  studyBtn.onclick = ()=> startStudy({ id:'tough', name:'Tough cards', cards: allItems.map(i=>i.card) }, { real:false });
+  header.appendChild(studyBtn);
+  el.appendChild(header);
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'starred-toolbar';
+  toolbar.innerHTML = `
+    <div class="starred-filter">
+      <input type="text" placeholder="Filter tough cards…" value="${escapeHtml(state.toughFilter)}" oninput="onToughFilter(this.value)">
+    </div>
+    <div class="sort-toggle">
+      <button class="${state.toughSort==='subject'?'active':''}" onclick="setToughSort('subject')">By subject</button>
+      <button class="${state.toughSort==='recent'?'active':''}" onclick="setToughSort('recent')">Recently marked</button>
+    </div>`;
+  el.appendChild(toolbar);
+
+  const q = state.toughFilter.trim().toLowerCase();
+  const items = q ? allItems.filter(i =>
+    i.card.f.toLowerCase().includes(q) ||
+    i.card.b.toLowerCase().includes(q) ||
+    i.deck.name.toLowerCase().includes(q) ||
+    i.pathLabel.toLowerCase().includes(q)
+  ) : allItems;
+
+  if (!items.length){
+    el.innerHTML += `<div class="empty" style="margin-top:30px;"><div class="stamp">no matches</div></div>`;
+    return;
+  }
+
+  if (state.toughSort === 'recent'){
+    const sorted = [...items].sort((a,b)=> (b.card.toughAt||0) - (a.card.toughAt||0));
+    const list = document.createElement('div');
+    list.className = 'starred-list';
+    sorted.forEach(i => list.appendChild(toughItemRow(i)));
+    el.appendChild(list);
+    return;
+  }
+
+  // group by subject (deck), sections sorted alphabetically by full path
+  const groups = new Map();
+  items.forEach(i=>{
+    if (!groups.has(i.deck.id)) groups.set(i.deck.id, { deck:i.deck, pathLabel:i.pathLabel, items:[] });
+    groups.get(i.deck.id).items.push(i);
+  });
+  const sortedGroups = [...groups.values()].sort((a,b)=>
+    (a.pathLabel+' / '+a.deck.name).toLowerCase().localeCompare((b.pathLabel+' / '+b.deck.name).toLowerCase())
+  );
+
+  sortedGroups.forEach(g=>{
+    const collapsed = state.toughCollapsed.has(g.deck.id);
+    const groupEl = document.createElement('div');
+    groupEl.className = 'starred-group' + (collapsed ? ' collapsed' : '');
+
+    const headerEl = document.createElement('div');
+    headerEl.className = 'starred-group-header';
+    headerEl.innerHTML = `
+      <span class="caret">▾</span>
+      <span class="starred-group-title">${escapeHtml(g.deck.name)}</span>
+      <span class="starred-group-path mono">${escapeHtml(g.pathLabel)}</span>
+      <span class="starred-group-count mono">${g.items.length}</span>
+      <button class="mini-btn study-group-btn">Study</button>
+    `;
+    headerEl.onclick = (e)=>{
+      if (e.target.closest('.study-group-btn')) return;
+      if (state.toughCollapsed.has(g.deck.id)) state.toughCollapsed.delete(g.deck.id);
+      else state.toughCollapsed.add(g.deck.id);
+      renderToughContent();
+    };
+    headerEl.querySelector('.study-group-btn').onclick = (e)=>{
+      e.stopPropagation();
+      startStudy({ id:'tough-'+g.deck.id, name: g.deck.name + ' — tough spots', cards: g.items.map(i=>i.card) }, { real:false });
+    };
+    groupEl.appendChild(headerEl);
+
+    const list = document.createElement('div');
+    list.className = 'starred-list';
+    g.items.forEach(i => list.appendChild(toughItemRow(i)));
+    groupEl.appendChild(list);
+
+    el.appendChild(groupEl);
+  });
+}
+
+function toughItemRow(i){
+  const { card: cd, deck: dk, pathLabel } = i;
+  const row = document.createElement('div');
+  row.className = 'starred-item tough-item';
+  row.innerHTML = `
+    <button class="unstar-btn untough-btn" title="No longer tough">⚑</button>
+    <div class="si-text">
+      <div class="si-front">${escapeHtml(cd.f)}</div>
+      <div class="si-path mono">${escapeHtml(pathLabel)} / ${escapeHtml(dk.name)}</div>
+    </div>`;
+  row.querySelector('.untough-btn').onclick = ()=>{ cd.tough = false; renderToughContent(); updateToughCount(); persistTextState(); };
+  return row;
+}
+
+function onToughFilter(v){ state.toughFilter = v; renderToughContent(); }
+function setToughSort(s){ state.toughSort = s; renderToughContent(); }
+
 function updateStarredCount(){
   document.getElementById('starredCount').textContent = gatherStarred().length;
+}
+function updateToughCount(){
+  document.getElementById('toughCount').textContent = gatherTough().length;
 }
 
 /* ---------------------------------------------------------
@@ -2640,6 +3192,7 @@ function openCardManager(deckId){
   closeCtxMenu();
   state.managingDeckId = deckId;
   state.viewingStarred = false;
+  state.viewingTough = false;
   closeSidebar();
   render();
 }
@@ -2656,11 +3209,25 @@ function renderManageCards(){
   const header = document.createElement('div');
   header.className = 'starred-header';
   header.innerHTML = `<div class="section-label" style="margin:0;">${deck.cards.length} card${deck.cards.length!==1?'s':''}</div>`;
+  const btnRow = document.createElement('div');
+  btnRow.style.display = 'flex';
+  btnRow.style.gap = '8px';
+  const notebookBtn = document.createElement('button');
+  notebookBtn.className = 'action-btn';
+  notebookBtn.textContent = '📖 Notebook';
+  notebookBtn.onclick = ()=> openNotebook(deck.id);
+  const importBtn = document.createElement('button');
+  importBtn.className = 'action-btn';
+  importBtn.textContent = 'Paste / upload';
+  importBtn.onclick = ()=> openBulkAddModal(deck.id);
   const addBtn = document.createElement('button');
   addBtn.className = 'action-btn primary';
   addBtn.textContent = '+ Add card';
   addBtn.onclick = ()=> openCardEditor(deck.id, null);
-  header.appendChild(addBtn);
+  btnRow.appendChild(notebookBtn);
+  btnRow.appendChild(importBtn);
+  btnRow.appendChild(addBtn);
+  header.appendChild(btnRow);
   el.appendChild(header);
 
   if (!deck.cards.length){
@@ -2708,8 +3275,8 @@ function confirmDeleteCard(deckId, cardId){
 }
 function doDeleteCard(){
   if (!cardDeleteTarget) return;
-  const deck = nodeById(cardDeleteTarget.deckId);
-  const removedId = cardDeleteTarget.cardId;
+  const { deckId, cardId: removedId } = cardDeleteTarget;
+  const deck = nodeById(deckId);
   if (deck){
     // strip this card from any other card's "see also" links before removing it
     cardIndexList.forEach(({card:cd})=>{ if (cd.links) cd.links = cd.links.filter(l=>l!==removedId); });
@@ -2721,7 +3288,20 @@ function doDeleteCard(){
   closeModal('cardDeleteOverlay');
   cardDeleteTarget = null;
   updateStarredCount();
+  updateToughCount();
   if (state.managingDeckId) renderManageCards();
+  if (state.notebookDeckId) renderNotebookPages();
+  if (state.studying){
+    if (state.studying.deck.id === deckId){
+      // the deck actively being reviewed just lost a card — s.order's
+      // indices no longer line up with s.deck.cards, so back out to the
+      // deck list instead of risking a stale/undefined card on screen
+      showToast('Exiting study since the deck just changed');
+      exitStudy();
+    } else {
+      renderStudyCard(); // synthetic session (starred/tough/peek) holding its own copy — safe to just refresh
+    }
+  }
 }
 
 /* ---------------------------------------------------------
@@ -2729,12 +3309,24 @@ function doDeleteCard(){
 --------------------------------------------------------- */
 let cardEditorState = null; // { deckId, cardId, type, imgFront, imgBack, links, prevLinks }
 
+/* Remembers whether the last card someone made/edited was basic or cloze, so the
+   "Add card" form defaults to that instead of always resetting to Basic. Persisted
+   to localStorage so it survives reloads, not just the current session. */
+let lastCardType = (function(){
+  try { return localStorage.getItem('kardex_last_card_type') === 'cloze' ? 'cloze' : 'basic'; }
+  catch(e){ return 'basic'; }
+})();
+function setLastCardType(t){
+  lastCardType = (t === 'cloze') ? 'cloze' : 'basic';
+  try { localStorage.setItem('kardex_last_card_type', lastCardType); } catch(e){}
+}
+
 function openCardEditor(deckId, cardId){
   const deck = nodeById(deckId);
   if (!deck) return;
   closeCtxMenu();
 
-  let type='basic', front='', back='', clozeSource='', imgFront=null, imgBack=null, links=[], tags=[];
+  let type=lastCardType, front='', back='', clozeSource='', imgFront=null, imgBack=null, links=[], tags=[];
   if (cardId){
     const c = deck.cards.find(cc=>cc.id===cardId);
     if (c){
@@ -2966,8 +3558,10 @@ function saveCardEditorCore(){
 
   syncBidirectionalLinks(s.cardId, s.prevLinks, s.links);
   if (isNewCard) rebuildIndex();
+  setLastCardType(s.type);
 
   updateStarredCount();
+  updateToughCount();
   persistTextState();
   if (state.managingDeckId) renderManageCards();
 
@@ -2979,15 +3573,26 @@ function saveCardEditor(){
   closeModal('cardEditorOverlay');
   cardEditorState = null;
   showToast('Card saved');
+  refreshLiveCardViews();
 }
 function saveCardEditorAndAddAnother(){
   const deckId = saveCardEditorCore();
   if (!deckId) return;
   showToast('Card saved');
+  refreshLiveCardViews();
   // Re-open a blank "Add card" form for the same deck instead of closing —
   // this is the whole point of the button, so bulk-adding cards doesn't
   // mean re-clicking "+ Add card" after every single one.
   openCardEditor(deckId, null);
+}
+/* Editing a card can happen mid-study (via the ✎ button on the review
+   screen) or from the notebook view, both of which keep their own
+   already-rendered copy of the card's text on screen. A save updates the
+   underlying data but not those DOM nodes, so re-render whichever of
+   those is currently open on top of. */
+function refreshLiveCardViews(){
+  if (state.studying) renderStudyCard();
+  if (state.notebookDeckId) renderNotebookPages();
 }
 
 /* ---------------------------------------------------------
@@ -3165,7 +3770,7 @@ function folderTile(f){
       <div class="fmeta">${decks} deck${decks!==1?'s':''} · ${cards} card${cards!==1?'s':''}</div>
     </div>`;
   div.querySelector('.kebab-btn').onclick = (e)=>{ e.stopPropagation(); openCtxMenu(e, f.id); };
-  div.onclick = ()=>{ state.currentPath = [...state.currentPath, f.id]; state.viewingStarred=false; state.managingDeckId=null; render(); };
+  div.onclick = ()=>{ state.currentPath = [...state.currentPath, f.id]; state.viewingStarred=false; state.viewingTough=false; state.managingDeckId=null; render(); };
   div.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', f.id); div.classList.add('dragging'); };
   div.ondragend = ()=> div.classList.remove('dragging');
   div.ondragover = (e)=>{ e.preventDefault(); div.classList.add('dragover'); };
@@ -3233,7 +3838,7 @@ function renderSearchResults(el){
   }
 }
 
-function onSearch(v){ state.search = v; state.viewingStarred = false; state.managingDeckId = null; render(); }
+function onSearch(v){ state.search = v; state.viewingStarred = false; state.viewingTough = false; state.managingDeckId = null; render(); }
 
 /* --- mobile search overlay: same underlying search, presented as a
    blurred spotlight-style panel instead of replacing the page content --- */
@@ -3250,6 +3855,7 @@ function onOverlaySearch(v){ renderOverlaySearchResults(v); }
 function goToOverlayResult(kind, id){
   closeSearchOverlay();
   state.viewingStarred = false;
+  state.viewingTough = false;
   state.managingDeckId = null;
   if (kind === 'folder'){
     state.currentPath = pathToNode(id);
@@ -3506,6 +4112,8 @@ document.addEventListener('dragover', e=>{
 document.addEventListener('dragleave', e=>{
   const dz = document.getElementById('dropzone');
   if (dz) dz.classList.remove('drag');
+  const bdz = document.getElementById('bulkDropzone');
+  if (bdz) bdz.classList.remove('drag');
 });
 document.addEventListener('drop', e=>{
   const dz = document.getElementById('dropzone');
@@ -3557,6 +4165,7 @@ function confirmDeck(){
       const nc = card(c.question, c.answer, c.tags);
       nc.type = c.type || 'basic';
       nc.clozeSource = c.clozeSource || null;
+      nc.importRefId = c.refId != null ? c.refId : null;
       refMap.set(c.refId != null ? c.refId : (idx+1), nc);
       return nc;
     });
@@ -3585,7 +4194,215 @@ function confirmDeck(){
     openCardEditor(newDeck.id, null);
   }
 }
-['folderOverlay','deckOverlay','renameOverlay','deleteOverlay','moveOverlay','linkPickerOverlay','cardDeleteOverlay'].forEach(id=>{
+/* ---------------------------------------------------------
+   BULK ADD — paste/upload MD or JSON to add cards to a deck
+   that already exists (not just when first creating it), with
+   cross-checking against cards already sitting in that deck.
+--------------------------------------------------------- */
+let bulkAddDeckId = null;
+let bulkParsedCards = null;   // last successfully parsed batch, waiting to be committed
+let bulkDuplicateInfo = null; // { idClashes, textClashes } for the current bulkParsedCards
+
+function openBulkAddModal(deckId){
+  const deck = nodeById(deckId);
+  if (!deck) return;
+  closeCtxMenu();
+  bulkAddDeckId = deckId;
+  bulkParsedCards = null;
+  bulkDuplicateInfo = null;
+  document.getElementById('bulkAddDeckName').textContent = deck.name;
+  document.getElementById('bulkImportText').value = '';
+  document.getElementById('bulkFileNameLabel').textContent = '';
+  document.getElementById('bulkImportStatus').textContent = '';
+  document.getElementById('bulkImportStatus').className = 'import-status';
+  document.getElementById('bulkAddOverlay').classList.add('active');
+  setTimeout(()=> document.getElementById('bulkImportText').focus(), 50);
+}
+
+function normalizeCardText(s){ return (s||'').toLowerCase().trim().replace(/\s+/g,' '); }
+
+/* Compares a freshly-parsed batch against cards already living in the deck.
+   idClashes  — incoming card's number/id (### Card N or JSON "id") matches
+                either an existing card's import number/id, or another card
+                within this same incoming batch (duplicate numbering).
+   textClashes — incoming question text is an exact match (case/whitespace
+                insensitive) of an existing card's front. */
+function analyzeBulkDuplicates(deckId, cards){
+  const deck = nodeById(deckId);
+  const existing = deck ? deck.cards : [];
+  const existingByRef = new Map();
+  const existingByText = new Map();
+  existing.forEach(c=>{
+    if (c.importRefId != null) existingByRef.set(String(c.importRefId), c);
+    existingByText.set(normalizeCardText(c.f), c);
+  });
+
+  const idClashes = [];
+  const textClashes = [];
+  const seenRefsInBatch = new Map();
+  cards.forEach(c=>{
+    if (c.refId != null){
+      const key = String(c.refId);
+      const existingMatch = existingByRef.get(key);
+      if (existingMatch){
+        idClashes.push({ refId: c.refId, question: c.question, existingFront: existingMatch.f });
+      } else if (seenRefsInBatch.has(key)){
+        idClashes.push({ refId: c.refId, question: c.question, existingFront: seenRefsInBatch.get(key), withinBatch: true });
+      }
+      seenRefsInBatch.set(key, c.question);
+    }
+    const norm = normalizeCardText(c.question);
+    if (norm && existingByText.has(norm)){
+      textClashes.push({ question: c.question, existingFront: existingByText.get(norm).f });
+    }
+  });
+  return { idClashes, textClashes };
+}
+
+function describeBulkDuplicates({ idClashes, textClashes }){
+  const lines = [];
+  if (idClashes.length){
+    const nums = idClashes.slice(0, 10).map(c => '#' + c.refId).join(', ') + (idClashes.length > 10 ? '…' : '');
+    lines.push(`⚠ ${idClashes.length} card number${idClashes.length!==1?'s':''} already used in this deck: ${nums}`);
+  }
+  if (textClashes.length){
+    lines.push(`⚠ ${textClashes.length} card${textClashes.length!==1?'s':''} look like exact duplicates of cards already in this deck.`);
+  }
+  return lines.join('\n');
+}
+
+function onBulkImportTextChange(){
+  const text = document.getElementById('bulkImportText').value;
+  const statusEl = document.getElementById('bulkImportStatus');
+  if (!text.trim()){
+    statusEl.textContent = '';
+    statusEl.className = 'import-status';
+    bulkParsedCards = null;
+    bulkDuplicateInfo = null;
+    return;
+  }
+  try{
+    bulkParsedCards = parseDeckInput(text);
+    bulkDuplicateInfo = analyzeBulkDuplicates(bulkAddDeckId, bulkParsedCards);
+    const dupText = describeBulkDuplicates(bulkDuplicateInfo);
+    if (dupText){
+      statusEl.textContent = `Parsed ${bulkParsedCards.length} card${bulkParsedCards.length!==1?'s':''}.\n` + dupText;
+      statusEl.className = 'import-status warn';
+    } else {
+      statusEl.textContent = `✓ Parsed ${bulkParsedCards.length} card${bulkParsedCards.length!==1?'s':''} — no duplicates found`;
+      statusEl.className = 'import-status ok';
+    }
+  } catch(err){
+    bulkParsedCards = null;
+    bulkDuplicateInfo = null;
+    statusEl.textContent = '✗ ' + err.message;
+    statusEl.className = 'import-status err';
+  }
+}
+
+function onBulkDeckFileChosen(e){
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('bulkFileNameLabel').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.getElementById('bulkImportText').value = reader.result;
+    onBulkImportTextChange();
+  };
+  reader.onerror = () => {
+    const statusEl = document.getElementById('bulkImportStatus');
+    statusEl.textContent = '✗ Could not read that file.';
+    statusEl.className = 'import-status err';
+  };
+  reader.readAsText(file);
+}
+
+document.addEventListener('dragover', e=>{
+  if (document.getElementById('bulkAddOverlay').classList.contains('active')){
+    e.preventDefault();
+    const dz = document.getElementById('bulkDropzone');
+    if (dz) dz.classList.add('drag');
+  }
+});
+document.addEventListener('drop', e=>{
+  const dz = document.getElementById('bulkDropzone');
+  if (!dz) return;
+  if (document.getElementById('bulkAddOverlay').classList.contains('active')){
+    e.preventDefault();
+    dz.classList.remove('drag');
+    const file = e.dataTransfer.files[0];
+    if (file){
+      document.getElementById('bulkFileNameLabel').textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = () => {
+        document.getElementById('bulkImportText').value = reader.result;
+        onBulkImportTextChange();
+      };
+      reader.readAsText(file);
+    }
+  }
+});
+
+function confirmBulkAdd(){
+  const deckId = bulkAddDeckId;
+  const deck = nodeById(deckId);
+  if (!deck){ closeModal('bulkAddOverlay'); return; }
+
+  // (Re)parse on submit in case the user tabbed away without triggering input events
+  let cards;
+  try{
+    cards = parseDeckInput(document.getElementById('bulkImportText').value);
+  } catch(err){
+    const statusEl = document.getElementById('bulkImportStatus');
+    statusEl.textContent = '✗ ' + err.message;
+    statusEl.className = 'import-status err';
+    return;
+  }
+
+  const dupInfo = analyzeBulkDuplicates(deckId, cards);
+  if (dupInfo.idClashes.length || dupInfo.textClashes.length){
+    const proceed = confirm(
+      'Possible duplicates found before adding these cards:\n\n' +
+      describeBulkDuplicates(dupInfo) +
+      '\n\nAI-generated batches can repeat a card number or reword an existing card. ' +
+      'Add these cards anyway?'
+    );
+    if (!proceed) return;
+  }
+
+  const refMap = new Map();
+  const newCards = cards.map((c, idx)=>{
+    const nc = card(c.question, c.answer, c.tags);
+    nc.type = c.type || 'basic';
+    nc.clozeSource = c.clozeSource || null;
+    nc.importRefId = c.refId != null ? c.refId : null;
+    refMap.set(c.refId != null ? c.refId : (idx+1), nc);
+    return nc;
+  });
+  cards.forEach((c, idx)=>{
+    const src = newCards[idx];
+    (c.links || []).forEach(refNum=>{
+      const target = refMap.get(refNum);
+      if (target && target !== src){
+        if (!src.links.includes(target.id)) src.links.push(target.id);
+        if (!target.links.includes(src.id)) target.links.push(src.id);
+      }
+    });
+  });
+
+  deck.cards.push(...newCards);
+  rebuildIndex();
+  closeModal('bulkAddOverlay');
+  bulkAddDeckId = null;
+  bulkParsedCards = null;
+  bulkDuplicateInfo = null;
+  persistTextState();
+  updateStarredCount();
+  showToast(`${newCards.length} card${newCards.length!==1?'s':''} added`);
+  if (state.managingDeckId) renderManageCards();
+}
+
+['folderOverlay','deckOverlay','renameOverlay','deleteOverlay','moveOverlay','linkPickerOverlay','cardDeleteOverlay','bulkAddOverlay'].forEach(id=>{
   document.getElementById(id).addEventListener('click', e=>{
     if (e.target.id===id) closeModal(id);
   });
@@ -3603,7 +4420,7 @@ document.addEventListener('keydown', e=>{
     closeModal('folderOverlay'); closeModal('deckOverlay'); closeModal('renameOverlay');
     closeModal('deleteOverlay'); closeModal('moveOverlay'); closeSidebar(); closeCtxMenu();
     closeModal('linkPickerOverlay'); closeModal('cardDeleteOverlay'); closeCardEditor();
-    closeImgLightbox(); closeSearchOverlay();
+    closeModal('bulkAddOverlay'); closeImgLightbox(); closeSearchOverlay();
   }
 });
 
@@ -3621,7 +4438,8 @@ function openCtxMenu(e, id){
 
   let html = '';
   if (!isRoot && !isFolder){
-    html += `<button onclick="openCardManager('${id}')">✎ Manage cards</button><hr>`;
+    html += `<button onclick="openNotebook('${id}')">📖 Notebook view</button>`;
+    html += `<button onclick="openCardManager('${id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="7" y="3" width="12" height="16" rx="2" transform="rotate(-8 13 11)"/><rect x="5" y="6" width="12" height="16" rx="2"/></svg> Manage cards</button><hr>`;
   }
   if (!isRoot){
     html += `<button onclick="startRename('${id}')">✎ Rename</button>`;
@@ -3934,16 +4752,102 @@ function updatePasteBtn(){
    STUDY MODE
 --------------------------------------------------------- */
 function startStudy(d, opts={}){
-  const isRealDeck = opts.real !== false;
-  let order = d.cards.map((_,i)=>i);
-  if (isRealDeck && d.cards.length){
+  // Starting a real deck while a DIFFERENT real deck is still mid-review:
+  // ask first, rather than silently orphaning the unfinished one.
+  const startingReal = opts.real !== false;
+  if (startingReal && pendingSession && pendingSession.deckId !== d.id){
+    const pendingNode = nodeById(pendingSession.deckId);
+    if (pendingNode){
+      showUnfinishedDeckPrompt(pendingNode, d, opts);
+      return;
+    }
+    clearPendingSession(); // the pending deck is gone — nothing to protect, just proceed
+  }
+  _startStudyCore(d, opts);
+}
+function showUnfinishedDeckPrompt(pendingNode, newDeck, opts){
+  pendingPromptCtx = { newDeck, opts };
+  playHmmSound();
+  document.getElementById('unfinishedDeckMsg').textContent =
+    `You haven't finished "${pendingNode.name}" yet. Want to pick that back up, or move on to "${newDeck.name}"?`;
+  document.getElementById('unfinishedResumeBtn').textContent = `↺ Resume "${pendingNode.name}"`;
+  document.getElementById('unfinishedContinueBtn').textContent = `→ Continue to "${newDeck.name}"`;
+  document.getElementById('unfinishedDeckOverlay').classList.add('active');
+}
+function resolveUnfinishedResume(){
+  stopHmmSound();
+  document.getElementById('unfinishedDeckOverlay').classList.remove('active');
+  pendingPromptCtx = null;
+  resumeStudy();
+}
+function resolveUnfinishedContinue(){
+  stopHmmSound();
+  document.getElementById('unfinishedDeckOverlay').classList.remove('active');
+  const ctx = pendingPromptCtx;
+  pendingPromptCtx = null;
+  clearPendingSession(); // xyz is abandoned — Resume won't offer it anymore
+  if (ctx) _startStudyCore(ctx.newDeck, ctx.opts);
+}
+/* Picks the pending session back up: same deck, same card, timer resumed
+   from the frozen value it showed when you left — the time you were away
+   is NOT added to it. */
+function resumeStudy(){
+  if (!pendingSession) return;
+  const deck = nodeById(pendingSession.deckId);
+  if (!deck){ clearPendingSession(); showToast('That deck no longer exists.'); return; }
+  let order = (pendingSession.order || []).filter(i => i >= 0 && i < deck.cards.length);
+  if (!order.length) order = deck.cards.map((_,i)=>i);
+  const pos = Math.min(pendingSession.pos || 0, order.length - 1);
+  const elapsedOnCard = pendingSession.elapsedOnCard || 0;
+  state.studying = {
+    deck,
+    order,
+    pos,
+    flipped: false,
+    toughIds: new Set(pendingSession.toughIds || []),
+    times: pendingSession.times || [],
+    cardStartTs: Date.now() - elapsedOnCard * 1000,
+    tickHandle: null,
+    isRealDeck: pendingSession.isRealDeck !== false,
+    logSession: true,
+  };
+  document.getElementById('topbar').style.display='none';
+  document.getElementById('study').classList.add('active');
+  document.getElementById('content').style.display='none';
+  document.getElementById('studyDone').style.display='none';
+  document.getElementById('studyBody').style.display='flex';
+  document.getElementById('studyBody').style.flexDirection='column';
+  document.getElementById('studyBody').style.alignItems='center';
+  renderStudyCard({ keepTimer: true });
+  startTicker();
+}
+function _startStudyCore(d, opts={}){
+  let isRealDeck = opts.real !== false;
+  let targetDeck = d;
+
+  // Tough mode: opening any real deck should only surface the cards
+  // already marked tough in it — leave synthetic sessions (starred study,
+  // "redo tough", peeking a linked card) alone since those already pass
+  // their own curated card list with opts.real === false.
+  if (isRealDeck && toughMode){
+    const toughCards = d.cards.filter(c => c.tough);
+    if (!toughCards.length){
+      showToast(`No tough cards in "${d.name}" yet — turn off Tough mode to study the whole deck.`);
+      return;
+    }
+    targetDeck = { id: 'tough-mode-'+d.id, name: d.name + ' — tough cards', cards: toughCards, sessions: d.sessions };
+    isRealDeck = false; // a filtered subset, so it doesn't skew this deck's SRS due-dates
+  }
+
+  let order = targetDeck.cards.map((_,i)=>i);
+  if (isRealDeck && targetDeck.cards.length){
     const srsMap = getSRSMap();
-    const dueIdx = order.filter(i => isCardDue(d.cards[i].id, srsMap));
+    const dueIdx = order.filter(i => isCardDue(targetDeck.cards[i].id, srsMap));
     if (dueIdx.length) order = dueIdx;
     else showToast('Nothing due in this deck yet — studying the full deck.');
   }
   state.studying = {
-    deck: d,
+    deck: targetDeck,
     order,
     pos: 0,
     flipped: false,
@@ -3974,7 +4878,7 @@ function exitStudy(){
   document.getElementById('content').style.display='block';
   render();
 }
-async function renderStudyCard(){
+async function renderStudyCard(opts={}){
   const s = state.studying;
   document.getElementById('studyTitle').textContent = s.deck.name + ` · ${s.pos+1}/${s.order.length}`;
   document.getElementById('progressFill').style.width = ((s.pos)/s.order.length*100)+'%';
@@ -3996,10 +4900,11 @@ async function renderStudyCard(){
   const backEl = document.getElementById('backText').querySelector('.card-img');
   if (frontEl){ frontEl.src = await resolveImageRef(c.img && c.img.front) || ''; }
   if (backEl){ backEl.src = await resolveImageRef(c.img && c.img.back) || ''; }
-  s.cardStartTs = Date.now();
+  if (!opts.keepTimer) s.cardStartTs = Date.now();
   updateTicker();
   renderStarToggle();
   renderSeeAlso(c);
+  savePendingSession();
 
   const isPeek = !!s.isPeek;
   document.querySelector('.study-controls').style.display = isPeek ? 'none' : 'flex';
@@ -4098,6 +5003,88 @@ function renderStarToggle(){
   btn.classList.toggle('active', c.starred);
 }
 
+/* --- edit button on the currently shown study card ---
+   Study sessions are often synthetic (Due Today, Starred, Tough cards,
+   a "see also" peek) so s.deck isn't a real node you can save back to —
+   look the card up in cardIndex instead, which always points at its real
+   owning deck, then open the normal card editor on top of the study screen. */
+function editCurrentStudyCard(e){
+  e.stopPropagation();
+  const s = state.studying;
+  if (!s) return;
+  const c = s.deck.cards[s.order[s.pos]];
+  const entry = cardIndex.get(c.id);
+  if (!entry){ showToast("Can't edit this card"); return; }
+  openCardEditor(entry.deck.id, c.id);
+}
+
+/* ---------------------------------------------------------
+   NOTEBOOK VIEW — every card in a deck laid out as continuous,
+   formatted notes (front + back both visible, no flipping) so you
+   can skim concepts quickly. Each card gets its own container so
+   the per-entry star button is never ambiguous, even mid-scroll.
+--------------------------------------------------------- */
+function openNotebook(deckId){
+  closeCtxMenu();
+  const deck = nodeById(deckId);
+  if (!deck || deck.type !== 'deck') return;
+  state.notebookDeckId = deckId;
+  document.getElementById('topbar').style.display = 'none';
+  document.getElementById('content').style.display = 'none';
+  document.getElementById('notebook').classList.add('active');
+  renderNotebookPages();
+}
+function closeNotebook(){
+  state.notebookDeckId = null;
+  document.getElementById('notebook').classList.remove('active');
+  document.getElementById('topbar').style.display = '';
+  document.getElementById('content').style.display = 'block';
+  render();
+}
+async function renderNotebookPages(){
+  const deck = nodeById(state.notebookDeckId);
+  if (!deck){ closeNotebook(); return; }
+  document.getElementById('notebookTitle').textContent = deck.name;
+  document.getElementById('notebookCount').textContent = `${deck.cards.length} card${deck.cards.length!==1?'s':''}`;
+
+  const pages = document.getElementById('notebookPages');
+  if (!deck.cards.length){
+    pages.innerHTML = `<div class="notebook-empty"><div class="stamp">no cards yet</div></div>`;
+    return;
+  }
+
+  pages.innerHTML = deck.cards.map((c, i) => {
+    const frontImg = c.img && c.img.front ? `<img class="nb-img" data-image-ref="${c.img.front}" alt="">` : '';
+    const backImg = c.img && c.img.back ? `<img class="nb-img" data-image-ref="${c.img.back}" alt="">` : '';
+    return `
+      <div class="notebook-entry" data-card-id="${c.id}">
+        <button class="nb-star${c.starred?' active':''}" onclick="toggleNotebookStar(event,'${deck.id}','${c.id}')" title="Star this card">${c.starred?'★':'☆'}</button>
+        <div class="nb-index">Card ${i+1}</div>
+        <div class="nb-front">${formatInlineMarkdown(c.f)}${frontImg}</div>
+        <div class="nb-back">${formatInlineMarkdown(c.b)}${backImg}</div>
+      </div>`;
+  }).join('');
+
+  // resolve any card images (stored as refs, loaded async) in place
+  pages.querySelectorAll('.nb-img[data-image-ref]').forEach(async img => {
+    const ref = img.getAttribute('data-image-ref');
+    img.src = await resolveImageRef(ref) || '';
+  });
+}
+function toggleNotebookStar(e, deckId, cardId){
+  e.stopPropagation();
+  const deck = nodeById(deckId);
+  const c = deck && deck.cards.find(cc => cc.id === cardId);
+  if (!c) return;
+  c.starred = !c.starred;
+  c.starredAt = c.starred ? Date.now() : c.starredAt;
+  const btn = e.currentTarget;
+  btn.classList.toggle('active', c.starred);
+  btn.textContent = c.starred ? '★' : '☆';
+  updateStarredCount();
+  persistTextState();
+}
+
 /* --- live per-card timer ---
    Uses a single module-level handle (rather than one stored on the
    swappable `state.studying` object) so a stray/leaked interval can
@@ -4132,10 +5119,17 @@ function gradeCard(good){
   const c = s.deck.cards[s.order[s.pos]];
   const elapsed = (Date.now() - s.cardStartTs)/1000;
   s.times.push(elapsed);
-  if (!good) s.toughIds.add(c.id);
+  if (!good){
+    s.toughIds.add(c.id);
+    c.tough = true;
+    c.toughAt = Date.now();
+  } else {
+    c.tough = false;
+  }
   reviewLog.push({ cardId: c.id, good, ts: Date.now() });
   srsMapCache = null;
   persistTextState();
+  updateToughCount();
   if (s.pos < s.order.length-1){
     s.pos++;
     renderStudyCard();
@@ -4146,6 +5140,7 @@ function gradeCard(good){
 function finishSession(){
   const s = state.studying;
   stopTicker();
+  if (s.logSession) clearPendingSession();
   const total = s.times.reduce((a,b)=>a+b, 0);
   const avg = total / s.times.length;
 
@@ -4208,13 +5203,19 @@ function restartDeck(){
 function render(){
   renderTree();
   updateStarredCount();
+  updateToughCount();
   updatePasteBtn();
+  renderResumeButtons();
   document.getElementById('starredRow').classList.toggle('active', state.viewingStarred);
+  document.getElementById('toughRow').classList.toggle('active', state.viewingTough);
   if (state.managingDeckId){
     renderManageCards();
   } else if (state.viewingStarred){
     renderCrumbsStarred();
     renderStarredContent();
+  } else if (state.viewingTough){
+    renderCrumbsTough();
+    renderToughContent();
   } else {
     renderCrumbs();
     renderContent();
@@ -4240,7 +5241,12 @@ function showAuthDiagnostic(msg){
   const box = document.getElementById('accountBox');
   if (box) box.innerHTML = `<span class="account-name" style="color:#E0857A;">${msg}</span>`;
 }
-function goToSignIn(){
+function goToSignIn(reason){
+  if (reason){
+    // Redirects happen too fast to read the console, so stash the reason
+    // and let index.html surface it after the jump.
+    try { sessionStorage.setItem('kardex_bounce_reason', reason); } catch(e){}
+  }
   if (tooManyAuthRedirects()){
     showAuthDiagnostic('Stuck bouncing between the app and sign-in — likely a stale/invalid session. Open DevTools → Application → Storage → "Clear site data" on both pages, then reload and sign in again.');
     return;
@@ -4249,9 +5255,19 @@ function goToSignIn(){
 }
 
 async function signOut(){
-  await persistTextState();          // make sure the last edit is saved before leaving
-  await supabaseClient.auth.signOut();
-  window.location.href = kardexSignInUrl();
+  try {
+    persistTextState(); // synchronous
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) {
+      showAuthDiagnostic('Sign-out failed: ' + error.message);
+      console.error('Sign-out error:', error);
+      return;
+    }
+    window.location.href = kardexSignInUrl();
+  } catch (err) {
+    showAuthDiagnostic('Sign-out error: ' + (err && err.message ? err.message : String(err)));
+    console.error('Sign-out exception:', err);
+  }
 }
 
 function renderAccountBox(){
@@ -4388,7 +5404,30 @@ async function copySettingsSnippet(elId, btn){
   setTimeout(()=>{ btn.textContent = label; }, 1500);
 }
 
+// Rolling log of every auth event this page sees, with a timestamp and
+// what the URL looked like at that moment. Kept in sessionStorage so it
+// survives the bounce to index.html and can be shown there in full —
+// no need to catch anything live in DevTools.
+function logAuthEvent(tag, detail){
+  let log;
+  try { log = JSON.parse(sessionStorage.getItem('kardex_auth_log') || '[]'); } catch(e){ log = []; }
+  log.push({ t: new Date().toISOString().slice(11,23), tag, detail: detail || '' });
+  if (log.length > 25) log = log.slice(-25);
+  try { sessionStorage.setItem('kardex_auth_log', JSON.stringify(log)); } catch(e){}
+}
+function formatAuthLog(){
+  let log;
+  try { log = JSON.parse(sessionStorage.getItem('kardex_auth_log') || '[]'); } catch(e){ log = []; }
+  return log.map(e => `${e.t} ${e.tag}${e.detail ? ' — ' + e.detail : ''}`).join(' | ');
+}
+
 async function initAuthAndApp(){
+  // Captured before anything else runs, so the log shows exactly what URL
+  // (and origin — worth checking against your Supabase Redirect URLs list)
+  // we actually landed on.
+  const incomingUrl = window.location.href;
+  logAuthEvent('page-load', incomingUrl);
+
   // No real Supabase project wired up yet — just run locally, no redirect.
   if (!SUPABASE_CONFIGURED){
     renderAccountBox();
@@ -4397,51 +5436,103 @@ async function initAuthAndApp(){
     return;
   }
 
-  let session = null;
-  try {
-    const { data: { session: urlSession }, error: urlError } = await supabaseClient.auth.getSessionFromUrl();
-    if (urlError){
-      showAuthDiagnostic('Could not parse auth callback: ' + urlError.message);
-      return;
-    }
-    session = urlSession;
-  } catch (err) {
-    console.warn('No OAuth callback data in URL', err);
-  }
+  let settled = false;
 
-  if (!session) {
-    const { data, error } = await supabaseClient.auth.getSession();
-    if (error){
-      showAuthDiagnostic('Could not check session: ' + error.message);
-      return;
-    }
-    session = data.session;
-  }
+  // This is the officially recommended v2 pattern: don't call getSession()
+  // yourself and race it against the SDK's own URL-detection. Instead,
+  // listen — the very first event you get back is always 'INITIAL_SESSION',
+  // fired only once the SDK has finished checking storage AND exchanging
+  // any OAuth callback in the URL (?code=... or #access_token=...). Every
+  // later event (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, ...) comes through
+  // the same callback.
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    logAuthEvent(event, session ? ('user ' + session.user.id.slice(0,8)) : 'no session');
 
-  if (!session){
-    goToSignIn();
-    return;
-  }
-  currentUser = session.user;
-  accessToken = session.access_token;
-  renderAccountBox();
-
-  await restorePersistedState();
-  render();
-
-  // Keep the token fresh (Supabase auto-refreshes) and bounce to sign-in on sign-out.
-  supabaseClient.auth.onAuthStateChange((event, newSession)=>{
-    if (event === 'SIGNED_OUT'){
-      goToSignIn();
-    } else if (newSession){
-      accessToken = newSession.access_token;
-      currentUser = newSession.user;
+    if (event === 'INITIAL_SESSION'){
+      settled = true;
+      if (!session){
+        // The SDK's own auto-detection came back empty even though the URL
+        // may still contain valid tokens (seen in practice: detectSessionInUrl
+        // sometimes silently fails to parse the hash). Before giving up,
+        // try setting the session from the hash ourselves.
+        const hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+        const access_token = hashParams.get('access_token');
+        const refresh_token = hashParams.get('refresh_token');
+        if (access_token && refresh_token){
+          logAuthEvent('manual-fallback', 'hash has tokens, SDK missed them — trying setSession() directly');
+          const { data: setData, error: setError } = await supabaseClient.auth.setSession({ access_token, refresh_token });
+          if (setError){
+            goToSignIn('setSession() fallback also failed: ' + setError.message + ' (status ' + (setError.status || '?') + '). Event log: ' + formatAuthLog());
+            return;
+          }
+          if (setData.session){
+            logAuthEvent('manual-fallback-success', 'user ' + setData.session.user.id.slice(0,8));
+            currentUser = setData.session.user;
+            accessToken = setData.session.access_token;
+            try { history.replaceState(null, '', window.location.pathname); } catch(e){}
+            renderAccountBox();
+            await restorePersistedState();
+            render();
+            return;
+          }
+        }
+        goToSignIn(
+          'No session after OAuth callback, and no access_token/refresh_token found in the URL to fall back on. Landed on: ' + incomingUrl +
+          ' (origin: ' + window.location.origin + ' — this exact origin+path must be in Supabase → Authentication → URL Configuration → Redirect URLs, AND the Google Cloud Console OAuth Client\'s Authorized redirect URI must be the Supabase callback URL, not this page). Event log: ' + formatAuthLog()
+        );
+        return;
+      }
+      currentUser = session.user;
+      accessToken = session.access_token;
+      // Clean any leftover OAuth params from the address bar now that
+      // they've been consumed.
+      if (window.location.search.includes('code=') || window.location.hash.includes('access_token')){
+        try { history.replaceState(null, '', window.location.pathname); } catch(e){}
+      }
+      renderAccountBox();
+      await restorePersistedState();
+      render();
+    } else if (event === 'SIGNED_OUT'){
+      goToSignIn('SIGNED_OUT fired after sign-in succeeded — usually a refresh-token failure. Event log: ' + formatAuthLog());
+    } else if (session){
+      accessToken = session.access_token;
+      currentUser = session.user;
     }
   });
+
+  // Safety net: if for some reason INITIAL_SESSION never fires (very old
+  // supabase-js version, or the listener attaches after the SDK already
+  // fired it — shouldn't happen, but this makes sure we never hang on a
+  // blank page forever), fall back to a direct check after a short wait.
+  setTimeout(async () => {
+    if (settled) return;
+    logAuthEvent('timeout-fallback', 'INITIAL_SESSION never fired within 4s');
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (settled) return;
+    settled = true;
+    if (error){
+      goToSignIn('Fallback getSession() errored: ' + error.message + '. Event log: ' + formatAuthLog());
+      return;
+    }
+    if (!data.session){
+      goToSignIn('Fallback getSession() found no session. Landed on: ' + incomingUrl + '. Event log: ' + formatAuthLog());
+      return;
+    }
+    currentUser = data.session.user;
+    accessToken = data.session.access_token;
+    renderAccountBox();
+    await restorePersistedState();
+    render();
+  }, 4000);
 }
 
 initAuthAndApp();
 window.addEventListener('beforeunload', ()=> {
+  // If a deck is mid-review when the tab closes/crashes/refreshes, make sure
+  // its resume snapshot is current — this freezes the elapsed time on the
+  // current card right now, so resuming later picks up from here rather
+  // than from zero or from wherever real time happens to be by then.
+  if (state.studying) savePendingSession();
   // On page unload, make sure we save to localStorage and flush any pending Supabase sync
   const payload = persistLocalState();
   if (persistTimeoutId) {

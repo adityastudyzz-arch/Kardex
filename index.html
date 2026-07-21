@@ -8,6 +8,10 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
 <link rel="manifest" href="site.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kardex">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#F6F2E7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@600&display=swap" rel="stylesheet">
@@ -384,7 +388,7 @@ body{
    Supabase dashboard → Project Settings → API
 --------------------------------------------------- */
 const SUPABASE_URL = 'https://cvwqsxeydimszufybffv.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFub24iLCJpYXQiOjE3ODQ1MzM4ODgsImV4cCI6MjEwMDEwOTg4OH0.Tct26EfeZDJkIrJ4lUQQg2KaQLCacLadOkdBV_R27E0';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2d3FzeGV5ZGltc3p1ZnliZmZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1MzM4ODgsImV4cCI6MjEwMDEwOTg4OH0.Tct26EfeZDJkIrJ4lUQQg2KaQLCacLadOkdBV_R27E0';
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const SUPABASE_CONFIGURED = !SUPABASE_URL.includes('YOUR-PROJECT-REF') && !SUPABASE_ANON_KEY.includes('YOUR-ANON-PUBLIC-KEY');
@@ -423,6 +427,17 @@ function showAuthDiagnostic(msg){
   if (err) showAuthDiagnostic('Google sign-in failed: ' + decodeURIComponent(err).replace(/\+/g, ' '));
 })();
 
+// kardex.html stashes a reason here before bouncing back to this page,
+// since a redirect happens too fast to read the console live. Show it
+// (once) and clear it so it doesn't linger on later visits.
+(function checkForBounceReason(){
+  let reason;
+  try { reason = sessionStorage.getItem('kardex_bounce_reason'); } catch(e){ return; }
+  if (!reason) return;
+  try { sessionStorage.removeItem('kardex_bounce_reason'); } catch(e){}
+  showAuthDiagnostic(reason);
+})();
+
 // Where Google should send the user back to after they approve sign-in.
 // Resolves "kardex.html" relative to whatever folder this page is served
 // from — works no matter what this file itself happens to be named.
@@ -436,6 +451,9 @@ async function signIn(){
   btn.disabled = true;
   btn.classList.add('loading');
   label.textContent = 'Signing in…';
+
+  // Fresh trace for this attempt (kardex.html appends to this on load).
+  try { sessionStorage.removeItem('kardex_auth_log'); } catch(e){}
 
   if (!SUPABASE_CONFIGURED){
     // No real project wired up yet — behave like the old placeholder button
@@ -464,8 +482,20 @@ async function signIn(){
 // If the person is already signed in, skip the sign-in screen entirely.
 (async function redirectIfAlreadySignedIn(){
   if (!SUPABASE_CONFIGURED) return; // nothing to check yet
-  const { data: { session }, error } = await supabaseClient.auth.getSession();
+
+  // If Google/Supabase just bounced back here with callback data still in
+  // the URL (shouldn't normally happen since we always redirectTo kardex.html,
+  // but just in case), forward straight to the app page and let its own
+  // init handle the exchange rather than doing it twice.
+  const raw = window.location.search + window.location.hash;
+  if (/[?&#]code=|access_token=|refresh_token=/.test(raw)){
+    window.location.href = kardexUrl();
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.getSession();
   if (error){ showAuthDiagnostic('Could not check session: ' + error.message); return; }
+  const session = data.session;
   if (!session) return;
   if (tooManyAuthRedirects()){
     showAuthDiagnostic('Stuck bouncing between sign-in and the app — likely a stale/invalid session. Open DevTools → Application → Storage → "Clear site data", then reload this page and sign in again.');
@@ -473,10 +503,6 @@ async function signIn(){
   }
   window.location.href = kardexUrl();
 })();
-</script>
-<script>
-  // Skip the sign-in page and go straight into the app.
-  window.location.replace('kardex.html');
 </script>
 </body>
 </html>
