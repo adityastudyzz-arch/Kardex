@@ -919,6 +919,40 @@ button{font-family:inherit;cursor:pointer;}
 .notebook-entry .nb-star:focus-visible,
 .notebook-entry .nb-star.active{ opacity:1; transform:scale(1); }
 .notebook-entry .nb-star.active{ color:#D6A72E; border-color:#D6A72E; }
+.notebook-entry-wrapper{
+  position:relative;
+  overflow:hidden;
+}
+.notebook-entry-actions{
+  position:absolute;
+  inset:0;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:0 10px;
+  pointer-events:none;
+}
+.nb-action{
+  pointer-events:auto;
+  min-width:88px;
+  height:42px;
+  border:none;
+  border-radius:12px;
+  color:#fff;
+  font-weight:700;
+  cursor:pointer;
+  letter-spacing:.02em;
+}
+.nb-edit-btn{ background:#2F6E62; }
+.nb-delete-btn{ background:#D03D3D; }
+.notebook-entry-content{
+  position:relative;
+  transition:transform .22s ease;
+  touch-action: pan-y;
+}
+.notebook-entry-content.dragging{
+  transition:none;
+}
 @media (hover:none){
   /* touch devices have no hover — keep every star visible so it's always tappable */
   .notebook-entry .nb-star{ opacity:1; transform:scale(1); }
@@ -5054,11 +5088,19 @@ async function renderNotebookPages(){
     const frontImg = c.img && c.img.front ? `<img class="nb-img" data-image-ref="${c.img.front}" alt="">` : '';
     const backImg = c.img && c.img.back ? `<img class="nb-img" data-image-ref="${c.img.back}" alt="">` : '';
     return `
-      <div class="notebook-entry" data-card-id="${c.id}">
-        <button class="nb-star${c.starred?' active':''}" onclick="toggleNotebookStar(event,'${deck.id}','${c.id}')" title="Star this card">${c.starred?'★':'☆'}</button>
-        <div class="nb-index">Card ${i+1}</div>
-        <div class="nb-front">${formatInlineMarkdown(c.f)}${frontImg}</div>
-        <div class="nb-back">${formatInlineMarkdown(c.b)}${backImg}</div>
+      <div class="notebook-entry-wrapper" data-card-id="${c.id}">
+        <div class="notebook-entry-actions">
+          <button class="nb-action nb-edit-btn" type="button" onclick="onNotebookEdit(event,'${deck.id}','${c.id}')">Edit</button>
+          <button class="nb-action nb-delete-btn" type="button" onclick="onNotebookDelete(event,'${deck.id}','${c.id}')">Delete</button>
+        </div>
+        <div class="notebook-entry-content">
+          <div class="notebook-entry">
+            <button class="nb-star${c.starred?' active':''}" onclick="toggleNotebookStar(event,'${deck.id}','${c.id}')" title="Star this card">${c.starred?'★':'☆'}</button>
+            <div class="nb-index">Card ${i+1}</div>
+            <div class="nb-front">${formatInlineMarkdown(c.f)}${frontImg}</div>
+            <div class="nb-back">${formatInlineMarkdown(c.b)}${backImg}</div>
+          </div>
+        </div>
       </div>`;
   }).join('');
 
@@ -5067,6 +5109,8 @@ async function renderNotebookPages(){
     const ref = img.getAttribute('data-image-ref');
     img.src = await resolveImageRef(ref) || '';
   });
+
+  attachNotebookSwipeHandlers();
 }
 function toggleNotebookStar(e, deckId, cardId){
   e.stopPropagation();
@@ -5080,6 +5124,112 @@ function toggleNotebookStar(e, deckId, cardId){
   btn.textContent = c.starred ? '★' : '☆';
   updateStarredCount();
   persistTextState();
+}
+
+let _notebookSwipeState = null;
+function attachNotebookSwipeHandlers(){
+  const pages = document.getElementById('notebookPages');
+  if (!pages || pages.dataset.swipeAttached) return;
+  pages.dataset.swipeAttached = '1';
+  pages.addEventListener('pointerdown', notebookPointerDown);
+  pages.addEventListener('pointermove', notebookPointerMove);
+  pages.addEventListener('pointerup', notebookPointerUp);
+  pages.addEventListener('pointercancel', notebookPointerUp);
+}
+function notebookPointerDown(e){
+  const wrapper = e.target.closest('.notebook-entry-wrapper');
+  if (!wrapper){
+    closeAllNotebookEntries();
+    return;
+  }
+  if (e.target.closest('button')) return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const content = wrapper.querySelector('.notebook-entry-content');
+  if (!content) return;
+
+  const openWrapper = document.querySelector('.notebook-entry-wrapper.open');
+  if (openWrapper && openWrapper !== wrapper) closeAllNotebookEntries();
+
+  _notebookSwipeState = {
+    pointerId: e.pointerId,
+    startX: e.clientX,
+    startY: e.clientY,
+    currentX: e.clientX,
+    wrapper,
+    content,
+    dragging: false,
+    startTransform: getCurrentTranslateX(content)
+  };
+  wrapper.setPointerCapture(e.pointerId);
+}
+function notebookPointerMove(e){
+  if (!_notebookSwipeState || e.pointerId !== _notebookSwipeState.pointerId) return;
+  const dx = e.clientX - _notebookSwipeState.startX;
+  const dy = e.clientY - _notebookSwipeState.startY;
+  if (!_notebookSwipeState.dragging){
+    if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)){
+      _notebookSwipeState.dragging = true;
+      _notebookSwipeState.content.classList.add('dragging');
+    } else if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)){
+      _notebookSwipeState = null;
+      return;
+    } else {
+      return;
+    }
+  }
+  e.preventDefault();
+  _notebookSwipeState.currentX = e.clientX;
+  const move = Math.min(Math.max(dx + _notebookSwipeState.startTransform, -120), 120);
+  _notebookSwipeState.content.style.transform = `translateX(${move}px)`;
+}
+function notebookPointerUp(e){
+  if (!_notebookSwipeState || e.pointerId !== _notebookSwipeState.pointerId) return;
+  const content = _notebookSwipeState.content;
+  const finalX = getCurrentTranslateX(content);
+  const threshold = 60;
+  if (_notebookSwipeState.dragging){
+    if (finalX <= -threshold){
+      openNotebookEntry(_notebookSwipeState.wrapper, -120);
+    } else if (finalX >= threshold){
+      openNotebookEntry(_notebookSwipeState.wrapper, 120);
+    } else {
+      closeNotebookEntry(_notebookSwipeState.wrapper);
+    }
+  }
+  content.classList.remove('dragging');
+  _notebookSwipeState = null;
+}
+function getCurrentTranslateX(el){
+  const transform = window.getComputedStyle(el).transform;
+  if (!transform || transform === 'none') return 0;
+  const numbers = transform.match(/matrix\(([^)]+)\)/);
+  if (!numbers) return 0;
+  const values = numbers[1].split(',').map(v => parseFloat(v.trim()));
+  return values.length >= 6 ? values[4] : 0;
+}
+function openNotebookEntry(wrapper, x){
+  closeAllNotebookEntries();
+  wrapper.classList.add('open');
+  const content = wrapper.querySelector('.notebook-entry-content');
+  if (content) content.style.transform = `translateX(${x}px)`;
+}
+function closeNotebookEntry(wrapper){
+  wrapper.classList.remove('open');
+  const content = wrapper.querySelector('.notebook-entry-content');
+  if (content) content.style.transform = '';
+}
+function closeAllNotebookEntries(){
+  document.querySelectorAll('.notebook-entry-wrapper.open').forEach(closeNotebookEntry);
+}
+function onNotebookEdit(e, deckId, cardId){
+  e.stopPropagation();
+  closeAllNotebookEntries();
+  openCardEditor(deckId, cardId);
+}
+function onNotebookDelete(e, deckId, cardId){
+  e.stopPropagation();
+  closeAllNotebookEntries();
+  confirmDeleteCard(deckId, cardId);
 }
 
 /* --- live per-card timer ---
