@@ -19,6 +19,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.9.0/mammoth.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root{
@@ -737,11 +738,14 @@ button{font-family:inherit;cursor:pointer;}
 }
 .face .face-text{
   flex:1;
-  display:flex; align-items:center; justify-content:center;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   overflow-y:auto;
   overflow-x:hidden;
-  padding:6px 4px;
+  padding:12px 4px;
   width:100%;
+  min-height:0;
 }
 .face .face-text-inner{
   text-align:center;
@@ -751,6 +755,9 @@ button{font-family:inherit;cursor:pointer;}
   overflow-wrap:break-word;
   word-break:break-word;
   width:100%;
+  padding:8px 0;
+  max-height:100%;
+  margin:auto;
 }
 .flip-hint{
   margin-top:14px;
@@ -1175,6 +1182,29 @@ button{font-family:inherit;cursor:pointer;}
 .editor-label{ display:block; font-size:11px; font-weight:500; color:var(--ink-soft); margin-bottom:5px; text-transform:uppercase; letter-spacing:.04em; }
 #basicPane{ display:flex; flex-direction:column; gap:14px; }
 .editor-face-block textarea{ min-height:56px; }
+.card-table-wrap{ width:100%; overflow-x:auto; margin:10px 0; text-align:left; }
+.card-table{ width:100%; min-width:280px; border-collapse:collapse; font-size:13px; line-height:1.45; border:1px solid var(--line); background:var(--surface); }
+.card-table th,
+.card-table td{ border:1px solid var(--line); padding:6px 10px; vertical-align:top; text-align:left; }
+.card-table th{ background:var(--paper-dark); color:var(--ink); text-align:center; font-weight:600; }
+.card-table td{ background:transparent; }
+.card-table-wrap .highlight{ padding:0 3px; }
+/* ---------- List styling for study/notebook ---------- */
+.card-list{ margin:8px 0; padding-left:24px; text-align:left; }
+.card-list li{ margin-bottom:4px; line-height:1.5; }
+.card-list ul,
+.card-list ol{ margin:4px 0; padding-left:24px; }
+.card-list ul{ list-style-type:disc; }
+.card-list ul ul{ list-style-type:circle; }
+.card-list ul ul ul{ list-style-type:square; }
+.card-list ol{ list-style-type:decimal; }
+.card-list ol ol{ list-style-type:lower-alpha; }
+.face .face-text-inner .card-table-wrap,
+.notebook-entry .nb-front .card-table-wrap,
+.notebook-entry .nb-back .card-table-wrap{ margin:10px 0; }
+.face .face-text-inner .card-table,
+.notebook-entry .nb-front .card-table,
+.notebook-entry .nb-back .card-table{ font-size:13px; }
 .img-slot{ display:flex; align-items:center; gap:10px; margin-top:6px; }
 .img-add-btn{
   border:1px dashed var(--line); background:transparent; padding:6px 13px;
@@ -1200,7 +1230,7 @@ button{font-family:inherit;cursor:pointer;}
 .link-chip button:hover{ color:var(--maroon); }
 
 /* ---------- Format toolbar (bold/italic/underline/highlight) ---------- */
-.fmt-toolbar{ display:flex; gap:4px; margin-bottom:5px; }
+.fmt-toolbar{ display:flex; gap:4px; margin-bottom:5px; flex-wrap:wrap; }
 .fmt-btn{
   width:26px; height:24px;
   display:flex; align-items:center; justify-content:center;
@@ -1213,6 +1243,7 @@ button{font-family:inherit;cursor:pointer;}
 .fmt-btn.fmt-i{ font-style:italic; }
 .fmt-btn.fmt-u{ text-decoration:underline; }
 .fmt-btn.fmt-h{ background:linear-gradient(transparent 55%, #FCEFC7 55%); }
+.fmt-btn.fmt-table{ font-weight:700; }
 .fmt-hint{ font-size:10.5px; color:var(--ink-soft); margin:2px 0 0; }
 
 /* ---------- Tags field ---------- */
@@ -1586,14 +1617,14 @@ button{font-family:inherit;cursor:pointer;}
     </div>
     <div class="import-pane" id="importPane">
       <div class="dropzone" id="dropzone">
-        Drop a <span class="mono">.md</span> or <span class="mono">.json</span> file here
+        Drop a <span class="mono">.md</span>, <span class="mono">.json</span>, or <span class="mono">.docx</span> file here
         <div><button type="button" onclick="document.getElementById('deckFileInput').click()">Choose file</button></div>
         <div class="fname" id="fileNameLabel"></div>
       </div>
-      <input type="file" id="deckFileInput" accept=".md,.markdown,.json,.txt" style="display:none" onchange="onDeckFileChosen(event)">
+      <input type="file" id="deckFileInput" accept=".md,.markdown,.json,.txt,.docx,.doc" style="display:none" onchange="onDeckFileChosen(event)">
       <textarea id="importText" placeholder="…or paste your Markdown / JSON cards here" oninput="onImportTextChange()"></textarea>
       <div class="import-status" id="importStatus"></div>
-      <div class="import-hint">Markdown blocks separated by <code>---</code>, each with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:** The [[answer]] is hidden</code>), plus optional <code>**Tags:**</code> and <code>**Links:** 2, 5</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links}</code>.</div>
+      <div class="import-hint">Markdown blocks separated by <code>---</code>, each with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:** The [[answer]] is hidden</code>), plus optional <code>**Tags:**</code> and <code>**Links:** 2, 5</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links}</code>. Word <code>.docx</code> files are also supported and previewed as cards before the deck is created.</div>
     </div>
     <div class="modal-row">
       <button class="cancel" onclick="closeModal('deckOverlay')">Cancel</button>
@@ -1620,14 +1651,14 @@ button{font-family:inherit;cursor:pointer;}
     <h3>Add cards to <span id="bulkAddDeckName" class="mono"></span></h3>
     <div class="import-pane active">
       <div class="dropzone" id="bulkDropzone">
-        Drop a <span class="mono">.md</span> or <span class="mono">.json</span> file here
+        Drop a <span class="mono">.md</span>, <span class="mono">.json</span>, or <span class="mono">.docx</span> file here
         <div><button type="button" onclick="document.getElementById('bulkDeckFileInput').click()">Choose file</button></div>
         <div class="fname" id="bulkFileNameLabel"></div>
       </div>
-      <input type="file" id="bulkDeckFileInput" accept=".md,.markdown,.json,.txt" style="display:none" onchange="onBulkDeckFileChosen(event)">
+      <input type="file" id="bulkDeckFileInput" accept=".md,.markdown,.json,.txt,.docx,.doc" style="display:none" onchange="onBulkDeckFileChosen(event)">
       <textarea id="bulkImportText" placeholder="…or paste your Markdown / JSON cards here" oninput="onBulkImportTextChange()"></textarea>
       <div class="import-status" id="bulkImportStatus"></div>
-      <div class="import-hint">Same format as new-deck import — Markdown blocks separated by <code>---</code>, each with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:**</code>), plus optional <code>**Tags:**</code>/<code>**Links:**</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links, id}</code>. New cards are checked against ones already in this deck, and any matching card number/ID or exact-duplicate wording is flagged before they're added.</div>
+      <div class="import-hint">Same format as new-deck import — Markdown blocks separated by <code>---</code>, each with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:**</code>), plus optional <code>**Tags:**</code>/<code>**Links:**</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links, id}</code>. Word <code>.docx</code> files also preview into the same card model, and any embedded images are mapped into the front or back of the generated cards.</div>
     </div>
     <div class="modal-row">
       <button class="cancel" onclick="closeModal('bulkAddOverlay')">Cancel</button>
@@ -1707,6 +1738,22 @@ button{font-family:inherit;cursor:pointer;}
         </div>
         <pre class="settings-pre" id="settingsSnippetJson"></pre>
       </div>
+
+      <div class="settings-snippet">
+        <div class="settings-snippet-head">
+          <span>Word / DOCX</span>
+          <button class="mini-btn" onclick="copySettingsSnippet('settingsSnippetWord', this)">Copy</button>
+        </div>
+        <pre class="settings-pre" id="settingsSnippetWord"></pre>
+      </div>
+
+      <div class="settings-snippet">
+        <div class="settings-snippet-head">
+          <span>Tables</span>
+          <button class="mini-btn" onclick="copySettingsSnippet('settingsSnippetTables', this)">Copy</button>
+        </div>
+        <pre class="settings-pre" id="settingsSnippetTables"></pre>
+      </div>
     </div>
   </div>
 </div>
@@ -1750,6 +1797,9 @@ button{font-family:inherit;cursor:pointer;}
           <button type="button" class="fmt-btn fmt-i" title="Italic" onmousedown="event.preventDefault()" onclick="wrapSelection('editFront','*','*')">I</button>
           <button type="button" class="fmt-btn fmt-u" title="Underline" onmousedown="event.preventDefault()" onclick="wrapSelection('editFront','__','__')">U</button>
           <button type="button" class="fmt-btn fmt-h" title="Highlight" onmousedown="event.preventDefault()" onclick="wrapSelection('editFront','==','==')">H</button>
+          <button type="button" class="fmt-btn fmt-list" title="Bulleted list" onmousedown="event.preventDefault()" onclick="toggleBulletedList('editFront')">•</button>
+          <button type="button" class="fmt-btn fmt-list" title="Numbered list" onmousedown="event.preventDefault()" onclick="toggleNumberedList('editFront')">1.</button>
+          <button type="button" class="fmt-btn fmt-table" title="Insert table" onmousedown="event.preventDefault()" onclick="insertTableTemplate('editFront')">▦</button>
         </div>
         <textarea id="editFront" rows="2" placeholder="Question or term…" onpaste="onEditPaste(event,'front')"></textarea>
         <div class="img-slot" id="frontImgSlot"></div>
@@ -1761,6 +1811,9 @@ button{font-family:inherit;cursor:pointer;}
           <button type="button" class="fmt-btn fmt-i" title="Italic" onmousedown="event.preventDefault()" onclick="wrapSelection('editBack','*','*')">I</button>
           <button type="button" class="fmt-btn fmt-u" title="Underline" onmousedown="event.preventDefault()" onclick="wrapSelection('editBack','__','__')">U</button>
           <button type="button" class="fmt-btn fmt-h" title="Highlight" onmousedown="event.preventDefault()" onclick="wrapSelection('editBack','==','==')">H</button>
+          <button type="button" class="fmt-btn fmt-list" title="Bulleted list" onmousedown="event.preventDefault()" onclick="toggleBulletedList('editBack')">•</button>
+          <button type="button" class="fmt-btn fmt-list" title="Numbered list" onmousedown="event.preventDefault()" onclick="toggleNumberedList('editBack')">1.</button>
+          <button type="button" class="fmt-btn fmt-table" title="Insert table" onmousedown="event.preventDefault()" onclick="insertTableTemplate('editBack')">▦</button>
         </div>
         <textarea id="editBack" rows="2" placeholder="Answer…" onpaste="onEditPaste(event,'back')"></textarea>
         <div class="img-slot" id="backImgSlot"></div>
@@ -1774,12 +1827,22 @@ button{font-family:inherit;cursor:pointer;}
         <button type="button" class="fmt-btn fmt-i" title="Italic" onmousedown="event.preventDefault()" onclick="wrapSelection('editCloze','*','*')">I</button>
         <button type="button" class="fmt-btn fmt-u" title="Underline" onmousedown="event.preventDefault()" onclick="wrapSelection('editCloze','__','__')">U</button>
         <button type="button" class="fmt-btn fmt-h" title="Highlight" onmousedown="event.preventDefault()" onclick="wrapSelection('editCloze','==','==')">H</button>
+        <button type="button" class="fmt-btn fmt-list" title="Bulleted list" onmousedown="event.preventDefault()" onclick="toggleBulletedList('editCloze')">•</button>
+        <button type="button" class="fmt-btn fmt-list" title="Numbered list" onmousedown="event.preventDefault()" onclick="toggleNumberedList('editCloze')">1.</button>
+        <button type="button" class="fmt-btn fmt-table" title="Insert table" onmousedown="event.preventDefault()" onclick="insertTableTemplate('editCloze')">▦</button>
       </div>
       <textarea id="editCloze" rows="3" placeholder="The [[median]] nerve is compressed in carpal tunnel syndrome" oninput="onClozeInput()" onpaste="onEditPaste(event,'cloze')"></textarea>
       <div class="img-slot" id="clozeImgSlot"></div>
       <div class="cloze-preview">
         <div><span class="cloze-preview-label">Front</span><div id="clozePreviewFront" class="cloze-preview-text"></div></div>
         <div><span class="cloze-preview-label">Back</span><div id="clozePreviewBack" class="cloze-preview-text"></div></div>
+      </div>
+      <div style="margin-top:12px;">
+        <button class="mini-btn" id="previewToggle" onclick="toggleCardPreview()">👁️ Preview</button>
+        <div id="cardPreviewArea" style="display:none; margin-top:10px; padding:12px; background:var(--paper-dark); border-radius:8px; border:1px solid var(--line);">
+          <div class="section-label" style="margin:0 0 6px;">Live Preview</div>
+          <div id="cardPreviewContent" style="font-family:'Fraunces',serif; font-size:17px; line-height:1.5;"></div>
+        </div>
       </div>
     </div>
 
@@ -3381,8 +3444,17 @@ function openCardEditor(deckId, cardId){
   document.getElementById('editTags').value = tags.join(', ');
   ['editFront','editBack','editCloze'].forEach(id=> document.getElementById(id).classList.remove('input-error'));
 
+  ['editFront','editBack','editCloze'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (!el.dataset.previewBound){
+      el.addEventListener('input', updateCardPreview);
+      el.dataset.previewBound = '1';
+    }
+  });
+
   setCardEditorMode(type);
   onClozeInput();
+  updateCardPreview();
   renderCardEditorImages();
   renderCardEditorLinks();
 
@@ -3395,6 +3467,7 @@ function setCardEditorMode(mode){
   document.getElementById('tabCardCloze').classList.toggle('active', mode==='cloze');
   document.getElementById('basicPane').style.display = mode==='basic' ? 'flex' : 'none';
   document.getElementById('clozePane').style.display = mode==='cloze' ? 'block' : 'none';
+  updateCardPreview();
 }
 function closeCardEditor(){
   closeModal('cardEditorOverlay');
@@ -3446,6 +3519,84 @@ function wrapSelection(textareaId, prefix, suffix){
   el.focus();
   el.setSelectionRange(selStart, selEnd);
   el.dispatchEvent(new Event('input', { bubbles: true })); // e.g. keeps the cloze preview in sync
+}
+
+function toggleBulletedList(textareaId) {
+  const el = document.getElementById(textareaId);
+  if (!el) return;
+  toggleListMarker(el, '- ');
+}
+
+function toggleNumberedList(textareaId) {
+  const el = document.getElementById(textareaId);
+  if (!el) return;
+  toggleListMarker(el, null);
+}
+
+function toggleListMarker(el, marker) {
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+  const text = el.value;
+  let selStart = start;
+  let selEnd = end;
+  if (selStart === selEnd) {
+    const before = text.lastIndexOf('\n', selStart - 1) + 1;
+    const after = text.indexOf('\n', selStart);
+    selStart = before;
+    selEnd = after === -1 ? text.length : after;
+  }
+
+  const selected = text.substring(selStart, selEnd);
+  const lines = selected.split('\n');
+  const newLines = lines.map((line, idx) => {
+    const trimmed = line.trim();
+    if (!trimmed) return line;
+    const bulletMatch = line.match(/^(\s*)([-*•])\s+(.*)/);
+    const numMatch = line.match(/^(\s*)(\d+)\.\s+(.*)/);
+    if (bulletMatch || numMatch) {
+      if (bulletMatch) return bulletMatch[1] + bulletMatch[3];
+      if (numMatch) return numMatch[1] + numMatch[3];
+    }
+
+    const indent = line.match(/^(\s*)/)[1];
+    if (marker) return indent + marker + trimmed;
+    return indent + (idx + 1) + '. ' + trimmed;
+  });
+
+  const newSelected = newLines.join('\n');
+  const newText = text.substring(0, selStart) + newSelected + text.substring(selEnd);
+  el.value = newText;
+  el.focus();
+  el.setSelectionRange(selStart, selStart + newSelected.length);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  updateCardPreview();
+}
+
+function toggleCardPreview() {
+  const area = document.getElementById('cardPreviewArea');
+  if (!area) return;
+  if (area.style.display === 'none') {
+    area.style.display = 'block';
+    updateCardPreview();
+  } else {
+    area.style.display = 'none';
+  }
+}
+
+function updateCardPreview() {
+  const mode = cardEditorState ? cardEditorState.type : 'basic';
+  let content = '';
+  if (mode === 'cloze') {
+    const source = document.getElementById('editCloze').value;
+    const { f, b } = clozeToFB(source);
+    content = `<div style="margin-bottom:8px;"><strong>Front:</strong> ${formatInlineMarkdown(f)}</div><div><strong>Back:</strong> ${formatInlineMarkdown(b)}</div>`;
+  } else {
+    const front = document.getElementById('editFront').value;
+    const back = document.getElementById('editBack').value;
+    content = `<div style="margin-bottom:8px;"><strong>Front:</strong> ${formatInlineMarkdown(front)}</div><div><strong>Back:</strong> ${formatInlineMarkdown(back)}</div>`;
+  }
+  const preview = document.getElementById('cardPreviewContent');
+  if (preview) preview.innerHTML = content;
 }
 
 /* --- images: file picker or paste, per face --- */
@@ -3951,16 +4102,240 @@ function renderOverlaySearchResults(q){
 }
 
 function escapeHtml(s){
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-/* Render **bold**, __underline__, *italic*, ==highlight== after escaping the rest */
-function formatInlineMarkdown(str){
+function formatInlineMarkdownSegment(str){
   return escapeHtml(str || '')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/__(.+?)__/g, '<u>$1</u>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/==(.+?)==/g, '<span class="highlight">$1</span>');
+}
+
+function splitPipeTableRow(line){
+  return (line || '').trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(cell => cell.trim());
+}
+
+function isPipeTableSeparator(line){
+  const cells = splitPipeTableRow(line);
+  return cells.length >= 2 && cells.every(cell => /^:?-{3,}:?$/.test(cell || ''));
+}
+
+function renderPipeTable(rows){
+  const normalized = rows.map(row => (row || '').trim()).filter(Boolean);
+  if (normalized.length < 3) return '';
+  const header = splitPipeTableRow(normalized[0]);
+  if (!header.length || !isPipeTableSeparator(normalized[1])) return '';
+  const body = normalized.slice(2).map(row => {
+    const cells = splitPipeTableRow(row);
+    return `<tr>${cells.map(cell => `<td>${formatInlineMarkdownSegment(cell)}</td>`).join('')}</tr>`;
+  }).join('');
+  return `<div class="card-table-wrap"><table class="card-table"><thead><tr>${header.map(cell => `<th>${formatInlineMarkdownSegment(cell)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function sanitizeAndRenderHtmlTable(rawHtml){
+  const temp = document.createElement('div');
+  temp.innerHTML = rawHtml || '';
+  const table = temp.querySelector('table');
+  if (!table) return '';
+  const safeTable = document.createElement('table');
+  safeTable.className = 'card-table';
+
+  const allowedTags = new Set(['THEAD', 'TBODY', 'TR', 'TH', 'TD']);
+  const cloneAllowed = (source, target) => {
+    Array.from(source.children).forEach(child => {
+      const tag = child.tagName.toUpperCase();
+      if (!allowedTags.has(tag)) return;
+      const node = document.createElement(tag.toLowerCase());
+      if (child.hasAttribute('colspan')) node.setAttribute('colspan', child.getAttribute('colspan'));
+      if (child.hasAttribute('rowspan')) node.setAttribute('rowspan', child.getAttribute('rowspan'));
+      if (tag === 'TH' || tag === 'TD') {
+        node.innerHTML = formatInlineMarkdownSegment(child.textContent || '');
+      } else {
+        cloneAllowed(child, node);
+      }
+      target.appendChild(node);
+    });
+  };
+  cloneAllowed(table, safeTable);
+  return `<div class="card-table-wrap">${safeTable.outerHTML}</div>`;
+}
+
+function renderListFromLines(lines) {
+  const items = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) { i++; continue; }
+
+    const markerMatch = line.match(/^(\s*)([-*•]|\d+\.)\s+(.*)/);
+    if (!markerMatch) { i++; continue; }
+
+    const indent = markerMatch[1].length;
+    const marker = markerMatch[2];
+    let content = markerMatch[3] || '';
+
+    i++;
+    while (i < lines.length) {
+      const nextLine = lines[i];
+      const nextTrimmed = nextLine.trim();
+      if (!nextTrimmed) { i++; continue; }
+
+      const nextIndent = nextLine.match(/^(\s*)/)[1].length;
+      const isMarker = /^(\s*)([-*•]|\d+\.)\s+/.test(nextLine);
+
+      if (isMarker && nextIndent <= indent) {
+        break;
+      }
+
+      if (nextIndent > indent && !isMarker) {
+        content += ' ' + nextTrimmed;
+        i++;
+        continue;
+      }
+
+      if (isMarker && nextIndent > indent) {
+        break;
+      }
+
+      break;
+    }
+
+    items.push({
+      indent: indent,
+      marker: /^\d+\./.test(marker) ? 'ol' : 'ul',
+      content: content.trim()
+    });
+  }
+
+  function buildNested(listItems) {
+    if (!listItems.length) return '';
+    const root = [];
+    const stack = [{ level: -1, children: root, marker: 'ul' }];
+
+    for (const item of listItems) {
+      const level = Math.floor(item.indent / 2);
+      while (stack.length > 1 && stack[stack.length - 1].level >= level) {
+        stack.pop();
+      }
+      const parent = stack[stack.length - 1];
+      const node = {
+        content: formatInlineMarkdownSegment(item.content),
+        marker: item.marker,
+        children: []
+      };
+      parent.children.push(node);
+      stack.push({ level, children: node.children, marker: item.marker });
+    }
+
+    function renderHTML(nodes, defaultMarker) {
+      if (!nodes || !nodes.length) return '';
+      const tag = defaultMarker === 'ol' ? 'ol' : 'ul';
+      let html = `<${tag} class="card-list">`;
+      for (const node of nodes) {
+        html += `<li>${node.content}`;
+        if (node.children && node.children.length) {
+          html += renderHTML(node.children, node.marker || 'ul');
+        }
+        html += `</li>`;
+      }
+      html += `</${tag}>`;
+      return html;
+    }
+
+    return renderHTML(root, listItems[0].marker || 'ul');
+  }
+
+  return buildNested(items);
+}
+
+function formatInlineMarkdown(str) {
+  const raw = str || '';
+  if (!raw.trim()) return '';
+
+  const htmlTableTokens = [];
+  const listTokens = [];
+  const pipeTableTokens = [];
+  const htmlTableInput = raw.replace(/<table[\s\S]*?<\/table>/gi, match => {
+    const token = `##HTMLTABLE_${htmlTableTokens.length}##`;
+    htmlTableTokens.push(sanitizeAndRenderHtmlTable(match));
+    return token;
+  });
+
+  const lines = htmlTableInput.split(/\r?\n/);
+  const processed = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    const next = (lines[i + 1] || '').trim();
+
+    if (/^\|?.+\|?$/.test(trimmed) && isPipeTableSeparator(next)) {
+      const rows = [trimmed, next];
+      i += 2;
+      while (i < lines.length && /^\|?.+\|?$/.test(lines[i].trim())) {
+        rows.push(lines[i].trim());
+        i++;
+      }
+      const token = `##PIPETABLE_${pipeTableTokens.length}##`;
+      pipeTableTokens.push(renderPipeTable(rows));
+      processed.push(token);
+      continue;
+    }
+
+    if (/^(\s*)[-*•]\s+/.test(trimmed) || /^(\s*)\d+\.\s+/.test(trimmed)) {
+      const listLines = [];
+      while (i < lines.length) {
+        const current = lines[i].trim();
+        if (!current) break;
+        if (/^(\s*)[-*•]\s+/.test(current) || /^(\s*)\d+\.\s+/.test(current)) {
+          listLines.push(lines[i]);
+          i++;
+        } else {
+          break;
+        }
+      }
+      const token = `##LIST_${listTokens.length}##`;
+      listTokens.push(renderListFromLines(listLines));
+      processed.push(token);
+      continue;
+    }
+
+    processed.push(lines[i]);
+    i++;
+  }
+
+  let html = escapeHtml(processed.join('\n'));
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<u>$1</u>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/==(.+?)==/g, '<span class="highlight">$1</span>');
+
+  htmlTableTokens.forEach((table, idx) => html = html.replace(`##HTMLTABLE_${idx}##`, table));
+  listTokens.forEach((list, idx) => html = html.replace(`##LIST_${idx}##`, list));
+  pipeTableTokens.forEach((table, idx) => html = html.replace(`##PIPETABLE_${idx}##`, table));
+
+  return html;
+}
+
+function insertTableTemplate(textareaId){
+  const el = document.getElementById(textareaId);
+  if (!el) return;
+  const template = `| Header 1 | Header 2 | Header 3 |
+|----------|----------|----------|
+| Row 1    | Data 1   | Data 2   |
+| Row 2    | Data 3   | Data 4   |`;
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+  const old = el.value;
+  const next = old.slice(0, start) + template + (old.slice(end) ? '\n\n' + old.slice(end) : '');
+  el.value = next;
+  el.focus();
+  el.setSelectionRange(start + template.length, start + template.length);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 /* ---------------------------------------------------------
@@ -4081,16 +4456,244 @@ function parseJSONCards(text){
   });
 }
 
+function normalizeDocumentCard(item){
+  const type = (item.type || 'basic').toString().toLowerCase();
+  const question = (item.question ?? item.q ?? item.front ?? '').toString().trim();
+  const answer = (item.answer ?? item.a ?? item.back ?? '').toString().trim();
+  const tags = Array.isArray(item.tags) ? item.tags : (typeof item.tags === 'string' ? item.tags.split(',').map(t=>t.trim()).filter(Boolean) : []);
+  const links = Array.isArray(item.links) ? item.links : [];
+  const img = item.img && typeof item.img === 'object' ? { front: item.img.front || null, back: item.img.back || null } : { front:null, back:null };
+  if (type === 'cloze'){
+    const clozeSource = (item.cloze ?? '').toString().trim();
+    const { f, b } = clozeToFB(clozeSource);
+    return { refId: item.id ?? null, type:'cloze', question:f, answer:b, clozeSource, tags, links, img };
+  }
+  return { refId: item.id ?? null, type:'basic', question, answer, clozeSource:null, tags, links, img };
+}
+
+function normalizeWordText(text){
+  return (text || '').replace(/\s+/g, ' ').trim();
+}
+
+function extractWordDocBlocks(html){
+  const container = document.createElement('div');
+  container.innerHTML = html || '';
+  const blocks = [];
+  const nodes = Array.from(container.querySelectorAll('p, li, h1, h2, h3'));
+  nodes.forEach(node => {
+    const text = normalizeWordText(node.textContent || '');
+    // Ignore blocks that only contain "[image]" (common from Word)
+    if (/^\s*\[image\]\s*$/i.test(text)) return;
+    const images = Array.from(node.querySelectorAll('img')).map(img => {
+      const src = img.getAttribute('src') || '';
+      const mimeType = src.match(/^data:(image\/[^;]+);base64,/i)?.[1] || 'image/png';
+      return { src, mimeType };
+    });
+    if (text || images.length) {
+      blocks.push({ text, images });
+    }
+  });
+  return blocks;
+}
+
+function previewCardsAsMarkdown(cards){
+  return cards.map((c, idx)=>{
+    const tagLine = c.tags && c.tags.length ? `\n**Tags:** ${c.tags.join(', ')}` : '';
+    const linksLine = c.links && c.links.length ? `\n**Links:** ${c.links.join(', ')}` : '';
+    if (c.type === 'cloze') return `### Card ${idx+1}\n**Type:** cloze\n**Cloze:** ${c.clozeSource}${tagLine}${linksLine}`;
+    return `### Card ${idx+1}\n**Q:** ${c.question}\n**A:** ${c.answer}${tagLine}${linksLine}`;
+  }).join('\n---\n');
+}
+
+async function parseWordDocxBlocksToCards(blocks) {
+  const cards = [];
+  const hasQALabel = blocks.some(block => /\bQ\s*:/i.test(block.text) || /\bA\s*:/i.test(block.text));
+
+  const nl = (s) => (s || '').replace(/\s+/g, ' ').trim();
+  const stripLabel = (text, label) => nl(text.replace(new RegExp(`\\b${label}\\s*:`,'i'), '')).replace(/^[-•]\s*/, '');
+  const parseTagsAndLinks = (text) => {
+    const tags = []; const links = [];
+    const tagMatch = text.match(/Tags:\s*([\s\S]*)/i);
+    const linkMatch = text.match(/Links:\s*([\s\S]*)/i);
+    if (tagMatch) tags.push(...tagMatch[1].split(',').map(s => nl(s)).filter(Boolean));
+    if (linkMatch) links.push(...linkMatch[1].split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)));
+    return { tags, links };
+  };
+
+  const storeImage = async (image) => {
+    if (!image || !image.src) return null;
+    try {
+      return await storeImageFromDataUrl(image.src, image.mimeType);
+    } catch (err) {
+      console.warn('Image storage failed', err);
+      return null;
+    }
+  };
+
+  if (!hasQALabel) {
+    for (const block of blocks) {
+      if (!block.text && block.images && block.images.length) continue;
+      const imgHash = block.images?.[0] ? await storeImage(block.images[0]) : null;
+      cards.push({
+        id: cards.length + 1,
+        type: 'basic',
+        question: block.text || '',
+        answer: '',
+        tags: [],
+        links: [],
+        img: { front: imgHash, back: null },
+        clozeSource: null
+      });
+    }
+    return cards;
+  }
+
+  let current = null;
+  let carryImages = [];
+
+  for (const block of blocks) {
+    const text = block.text || '';
+    const images = block.images || [];
+    if (!text && images.length) {
+      carryImages.push(...images);
+      continue;
+    }
+
+    const tagMeta = parseTagsAndLinks(text);
+    const hasQ = /\bQ\s*:/i.test(text);
+    const hasA = /\bA\s*:/i.test(text);
+    const hasCloze = /\[\[(.+?)\]\]/.test(text);
+
+    if (hasCloze) {
+      const source = nl(text);
+      const { f, b } = clozeToFB(source);
+      const frontImg = carryImages[0] || images[0] || null;
+      const backImg = carryImages[1] || images[1] || frontImg;
+      const card = {
+        id: cards.length + 1,
+        type: 'cloze',
+        question: f,
+        answer: b,
+        clozeSource: source,
+        tags: tagMeta.tags,
+        links: tagMeta.links,
+        img: {
+          front: frontImg ? await storeImage(frontImg) : null,
+          back: backImg ? await storeImage(backImg) : null
+        }
+      };
+      cards.push(card);
+      carryImages = [];
+      current = null;
+      continue;
+    }
+
+    if (hasQ && !hasA) {
+      if (current && current.answer) {
+        cards.push(current);
+        current = null;
+      }
+      const frontImg = carryImages[0] || images[0] || null;
+      current = {
+        id: cards.length + 1,
+        type: 'basic',
+        question: stripLabel(text, 'Q'),
+        answer: '',
+        tags: tagMeta.tags,
+        links: tagMeta.links,
+        img: {
+          front: frontImg ? await storeImage(frontImg) : null,
+          back: null
+        }
+      };
+      carryImages = [];
+      continue;
+    }
+
+    if (hasA) {
+      if (!current) {
+        current = {
+          id: cards.length + 1,
+          type: 'basic',
+          question: '',
+          answer: '',
+          tags: [],
+          links: [],
+          img: { front: null, back: null }
+        };
+      }
+      const backImg = carryImages[0] || images[0] || null;
+      current.answer = stripLabel(text, 'A');
+      current.img.back = backImg ? await storeImage(backImg) : current.img.back;
+      current.tags = [...new Set([...(current.tags||[]), ...tagMeta.tags])];
+      current.links = [...new Set([...(current.links||[]), ...tagMeta.links])];
+      cards.push(current);
+      current = null;
+      carryImages = [];
+      continue;
+    }
+
+    if (current && !current.answer) {
+      current.question = nl(current.question + ' ' + text);
+      if (!current.img.front && (carryImages[0] || images[0])) {
+        current.img.front = await storeImage(carryImages[0] || images[0]);
+      }
+      carryImages = [];
+      continue;
+    }
+
+    if (current && current.answer) {
+      current.answer = nl(current.answer + ' ' + text);
+      if (!current.img.back && (carryImages[0] || images[0])) {
+        current.img.back = await storeImage(carryImages[0] || images[0]);
+      }
+      carryImages = [];
+      continue;
+    }
+
+    if (!current) {
+      const frontImg = carryImages[0] || images[0] || null;
+      const plain = {
+        id: cards.length + 1,
+        type: 'basic',
+        question: text,
+        answer: '',
+        tags: tagMeta.tags,
+        links: tagMeta.links,
+        img: {
+          front: frontImg ? await storeImage(frontImg) : null,
+          back: null
+        }
+      };
+      cards.push(plain);
+      carryImages = [];
+    }
+  }
+
+  if (current) cards.push(current);
+  return cards;
+}
+
+async function parseDocxFile(file){
+  if (!window.mammoth) throw new Error('Mammoth.js failed to load.');
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.convertToHtml({ arrayBuffer });
+  const blocks = extractWordDocBlocks(result.value);
+  if (!blocks.length) throw new Error('That DOCX file looks empty.');
+  const cards = await parseWordDocxBlocksToCards(blocks);
+  if (!cards.length) throw new Error('No card-like content was found in that Word file.');
+  return cards.map(normalizeDocumentCard);
+}
+
 function parseDeckInput(text){
   const trimmed = text.trim();
   if (!trimmed) throw new Error('Nothing to parse yet — paste or upload a file first.');
-  // Try JSON first if it looks like JSON, otherwise treat as Markdown
   if (trimmed.startsWith('[') || trimmed.startsWith('{')){
     const cards = parseJSONCards(trimmed);
     if (!cards.length) throw new Error('No cards found in that JSON.');
     const bad = cards.filter(c => c.type==='cloze' ? !clozeIsValid(c.clozeSource) : (!c.question || !c.answer));
     if (bad.length) throw new Error(`${bad.length} card(s) missing a question/answer, or a valid [[cloze]] blank.`);
-    return cards;
+    return cards.map(normalizeDocumentCard);
   }
   const cards = parseMarkdownCards(trimmed);
   if (!cards.length) throw new Error('No cards found. Check for **Q:**/**A:** or **Type:** cloze + **Cloze:** blocks separated by ---.');
@@ -4117,21 +4720,37 @@ function onImportTextChange(){
   }
 }
 
-function onDeckFileChosen(e){
+async function onDeckFileChosen(e){
   const file = e.target.files[0];
   if (!file) return;
+  const statusEl = document.getElementById('importStatus');
   document.getElementById('fileNameLabel').textContent = file.name;
-  const reader = new FileReader();
-  reader.onload = () => {
-    document.getElementById('importText').value = reader.result;
-    onImportTextChange();
-  };
-  reader.onerror = () => {
-    const statusEl = document.getElementById('importStatus');
-    statusEl.textContent = '✗ Could not read that file.';
+
+  try {
+    if (/\.docx$/i.test(file.name) || /\.doc$/i.test(file.name)){
+      const parsed = await parseDocxFile(file);
+      importedCards = parsed.map(normalizeDocumentCard);
+      document.getElementById('importText').value = previewCardsAsMarkdown(importedCards);
+      statusEl.textContent = `✓ Parsed ${importedCards.length} card${importedCards.length!==1?'s':''} from ${file.name}`;
+      statusEl.className = 'import-status ok';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      document.getElementById('importText').value = reader.result;
+      onImportTextChange();
+    };
+    reader.onerror = () => {
+      statusEl.textContent = '✗ Could not read that file.';
+      statusEl.className = 'import-status err';
+    };
+    reader.readAsText(file);
+  } catch (err) {
+    importedCards = null;
+    statusEl.textContent = '✗ ' + (err && err.message ? err.message : String(err));
     statusEl.className = 'import-status err';
-  };
-  reader.readAsText(file);
+  }
 }
 
 document.addEventListener('dragover', e=>{
@@ -4146,7 +4765,7 @@ document.addEventListener('dragleave', e=>{
   const bdz = document.getElementById('bulkDropzone');
   if (bdz) bdz.classList.remove('drag');
 });
-document.addEventListener('drop', e=>{
+document.addEventListener('drop', async e=>{
   const dz = document.getElementById('dropzone');
   if (!dz) return;
   if (document.getElementById('deckOverlay').classList.contains('active') && deckMode==='import'){
@@ -4155,12 +4774,31 @@ document.addEventListener('drop', e=>{
     const file = e.dataTransfer.files[0];
     if (file){
       document.getElementById('fileNameLabel').textContent = file.name;
-      const reader = new FileReader();
-      reader.onload = () => {
-        document.getElementById('importText').value = reader.result;
-        onImportTextChange();
-      };
-      reader.readAsText(file);
+      const statusEl = document.getElementById('importStatus');
+      try {
+        if (/\.docx$/i.test(file.name) || /\.doc$/i.test(file.name)){
+          const parsed = await parseDocxFile(file);
+          importedCards = parsed.map(normalizeDocumentCard);
+          document.getElementById('importText').value = previewCardsAsMarkdown(importedCards);
+          statusEl.textContent = `✓ Parsed ${importedCards.length} card${importedCards.length!==1?'s':''} from ${file.name}`;
+          statusEl.className = 'import-status ok';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          document.getElementById('importText').value = reader.result;
+          onImportTextChange();
+        };
+        reader.onerror = () => {
+          statusEl.textContent = '✗ Could not read that file.';
+          statusEl.className = 'import-status err';
+        };
+        reader.readAsText(file);
+      } catch (err) {
+        importedCards = null;
+        statusEl.textContent = '✗ ' + (err && err.message ? err.message : String(err));
+        statusEl.className = 'import-status err';
+      }
     }
   }
 });
@@ -4197,6 +4835,8 @@ function confirmDeck(){
       nc.type = c.type || 'basic';
       nc.clozeSource = c.clozeSource || null;
       nc.importRefId = c.refId != null ? c.refId : null;
+      nc.img = { front: c.img?.front || null, back: c.img?.back || null };
+      nc.links = [];
       refMap.set(c.refId != null ? c.refId : (idx+1), nc);
       return nc;
     });
@@ -4331,21 +4971,40 @@ function onBulkImportTextChange(){
   }
 }
 
-function onBulkDeckFileChosen(e){
+async function onBulkDeckFileChosen(e){
   const file = e.target.files[0];
   if (!file) return;
+  const statusEl = document.getElementById('bulkImportStatus');
   document.getElementById('bulkFileNameLabel').textContent = file.name;
-  const reader = new FileReader();
-  reader.onload = () => {
-    document.getElementById('bulkImportText').value = reader.result;
-    onBulkImportTextChange();
-  };
-  reader.onerror = () => {
-    const statusEl = document.getElementById('bulkImportStatus');
-    statusEl.textContent = '✗ Could not read that file.';
+
+  try {
+    if (/\.docx$/i.test(file.name) || /\.doc$/i.test(file.name)){
+      const parsed = await parseDocxFile(file);
+      bulkParsedCards = parsed.map(normalizeDocumentCard);
+      document.getElementById('bulkImportText').value = previewCardsAsMarkdown(bulkParsedCards);
+      bulkDuplicateInfo = analyzeBulkDuplicates(bulkAddDeckId, bulkParsedCards);
+      const dupText = describeBulkDuplicates(bulkDuplicateInfo);
+      statusEl.textContent = dupText ? `Parsed ${bulkParsedCards.length} card${bulkParsedCards.length!==1?'s':''}.\n${dupText}` : `✓ Parsed ${bulkParsedCards.length} card${bulkParsedCards.length!==1?'s':''} — no duplicates found`;
+      statusEl.className = dupText ? 'import-status warn' : 'import-status ok';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      document.getElementById('bulkImportText').value = reader.result;
+      onBulkImportTextChange();
+    };
+    reader.onerror = () => {
+      statusEl.textContent = '✗ Could not read that file.';
+      statusEl.className = 'import-status err';
+    };
+    reader.readAsText(file);
+  } catch (err) {
+    bulkParsedCards = null;
+    bulkDuplicateInfo = null;
+    statusEl.textContent = '✗ ' + (err && err.message ? err.message : String(err));
     statusEl.className = 'import-status err';
-  };
-  reader.readAsText(file);
+  }
 }
 
 document.addEventListener('dragover', e=>{
@@ -4355,7 +5014,7 @@ document.addEventListener('dragover', e=>{
     if (dz) dz.classList.add('drag');
   }
 });
-document.addEventListener('drop', e=>{
+document.addEventListener('drop', async e=>{
   const dz = document.getElementById('bulkDropzone');
   if (!dz) return;
   if (document.getElementById('bulkAddOverlay').classList.contains('active')){
@@ -4364,12 +5023,34 @@ document.addEventListener('drop', e=>{
     const file = e.dataTransfer.files[0];
     if (file){
       document.getElementById('bulkFileNameLabel').textContent = file.name;
-      const reader = new FileReader();
-      reader.onload = () => {
-        document.getElementById('bulkImportText').value = reader.result;
-        onBulkImportTextChange();
-      };
-      reader.readAsText(file);
+      const statusEl = document.getElementById('bulkImportStatus');
+      try {
+        if (/\.docx$/i.test(file.name) || /\.doc$/i.test(file.name)){
+          const parsed = await parseDocxFile(file);
+          bulkParsedCards = parsed.map(normalizeDocumentCard);
+          document.getElementById('bulkImportText').value = previewCardsAsMarkdown(bulkParsedCards);
+          bulkDuplicateInfo = analyzeBulkDuplicates(bulkAddDeckId, bulkParsedCards);
+          const dupText = describeBulkDuplicates(bulkDuplicateInfo);
+          statusEl.textContent = dupText ? `Parsed ${bulkParsedCards.length} card${bulkParsedCards.length!==1?'s':''}.\n${dupText}` : `✓ Parsed ${bulkParsedCards.length} card${bulkParsedCards.length!==1?'s':''} — no duplicates found`;
+          statusEl.className = dupText ? 'import-status warn' : 'import-status ok';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          document.getElementById('bulkImportText').value = reader.result;
+          onBulkImportTextChange();
+        };
+        reader.onerror = () => {
+          statusEl.textContent = '✗ Could not read that file.';
+          statusEl.className = 'import-status err';
+        };
+        reader.readAsText(file);
+      } catch (err) {
+        bulkParsedCards = null;
+        bulkDuplicateInfo = null;
+        statusEl.textContent = '✗ ' + (err && err.message ? err.message : String(err));
+        statusEl.className = 'import-status err';
+      }
     }
   }
 });
@@ -4407,6 +5088,8 @@ function confirmBulkAdd(){
     nc.type = c.type || 'basic';
     nc.clozeSource = c.clozeSource || null;
     nc.importRefId = c.refId != null ? c.refId : null;
+    nc.img = { front: c.img?.front || null, back: c.img?.back || null };
+    nc.links = [];
     refMap.set(c.refId != null ? c.refId : (idx+1), nc);
     return nc;
   });
@@ -5492,6 +6175,52 @@ const CARD_FORMAT_JSON = `[
   }
 ]`;
 
+const CARD_FORMAT_WORD = `Q: What nerve is compressed in carpal tunnel syndrome?
+A: The median nerve
+Tags: anatomy, upper-limb
+Links: 2, 5
+
+---
+
+The [[median]] nerve is compressed in carpal tunnel syndrome.
+Tags: anatomy, neurology
+
+---
+
+[IMAGE PLACEMENT]
+Place images right before the Q: or A: line.
+Image before Q: → front face
+Image before A: → back face
+Image in a cloze block → both faces`;
+
+const CARD_FORMAT_TABLES = `Tables can be used in Front, Back, or Cloze fields. Use pipe syntax or HTML tags.
+
+Pipe Table Syntax:
+| Header 1 | Header 2 | Header 3 |
+|----------|----------|----------|
+| Row 1    | Data 1   | Data 2   |
+| Row 2    | Data 3   | Data 4   |
+
+HTML Table Syntax:
+<table>
+  <tr><th>Nerve</th><th>Root</th></tr>
+  <tr><td>Median</td><td>C5-T1</td></tr>
+</table>
+
+Example Card:
+Q: What are the branches of the brachial plexus?
+
+A:
+| Nerve | Root | Function |
+|-------|------|----------|
+| Median | C5-T1 | Flexion |
+| Ulnar | C8-T1 | Hand muscles |
+
+Tips:
+- First row with |---| becomes headers
+- Tables scroll horizontally on mobile
+- Works in study mode and notebook view`;
+
 function renderSettingsAccount(){
   const el = document.getElementById('settingsAccountRow');
   if (!el) return;
@@ -5525,6 +6254,8 @@ function openSettingsModal(){
   renderSettingsAccount();
   document.getElementById('settingsSnippetMd').textContent = CARD_FORMAT_MD;
   document.getElementById('settingsSnippetJson').textContent = CARD_FORMAT_JSON;
+  document.getElementById('settingsSnippetWord').textContent = CARD_FORMAT_WORD;
+  document.getElementById('settingsSnippetTables').textContent = CARD_FORMAT_TABLES;
   document.getElementById('settingsOverlay').classList.add('active');
 }
 async function copySettingsSnippet(elId, btn){
