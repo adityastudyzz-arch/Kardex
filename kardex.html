@@ -1725,7 +1725,7 @@ button{font-family:inherit;cursor:pointer;}
 
       <div class="settings-snippet">
         <div class="settings-snippet-head">
-          <span>Markdown</span>
+          <span>Markdown / formatting / tables</span>
           <button class="mini-btn" onclick="copySettingsSnippet('settingsSnippetMd', this)">Copy</button>
         </div>
         <pre class="settings-pre" id="settingsSnippetMd"></pre>
@@ -1745,14 +1745,6 @@ button{font-family:inherit;cursor:pointer;}
           <button class="mini-btn" onclick="copySettingsSnippet('settingsSnippetWord', this)">Copy</button>
         </div>
         <pre class="settings-pre" id="settingsSnippetWord"></pre>
-      </div>
-
-      <div class="settings-snippet">
-        <div class="settings-snippet-head">
-          <span>Tables</span>
-          <button class="mini-btn" onclick="copySettingsSnippet('settingsSnippetTables', this)">Copy</button>
-        </div>
-        <pre class="settings-pre" id="settingsSnippetTables"></pre>
       </div>
     </div>
   </div>
@@ -6148,7 +6140,8 @@ function avatarColor(seed){
 }
 
 /* ---------------- Settings modal ---------------- */
-const CARD_FORMAT_MD = `### Card 1
+const CARD_FORMAT_MD = `— BASIC CARD —
+### Card 1
 **Q:** What nerve is compressed in carpal tunnel syndrome?
 **A:** The median nerve
 **Tags:** anatomy, upper-limb
@@ -6156,10 +6149,40 @@ const CARD_FORMAT_MD = `### Card 1
 
 ---
 
+— CLOZE CARD —
 ### Card 2
 **Type:** cloze
 **Cloze:** The [[median]] nerve is compressed in carpal tunnel syndrome
-**Tags:** anatomy`;
+**Tags:** anatomy
+
+— TEXT FORMATTING —
+Predefined in the editor toolbar (B / I / U / H buttons), or type the markers yourself:
+- Bold: wrap text in **text**
+- Italic: wrap text in *text*
+- Underline: wrap text in __text__
+- Highlight: wrap text in ==text==
+
+— TABLES —
+Pipe syntax:
+| Header 1 | Header 2 |
+|----------|----------|
+| Row 1    | Data 1   |
+| Row 2    | Data 2   |
+
+HTML syntax:
+<table>
+  <tr><th>Nerve</th><th>Root</th></tr>
+  <tr><td>Median</td><td>C5-T1</td></tr>
+</table>
+
+Example card with a table:
+**Q:** What are the branches of the brachial plexus?
+
+**A:**
+| Nerve | Root | Function |
+|-------|------|----------|
+| Median | C5-T1 | Flexion |
+| Ulnar | C8-T1 | Hand muscles |`;
 
 const CARD_FORMAT_JSON = `[
   {
@@ -6192,34 +6215,6 @@ Place images right before the Q: or A: line.
 Image before Q: → front face
 Image before A: → back face
 Image in a cloze block → both faces`;
-
-const CARD_FORMAT_TABLES = `Tables can be used in Front, Back, or Cloze fields. Use pipe syntax or HTML tags.
-
-Pipe Table Syntax:
-| Header 1 | Header 2 | Header 3 |
-|----------|----------|----------|
-| Row 1    | Data 1   | Data 2   |
-| Row 2    | Data 3   | Data 4   |
-
-HTML Table Syntax:
-<table>
-  <tr><th>Nerve</th><th>Root</th></tr>
-  <tr><td>Median</td><td>C5-T1</td></tr>
-</table>
-
-Example Card:
-Q: What are the branches of the brachial plexus?
-
-A:
-| Nerve | Root | Function |
-|-------|------|----------|
-| Median | C5-T1 | Flexion |
-| Ulnar | C8-T1 | Hand muscles |
-
-Tips:
-- First row with |---| becomes headers
-- Tables scroll horizontally on mobile
-- Works in study mode and notebook view`;
 
 function renderSettingsAccount(){
   const el = document.getElementById('settingsAccountRow');
@@ -6255,7 +6250,6 @@ function openSettingsModal(){
   document.getElementById('settingsSnippetMd').textContent = CARD_FORMAT_MD;
   document.getElementById('settingsSnippetJson').textContent = CARD_FORMAT_JSON;
   document.getElementById('settingsSnippetWord').textContent = CARD_FORMAT_WORD;
-  document.getElementById('settingsSnippetTables').textContent = CARD_FORMAT_TABLES;
   document.getElementById('settingsOverlay').classList.add('active');
 }
 async function copySettingsSnippet(elId, btn){
