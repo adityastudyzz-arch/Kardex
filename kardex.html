@@ -456,6 +456,31 @@ button{font-family:inherit;cursor:pointer;}
   margin:6px 0 12px;
 }
 
+.sort-control{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:2px 0 16px;
+}
+.sort-control .sort-label{
+  font-family:'IBM Plex Mono', monospace;
+  text-transform:uppercase;
+  letter-spacing:.1em;
+  font-size:10.5px;
+  color:var(--ink-soft);
+}
+.sort-control .sort-select{
+  font-family:'IBM Plex Sans', sans-serif;
+  font-size:12.5px;
+  color:var(--ink);
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:7px;
+  padding:5px 10px;
+  cursor:pointer;
+}
+.sort-control .sort-select:focus{ outline:2px solid var(--teal); outline-offset:1px; }
+
 /* ---------- Home dashboard ---------- */
 .home-head{ margin-bottom:22px; }
 .home-head h1{
@@ -2569,8 +2594,8 @@ function stripMarkup(str){
 }
 let mockStarSeq = 0;
 function star(c){ c.starred = true; c.starredAt = Date.now() - (mockStarSeq++) * 3600*1000; return c; }
-function deck(name, cards){ return { id: nextId(), type:'deck', name, cards, lastStudied: pickDate(), sessions: [] }; }
-function folder(name, children){ return { id: nextId(), type:'folder', name, children, collapsed:false }; }
+function deck(name, cards){ return { id: nextId(), type:'deck', name, cards, lastStudied: pickDate(), sessions: [], createdAt: Date.now() }; }
+function folder(name, children){ return { id: nextId(), type:'folder', name, children, collapsed:false, createdAt: Date.now() }; }
 
 function pickDate(){
   const opts = ['2 days ago','yesterday','today','5 days ago','a week ago', null];
@@ -3888,6 +3913,71 @@ function toggleHomeStats(){
   document.getElementById('statSummaryWrap').classList.toggle('expanded', state.homeStatsExpanded);
 }
 
+/* ---------------------------------------------------------
+   PER-DRAWER SORT PREFERENCE
+   Each drawer (folder) remembers its own sort choice — default
+   (order added), alphabetical, or date-of-creation —
+   keyed by folder id and stashed in localStorage so it survives
+   reloads without needing to touch the synced tree data.
+--------------------------------------------------------- */
+const DRAWER_SORT_KEY = 'kardex_drawer_sort';
+function getDrawerSortMap(){
+  try { return JSON.parse(localStorage.getItem(DRAWER_SORT_KEY) || '{}'); }
+  catch(e){ return {}; }
+}
+function getDrawerSort(folderId){
+  const map = getDrawerSortMap();
+  return map[folderId] || 'manual';
+}
+function setDrawerSort(folderId, mode){
+  const map = getDrawerSortMap();
+  if (mode === 'manual') delete map[folderId];
+  else map[folderId] = mode;
+  try { localStorage.setItem(DRAWER_SORT_KEY, JSON.stringify(map)); } catch(e){}
+}
+function sortNodesBy(list, mode){
+  const arr = list.slice();
+  switch(mode){
+    case 'name-asc':
+      arr.sort((a,b)=> a.name.localeCompare(b.name, undefined, {sensitivity:'base'}));
+      break;
+    case 'name-desc':
+      arr.sort((a,b)=> b.name.localeCompare(a.name, undefined, {sensitivity:'base'}));
+      break;
+    case 'created-desc':
+      arr.sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
+      break;
+    case 'created-asc':
+      arr.sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
+      break;
+    default:
+      break; // 'manual' — keep the order items were added in
+  }
+  return arr;
+}
+function onDrawerSortChange(folderId, mode){
+  setDrawerSort(folderId, mode);
+  render();
+}
+function sortControl(folderId, current){
+  const wrap = document.createElement('div');
+  wrap.className = 'sort-control';
+  wrap.innerHTML = `
+    <label class="sort-label" for="sortSelect">Sort</label>
+    <select id="sortSelect" class="sort-select">
+      <option value="manual">Default order</option>
+      <option value="name-asc">Name (A–Z)</option>
+      <option value="name-desc">Name (Z–A)</option>
+      <option value="created-desc">Newest first</option>
+      <option value="created-asc">Oldest first</option>
+    </select>
+  `;
+  const select = wrap.querySelector('select');
+  select.value = current;
+  select.onchange = ()=> onDrawerSortChange(folderId, select.value);
+  return wrap;
+}
+
 function renderContent(){
   const el = document.getElementById('content');
   el.innerHTML = '';
@@ -3902,6 +3992,7 @@ function renderContent(){
   }
 
   const folderNode = findFolder(state.currentPath);
+  const currentFolderId = state.currentPath[state.currentPath.length-1];
   const subfolders = folderNode.children.filter(c=>c.type==='folder');
   const decks = folderNode.children.filter(c=>c.type==='deck');
 
@@ -3913,20 +4004,25 @@ function renderContent(){
     return;
   }
 
-  if (subfolders.length){
+  const sortMode = getDrawerSort(currentFolderId);
+  el.appendChild(sortControl(currentFolderId, sortMode));
+  const sortedSubfolders = sortNodesBy(subfolders, sortMode);
+  const sortedDecks = sortNodesBy(decks, sortMode);
+
+  if (sortedSubfolders.length){
     const label = document.createElement('div');
     label.className='section-label'; label.textContent = 'Drawers';
     el.appendChild(label);
     const grid = document.createElement('div'); grid.className='grid';
-    subfolders.forEach(f=> grid.appendChild(folderTile(f)));
+    sortedSubfolders.forEach(f=> grid.appendChild(folderTile(f)));
     el.appendChild(grid);
   }
-  if (decks.length){
+  if (sortedDecks.length){
     const label = document.createElement('div');
     label.className='section-label'; label.textContent = 'Decks';
     el.appendChild(label);
     const grid = document.createElement('div'); grid.className='grid';
-    decks.forEach(d=> grid.appendChild(deckTile(d)));
+    sortedDecks.forEach(d=> grid.appendChild(deckTile(d)));
     el.appendChild(grid);
   }
 }
