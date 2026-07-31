@@ -20,6 +20,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.9.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root{
@@ -993,6 +995,8 @@ button{font-family:inherit;cursor:pointer;}
   text-align:center; padding:60px 20px;
   color:var(--ink-soft);
 }
+.notebook-head #notebookTitle{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nb-export-btn{ margin-left:0; }
 
 /* ---------- Starred smart-folder view ---------- */
 .starred-header{
@@ -1615,6 +1619,9 @@ button{font-family:inherit;cursor:pointer;}
         </button>
         <span id="notebookTitle">—</span>
         <span class="mono timer-chip" id="notebookCount">0 cards</span>
+        <button class="back-btn nb-export-btn" onclick="openNotebookExportModal()" aria-label="Export notebook" title="Export notebook">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+        </button>
       </div>
       <div id="notebookPages"></div>
     </div>
@@ -1792,6 +1799,21 @@ button{font-family:inherit;cursor:pointer;}
       <button class="cancel" onclick="closeModal('exportOverlay')">Cancel</button>
       <button class="confirm" id="exportConfirmBtn" onclick="confirmExportSelection()">Export</button>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="notebookExportOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('notebookExportOverlay')" title="Close" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <h3 style="padding-right:28px;">Export notebook</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin:0 0 16px; line-height:1.5;">Each card stays whole — none will be split across a page break.</p>
+    <div class="settings-btn-row" style="display:flex; gap:8px;">
+      <button class="action-btn primary" style="flex:1; justify-content:center;" onclick="exportNotebookAs('pdf')">Export as PDF</button>
+      <button class="action-btn" style="flex:1; justify-content:center;" onclick="exportNotebookAs('jpg')">Export as JPG</button>
+    </div>
+    <p class="mono" id="notebookExportStatus" style="font-size:11px; color:var(--ink-soft); margin:14px 0 0; min-height:14px;"></p>
   </div>
 </div>
 
@@ -5882,6 +5904,179 @@ async function renderNotebookPages(){
   });
 
   attachNotebookSwipeHandlers();
+}
+
+/* ---------------------------------------------------------
+   NOTEBOOK EXPORT — renders every card as its own image, then
+   lays those images out onto fixed-size "pages" (A4 proportioned),
+   starting a fresh page any time a card wouldn't fully fit on the
+   current one. This guarantees no card is ever cut across a page
+   break, whether the output is a multi-page PDF or a set of JPGs.
+--------------------------------------------------------- */
+function sanitizeFilename(name){
+  return (name || 'notebook').replace(/[\\/:*?"<>|]+/g, ' ').trim().replace(/\s+/g, '-').slice(0, 60) || 'notebook';
+}
+function openNotebookExportModal(){
+  const deck = nodeById(state.notebookDeckId);
+  if (!deck || !deck.cards.length){ showToast('No cards to export'); return; }
+  document.getElementById('notebookExportStatus').textContent = '';
+  document.getElementById('notebookExportOverlay').classList.add('active');
+}
+async function exportNotebookAs(format){
+  const deck = nodeById(state.notebookDeckId);
+  if (!deck || !deck.cards.length) return;
+  if (!window.html2canvas || !window.jspdf){
+    showToast('Export library failed to load — check your connection.');
+    return;
+  }
+  const statusEl = document.getElementById('notebookExportStatus');
+  statusEl.textContent = 'Rendering cards…';
+
+  const PAGE_W = 1000;
+  const PAGE_H = Math.round(PAGE_W * 297 / 210); // A4 proportions
+  const MARGIN = 50;
+  const CONTENT_W = PAGE_W - MARGIN * 2;
+  const GAP = 20;
+  const TITLE_AREA_H = 108;
+
+  try{
+    await Promise.all([
+      document.fonts.load('700 40px Fraunces'),
+      document.fonts.load('600 15px Fraunces'),
+      document.fonts.load('400 13px Fraunces')
+    ]);
+  }catch(e){ /* fonts best-effort, keep going even if this fails */ }
+
+  // Render each card, one at a time, into an offscreen container that
+  // mirrors the notebook-entry look but strips the star/edit/delete
+  // controls (those aren't part of the printed page).
+  const scratch = document.createElement('div');
+  scratch.style.cssText = `position:fixed; left:-99999px; top:0; width:${CONTENT_W}px; background:transparent;`;
+  document.body.appendChild(scratch);
+
+  const cardCanvases = [];
+  try{
+    for (let i = 0; i < deck.cards.length; i++){
+      const c = deck.cards[i];
+      statusEl.textContent = `Rendering card ${i+1} of ${deck.cards.length}…`;
+      const frontImgSrc = c.img && c.img.front ? await resolveImageRef(c.img.front) : null;
+      const backImgSrc = c.img && c.img.back ? await resolveImageRef(c.img.back) : null;
+      scratch.innerHTML = `
+        <div class="notebook-entry" style="width:${CONTENT_W}px; box-sizing:border-box; position:static; box-shadow:none;">
+          <div class="nb-index">Card ${i+1}</div>
+          <div class="nb-front">${formatInlineMarkdown(c.f)}${frontImgSrc ? `<img class="nb-img" src="${frontImgSrc}">` : ''}</div>
+          <div class="nb-back">${formatInlineMarkdown(c.b)}${backImgSrc ? `<img class="nb-img" src="${backImgSrc}">` : ''}</div>
+        </div>`;
+      const entryEl = scratch.firstElementChild;
+      const canvas = await html2canvas(entryEl, { scale: 2, backgroundColor: '#FCFAF3', useCORS: true });
+      cardCanvases.push(canvas);
+    }
+  } finally {
+    scratch.remove();
+  }
+
+  statusEl.textContent = 'Laying out pages…';
+
+  // Assemble pages: draw the deck title (Fraunces, centered, large) only
+  // on page one, then place each card image top-to-bottom, moving to a
+  // new page whenever the next card wouldn't fully fit.
+  const pageCanvases = [];
+  let pageCtx = null, y = 0;
+
+  function startPage(withTitle){
+    const pc = document.createElement('canvas');
+    pc.width = PAGE_W; pc.height = PAGE_H;
+    pageCtx = pc.getContext('2d');
+    pageCtx.fillStyle = '#F6F2E7';
+    pageCtx.fillRect(0, 0, PAGE_W, PAGE_H);
+    y = MARGIN;
+    if (withTitle){
+      pageCtx.fillStyle = '#232323';
+      pageCtx.font = "700 42px Fraunces, serif";
+      pageCtx.textAlign = 'center';
+      pageCtx.textBaseline = 'top';
+      pageCtx.fillText(deck.name || 'Untitled deck', PAGE_W / 2, y, CONTENT_W);
+      y += 58;
+      pageCtx.strokeStyle = '#DAD0B4';
+      pageCtx.lineWidth = 2;
+      pageCtx.beginPath();
+      pageCtx.moveTo(MARGIN, y);
+      pageCtx.lineTo(PAGE_W - MARGIN, y);
+      pageCtx.stroke();
+      y += 30;
+    }
+    pageCanvases.push(pc);
+    return pc;
+  }
+
+  startPage(true);
+  const firstPageTop = MARGIN + TITLE_AREA_H;
+
+  cardCanvases.forEach((cc, idx) => {
+    let drawW = CONTENT_W;
+    let drawH = cc.height * (drawW / cc.width);
+    const isFirstCardOnPage = (idx === 0) ? (y <= firstPageTop) : (y <= MARGIN);
+    if (!isFirstCardOnPage && (y + drawH > PAGE_H - MARGIN)){
+      startPage(false);
+    }
+    // Rare edge case: a single card too tall for even a fresh page. Shrink
+    // it to fit the page rather than let it render cut off at the bottom.
+    const availH = (PAGE_H - MARGIN) - y;
+    if (drawH > availH){
+      const scale = availH / drawH;
+      drawH = availH;
+      drawW = drawW * scale;
+    }
+    const drawX = MARGIN + (CONTENT_W - drawW) / 2;
+    pageCtx.drawImage(cc, drawX, y, drawW, drawH);
+    y += drawH + GAP;
+  });
+
+  statusEl.textContent = 'Preparing download…';
+  const fname = sanitizeFilename(deck.name);
+
+  if (format === 'pdf'){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'px', format: [PAGE_W, PAGE_H], hotfixes: ['px_scaling'] });
+    pageCanvases.forEach((pc, idx) => {
+      if (idx > 0) doc.addPage([PAGE_W, PAGE_H]);
+      doc.addImage(pc.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, PAGE_W, PAGE_H);
+    });
+    doc.save(`${fname}-notebook.pdf`);
+    showToast('PDF exported');
+  } else {
+    if (pageCanvases.length === 1){
+      const a = document.createElement('a');
+      a.href = pageCanvases[0].toDataURL('image/jpeg', 0.92);
+      a.download = `${fname}-notebook.jpg`;
+      a.click();
+      showToast('JPG exported');
+    } else if (window.JSZip){
+      const zip = new JSZip();
+      pageCanvases.forEach((pc, idx) => {
+        const dataUrl = pc.toDataURL('image/jpeg', 0.92);
+        zip.file(`page-${String(idx + 1).padStart(2, '0')}.jpg`, dataUrl.split(',')[1], { base64: true });
+      });
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${fname}-notebook-jpgs.zip`;
+      a.click();
+      showToast(`JPGs exported (${pageCanvases.length} pages, zipped)`);
+    } else {
+      // fallback: download each page individually if zipping isn't available
+      pageCanvases.forEach((pc, idx) => {
+        const a = document.createElement('a');
+        a.href = pc.toDataURL('image/jpeg', 0.92);
+        a.download = `${fname}-notebook-page-${idx + 1}.jpg`;
+        a.click();
+      });
+      showToast(`${pageCanvases.length} JPGs exported`);
+    }
+  }
+
+  statusEl.textContent = '';
+  closeModal('notebookExportOverlay');
 }
 function toggleNotebookStar(e, deckId, cardId){
   e.stopPropagation();
