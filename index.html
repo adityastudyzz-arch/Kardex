@@ -394,16 +394,28 @@ const SUPABASE_URL = 'https://cvwqsxeydimszufybffv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2d3FzeGV5ZGltc3p1ZnliZmZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1MzM4ODgsImV4cCI6MjEwMDEwOTg4OH0.Tct26EfeZDJkIrJ4lUQQg2KaQLCacLadOkdBV_R27E0';
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  // This page should never be the one to finalize a Google sign-in —
-  // kardex.html (the redirectTo target below) owns that. Turning off
-  // auto-detection here stops this page's client from racing to consume
-  // an OAuth code/token the moment it shows up in the URL, which would
-  // otherwise leave nothing for kardex.html to pick up (auth codes are
-  // single-use) or double-process an implicit-flow token needlessly.
-  // See the "callback landed here instead of kardex.html" handling below —
-  // that's the one deliberate exception, and it forwards the raw URL data
-  // on rather than consuming it itself.
-  auth: { detectSessionInUrl: false }
+  auth: {
+    // This page should never be the one to finalize a Google sign-in —
+    // kardex.html (the redirectTo target below) owns that. Turning off
+    // auto-detection here stops this page's client from racing to consume
+    // an OAuth code/token the moment it shows up in the URL, which would
+    // otherwise leave nothing for kardex.html to pick up (auth codes are
+    // single-use) or double-process an implicit-flow token needlessly.
+    // See the "callback landed here instead of kardex.html" handling below —
+    // that's the one deliberate exception, and it forwards the raw URL data
+    // on rather than consuming it itself.
+    detectSessionInUrl: false,
+    // This page only ever glances at an existing session (getSession()
+    // below) before immediately handing off to kardex.html — it never
+    // needs to keep one alive. Two separate GoTrue client instances
+    // (this page's and kardex.html's) both auto-refreshing the same
+    // stored session is a known source of exactly the symptom this is
+    // meant to fix: one instance rotates the refresh token, the other's
+    // now-stale copy gets rejected, and that shows up as a spurious
+    // SIGNED_OUT moments after a real, successful sign-in. Only the
+    // long-lived page (kardex.html) should be doing that work.
+    autoRefreshToken: false,
+  }
 });
 const SUPABASE_CONFIGURED = !SUPABASE_URL.includes('YOUR-PROJECT-REF') && !SUPABASE_ANON_KEY.includes('YOUR-ANON-PUBLIC-KEY');
 
