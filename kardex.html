@@ -22,7 +22,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.9.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- Pinned to an exact version rather than floating on @2 — the CDN would
+     otherwise silently serve whatever the newest 2.x release happens to be
+     on any given page load, which is a bad idea generally and makes any
+     future auth weirdness much harder to pin down. Bump deliberately. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.108.2/dist/umd/supabase.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
 <style>
@@ -7121,6 +7125,18 @@ async function initAuthAndApp(){
   }
 
   let settled = false;
+  // Flips true the moment we've genuinely established a session in THIS
+  // page load. Exists because of a real, observed failure pattern: the
+  // SDK firing a good INITIAL_SESSION (with a valid user) and then, a
+  // few hundred ms later, firing ANOTHER INITIAL_SESSION or a SIGNED_OUT
+  // for the exact same subscription — with no session, seconds after a
+  // real Google sign-in succeeded. That second event is what was bouncing
+  // people back to sign-in right after they'd correctly signed in.
+  // INITIAL_SESSION is documented to fire once per subscription, so a
+  // second, contradicting firing is trusted less than the session we
+  // already confirmed — it's logged (in case this theory is ever wrong)
+  // but not acted on.
+  let sessionEstablishedThisLoad = false;
 
   // This is the officially recommended v2 pattern: don't call getSession()
   // yourself and race it against the SDK's own URL-detection. Instead,
@@ -7133,8 +7149,12 @@ async function initAuthAndApp(){
     logAuthEvent(event, session ? ('user ' + session.user.id.slice(0,8)) : 'no session');
 
     if (event === 'INITIAL_SESSION'){
-      settled = true;
       if (!session){
+        if (sessionEstablishedThisLoad){
+          logAuthEvent('ignored-stale-initial-session', 'already had a real session this load — not bouncing');
+          return;
+        }
+        settled = true;
         // The SDK's own auto-detection came back empty even though the URL
         // may still contain valid tokens (seen in practice: detectSessionInUrl
         // sometimes silently fails to parse the hash). Before giving up,
@@ -7151,6 +7171,7 @@ async function initAuthAndApp(){
           }
           if (setData.session){
             logAuthEvent('manual-fallback-success', 'user ' + setData.session.user.id.slice(0,8));
+            sessionEstablishedThisLoad = true;
             currentUser = setData.session.user;
             accessToken = setData.session.access_token;
             try { history.replaceState(null, '', window.location.pathname); } catch(e){}
@@ -7166,6 +7187,8 @@ async function initAuthAndApp(){
         );
         return;
       }
+      settled = true;
+      sessionEstablishedThisLoad = true;
       currentUser = session.user;
       accessToken = session.access_token;
       // Clean any leftover OAuth params from the address bar now that
@@ -7177,8 +7200,13 @@ async function initAuthAndApp(){
       await restorePersistedState();
       render();
     } else if (event === 'SIGNED_OUT'){
+      if (sessionEstablishedThisLoad){
+        logAuthEvent('ignored-early-signed-out', 'right after establishing a session this load — not bouncing');
+        return;
+      }
       goToSignIn('SIGNED_OUT fired after sign-in succeeded — usually a refresh-token failure. Event log: ' + formatAuthLog());
     } else if (session){
+      sessionEstablishedThisLoad = true;
       accessToken = session.access_token;
       currentUser = session.user;
     }
