@@ -7024,7 +7024,23 @@ function restartDeck(){
    recovery. Catch it here, before anything tries to render the stale
    path, and fall back to the root drawer view instead. */
 function sanitizeCurrentPath(){
-  if (state.currentPath.length <= 1) return;
+  // Even a length-1 path — just "sitting at home" — needs checking here.
+  // state.currentPath[0] is captured once, from root.id, at the moment
+  // the `state` object literal is first created (using whatever the
+  // placeholder/demo tree's root id happens to be at that instant).
+  // applyPersistedPayload() then overwrites root.id itself once real
+  // (local or cloud) data loads, but nothing updates the already-captured
+  // path — so path[0] silently goes stale. findFolder() tolerates this
+  // fine (a length-1 path always resolves to `root` directly, regardless
+  // of what path[0] actually says) but renderCrumbs() does not — it
+  // looks up every element, including index 0, via nodeById(), which
+  // fails the moment path[0] no longer matches the live root.id. This
+  // is the exact crash seen in testing: path ['n1012'] not resolving
+  // after root.id changed underneath it.
+  if (state.currentPath[0] !== root.id){
+    state.currentPath = [root.id];
+    return;
+  }
   for (let i = 1; i < state.currentPath.length; i++){
     if (!nodeById(state.currentPath[i])){
       state.currentPath = [root.id];
