@@ -393,7 +393,18 @@ body{
 const SUPABASE_URL = 'https://cvwqsxeydimszufybffv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2d3FzeGV5ZGltc3p1ZnliZmZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1MzM4ODgsImV4cCI6MjEwMDEwOTg4OH0.Tct26EfeZDJkIrJ4lUQQg2KaQLCacLadOkdBV_R27E0';
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  // This page should never be the one to finalize a Google sign-in —
+  // kardex.html (the redirectTo target below) owns that. Turning off
+  // auto-detection here stops this page's client from racing to consume
+  // an OAuth code/token the moment it shows up in the URL, which would
+  // otherwise leave nothing for kardex.html to pick up (auth codes are
+  // single-use) or double-process an implicit-flow token needlessly.
+  // See the "callback landed here instead of kardex.html" handling below —
+  // that's the one deliberate exception, and it forwards the raw URL data
+  // on rather than consuming it itself.
+  auth: { detectSessionInUrl: false }
+});
 const SUPABASE_CONFIGURED = !SUPABASE_URL.includes('YOUR-PROJECT-REF') && !SUPABASE_ANON_KEY.includes('YOUR-ANON-PUBLIC-KEY');
 
 document.getElementById('finePrint').textContent = SUPABASE_CONFIGURED
@@ -423,10 +434,13 @@ function showAuthDiagnostic(msg){
 
 // Supabase appends ?error=...&error_description=... to the redirect URL if
 // the OAuth callback itself failed (e.g. this URL isn't in Supabase's
-// allowed Redirect URLs list). Surface that instead of hiding it.
+// allowed Redirect URLs list). Surface that instead of hiding it. Checked
+// across query AND hash (not just whichever happens to be non-empty)
+// since error details can land in either depending on the failure point.
 (function checkForOAuthError(){
-  const params = new URLSearchParams(window.location.search || window.location.hash.replace('#', '?'));
-  const err = params.get('error_description') || params.get('error');
+  const qs = new URLSearchParams(window.location.search);
+  const hs = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+  const err = qs.get('error_description') || qs.get('error') || hs.get('error_description') || hs.get('error');
   if (err) showAuthDiagnostic('Google sign-in failed: ' + decodeURIComponent(err).replace(/\+/g, ' '));
 })();
 
@@ -486,13 +500,32 @@ async function signIn(){
 (async function redirectIfAlreadySignedIn(){
   if (!SUPABASE_CONFIGURED) return; // nothing to check yet
 
-  // If Google/Supabase just bounced back here with callback data still in
-  // the URL (shouldn't normally happen since we always redirectTo kardex.html,
-  // but just in case), forward straight to the app page and let its own
-  // init handle the exchange rather than doing it twice.
+  // If Google/Supabase's OAuth callback lands here instead of kardex.html,
+  // forward the *actual callback data* along with it, don't just jump to
+  // a bare kardex.html and drop it on the floor.
+  //
+  // This isn't just a defensive fallback — it's the most common real-world
+  // cause of a sign-in/app bounce loop: signInWithOAuth() below passes
+  // redirectTo: kardexUrl(), but Supabase only honors that if the exact
+  // URL is in Authentication → URL Configuration → Redirect URLs on the
+  // dashboard. If it isn't listed there, Supabase silently ignores it and
+  // sends the browser back to the project's default Site URL instead —
+  // which, for a two-page app like this, is very often this sign-in page.
+  // The callback data (an implicit-flow #access_token/#refresh_token pair,
+  // or a PKCE ?code=) still arrives, just on the wrong page. Previously
+  // this code detected that case but then redirected with a plain
+  // kardexUrl() — discarding the very data kardex.html needed to complete
+  // sign-in — so the app found no session, bounced back here, and the
+  // cycle repeated. Carrying window.location.search/hash across fixes
+  // that regardless of which underlying flow type is in use.
+  //
+  // (If you keep landing here after Google approves sign-in, add this
+  // page's exact URL to that Redirect URLs list — that's the real fix;
+  // this forwarding is just what keeps a misconfigured setup from
+  // looping forever instead of completing anyway.)
   const raw = window.location.search + window.location.hash;
   if (/[?&#]code=|access_token=|refresh_token=/.test(raw)){
-    window.location.href = kardexUrl();
+    window.location.href = kardexUrl() + window.location.search + window.location.hash;
     return;
   }
 
@@ -501,7 +534,7 @@ async function signIn(){
   const session = data.session;
   if (!session) return;
   if (tooManyAuthRedirects()){
-    showAuthDiagnostic('Stuck bouncing between sign-in and the app — likely a stale/invalid session. Open DevTools → Application → Storage → "Clear site data", then reload this page and sign in again.');
+    showAuthDiagnostic('Stuck bouncing between sign-in and the app — likely a stale/invalid session, or kardex.html is missing from Supabase\'s Redirect URLs allow-list. Open DevTools → Application → Storage → "Clear site data", then reload this page and sign in again.');
     return;
   }
   window.location.href = kardexUrl();

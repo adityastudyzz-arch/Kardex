@@ -23,6 +23,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
 <style>
 :root{
   --paper:#F6F2E7;
@@ -345,6 +347,8 @@ button{font-family:inherit;cursor:pointer;}
 }
 .action-btn.primary:hover{ background:var(--teal-dark); color:#fff; }
 .action-btn.icon-only{ padding:8px; width:34px; height:34px; justify-content:center; }
+#syncBtn.syncing svg{ animation: sync-spin .8s linear infinite; }
+@keyframes sync-spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
 .resume-btn{
   border-color:rgba(47,111,98,.4);
   background:rgba(47,111,98,.08);
@@ -674,6 +678,8 @@ button{font-family:inherit;cursor:pointer;}
   flex-direction:column;
 }
 .deck-tile:hover .card{ transform:translateY(-3px) rotate(-.4deg); box-shadow:var(--shadow-lg); }
+.daily-deck-tile .card{ border-left-color:var(--teal); }
+.daily-deck-tile .dname{ display:flex; align-items:center; gap:6px; }
 .deck-tile .dname{
   font-family:'Fraunces', serif;
   font-weight:600;
@@ -722,6 +728,15 @@ button{font-family:inherit;cursor:pointer;}
   border-radius:12px;
   font-size:11px;
   letter-spacing:.02em;
+}
+.face-timer-chip{
+  transition: background .15s ease, color .15s ease;
+  opacity:.55;
+}
+.face-timer-chip.active{
+  background:var(--teal);
+  color:#F3EFDF;
+  opacity:1;
 }
 .back-btn{
   border:1px solid var(--line); background:var(--paper-raised);
@@ -1252,6 +1267,15 @@ button{font-family:inherit;cursor:pointer;}
 #basicPane{ display:flex; flex-direction:column; gap:14px; }
 .editor-face-block textarea{ min-height:56px; }
 .card-table-wrap{ width:100%; overflow-x:auto; margin:10px 0; text-align:left; }
+
+/* LaTeX (KaTeX-rendered) */
+.katex-display{ margin:10px 0; overflow-x:auto; overflow-y:hidden; padding-bottom:2px; }
+.katex{ font-size:1.05em; }
+.latex-fallback{
+  font-family:'IBM Plex Mono', monospace; font-size:.92em;
+  background:var(--paper-dark); padding:1px 5px; border-radius:4px;
+  color:var(--maroon);
+}
 .card-table{ width:100%; min-width:280px; border-collapse:collapse; font-size:13px; line-height:1.45; border:1px solid var(--line); background:var(--surface); }
 .card-table th,
 .card-table td{ border:1px solid var(--line); padding:6px 10px; vertical-align:top; text-align:left; }
@@ -1571,6 +1595,9 @@ button{font-family:inherit;cursor:pointer;}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         <span id="resumeStudyBtnLabel">Resume</span>
       </button>
+      <button class="action-btn icon-only" id="syncBtn" onclick="manualSync()" aria-label="Sync" title="Sync with the cloud">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
       <div class="search-wrap">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
         <input id="searchInput" type="text" placeholder="Search cards & drawers…" oninput="onSearch(this.value)">
@@ -1592,7 +1619,8 @@ button{font-family:inherit;cursor:pointer;}
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <span id="studyTitle">—</span>
-        <span id="cardTimer" class="mono timer-chip">⏱ 0s</span>
+        <span id="cardTimerQ" class="mono timer-chip face-timer-chip active" title="Time spent on the question face">❓ 0s</span>
+        <span id="cardTimerA" class="mono timer-chip face-timer-chip" title="Time spent on the answer face">💡 0s</span>
       </div>
       <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
 
@@ -2318,9 +2346,9 @@ function persistLocalState(){
 }
 
 async function syncToSupabase(payload){
-  if (!currentUser || !accessToken) return; // not signed in — local backup only
+  if (!currentUser || !accessToken) return false; // not signed in — local backup only
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/kardex_state`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_state`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2330,8 +2358,10 @@ async function syncToSupabase(payload){
       },
       body: JSON.stringify({ id: currentUser.id, payload, updated_at: new Date().toISOString() })
     });
+    return res.ok;
   } catch (err) {
     console.warn('Supabase sync skipped', err);
+    return false;
   }
 }
 
@@ -2386,6 +2416,44 @@ async function restorePersistedState(){
     applyPersistedPayload(parsed);
   } catch (err) {
     console.warn('Could not restore local backup', err);
+  }
+}
+/* Manual "Sync" button in the topbar — an on-demand version of the
+   push/pull that already happens automatically (debounced push on every
+   edit, pull once on load). Pushes first so the cloud has this device's
+   latest before pulling, so the pull can't clobber a change made a
+   moment ago; then pulls, in case another device pushed something newer
+   in the meantime. */
+let syncInFlight = false;
+async function manualSync(){
+  if (!SUPABASE_CONFIGURED){
+    showToast("Cloud sync isn't set up for this app yet — local only.");
+    return;
+  }
+  if (!currentUser){
+    showToast('Sign in to sync with the cloud.');
+    return;
+  }
+  if (syncInFlight) return;
+  syncInFlight = true;
+  const btn = document.getElementById('syncBtn');
+  if (btn) btn.classList.add('syncing');
+  try {
+    const payload = persistLocalState();
+    const pushed = await syncToSupabase(payload);
+    await restorePersistedState();
+    srsMapCache = null;
+    updateStarredCount();
+    updateToughCount();
+    renderResumeButtons();
+    if (!state.studying) render();
+    showToast(pushed ? 'Synced with the cloud' : 'Synced from the cloud (local changes will retry automatically)');
+  } catch (err) {
+    console.error('Manual sync failed', err);
+    showToast('Sync failed — check your connection and try again');
+  } finally {
+    syncInFlight = false;
+    if (btn) btn.classList.remove('syncing');
   }
 }
 function arrayBufferToBase64(buffer){
@@ -2650,9 +2718,12 @@ function gatherAllCardsWithLocation(){
   return cardIndexList;
 }
 function truncate(str, n){ return (str||'').length > n ? str.slice(0, n-1)+'…' : (str||''); }
-/* Strip bold/underline/italic/highlight markup for plain-text previews (list rows) instead of rendering it */
+/* Strip bold/underline/italic/highlight/LaTeX markup for plain-text previews (list rows) instead of rendering it */
 function stripMarkup(str){
-  return (str||'').replace(/\*\*(.+?)\*\*/g,'$1').replace(/__(.+?)__/g,'$1').replace(/\*(.+?)\*/g,'$1').replace(/==(.+?)==/g,'$1');
+  return (str||'')
+    .replace(/\$\$([\s\S]+?)\$\$/g,'$1')
+    .replace(/\$(?!\s)([^$\n]+?)(?<!\s)\$/g,'$1')
+    .replace(/\*\*(.+?)\*\*/g,'$1').replace(/__(.+?)__/g,'$1').replace(/\*(.+?)\*/g,'$1').replace(/==(.+?)==/g,'$1');
 }
 let mockStarSeq = 0;
 function star(c){ c.starred = true; c.starredAt = Date.now() - (mockStarSeq++) * 3600*1000; return c; }
@@ -2831,8 +2902,101 @@ function toggleToughMode(){
   showToast(toughMode
     ? 'Tough mode on — opening a deck now studies only its tough cards'
     : 'Tough mode off');
+  // Deck tiles show a different number depending on tough mode — refresh
+  // whatever's currently on screen so that's immediate, not stale until
+  // the next navigation.
+  if (!state.studying) render();
 }
 applyToughModeClass();
+
+/* ---------------------------------------------------------
+   DAILY DECK — a rotating 20-card mix on the home screen: due cards
+   first, filled out with random picks from the rest of the library.
+   Finishing it swaps in a fresh 20 in its place, numbered #01, #02...
+   for the day (reset at local midnight). Persisted to localStorage —
+   this is a convenience shuffle, not part of the synced card data, so
+   it doesn't need to travel across devices.
+--------------------------------------------------------- */
+const DAILY_DECK_KEY = 'kardex_daily_deck';
+function todayDateKey(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function shuffleArray(arr){
+  const a = arr.slice();
+  for (let i = a.length-1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i+1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function loadDailyDeckState(){
+  try { return JSON.parse(localStorage.getItem(DAILY_DECK_KEY) || 'null'); }
+  catch(e){ return null; }
+}
+function saveDailyDeckState(st){
+  try { localStorage.setItem(DAILY_DECK_KEY, JSON.stringify(st)); } catch(e){}
+}
+/* Picks up to 20 cards: every currently-due card first (shuffled), then
+   filled out with a random shuffle of everything else, so a nearly-empty
+   due list still produces a full mixed-practice set of 20. */
+function pickDailyDeckCardIds(){
+  if (!cardIndexList.length) return [];
+  const srsMap = getSRSMap();
+  const dueIds = cardIndexList.filter(i => isCardDue(i.card.id, srsMap)).map(i => i.card.id);
+  const restIds = cardIndexList.map(i => i.card.id).filter(id => !dueIds.includes(id));
+  const pool = shuffleArray(dueIds).concat(shuffleArray(restIds));
+  return pool.slice(0, Math.min(20, pool.length));
+}
+function ensureDailyDeckState(){
+  const today = todayDateKey();
+  let st = loadDailyDeckState();
+  if (!st || st.date !== today){
+    st = { date: today, seq: 1, cardIds: pickDailyDeckCardIds() };
+    saveDailyDeckState(st);
+    return st;
+  }
+  // Drop any card ids that no longer exist (deleted since this deck was picked).
+  const validIds = st.cardIds.filter(id => cardIndex.has(id));
+  if (validIds.length !== st.cardIds.length){
+    st.cardIds = validIds;
+    saveDailyDeckState(st);
+  }
+  if (!st.cardIds.length && cardIndexList.length){
+    st.cardIds = pickDailyDeckCardIds();
+    saveDailyDeckState(st);
+  }
+  return st;
+}
+/* Called when a daily-deck study session finishes — retires today's deck
+   and picks the next numbered one so it's ready next time the home
+   screen renders. */
+function advanceDailyDeck(){
+  const today = todayDateKey();
+  const prev = loadDailyDeckState();
+  const nextSeq = (prev && prev.date === today) ? prev.seq + 1 : 1;
+  const st = { date: today, seq: nextSeq, cardIds: pickDailyDeckCardIds() };
+  saveDailyDeckState(st);
+  return st;
+}
+function dailyDeckLabel(st){
+  // Local-time parse (not `new Date(st.date)`, which reads a bare
+  // YYYY-MM-DD as UTC midnight and can roll back a day in the evening
+  // for anyone west of UTC).
+  const [y, m, d] = st.date.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  const month = dt.toLocaleString('en-US', { month: 'short' });
+  return `${month} ${d} · #${String(st.seq).padStart(2,'0')}`;
+}
+function dailyDeckCards(st){
+  return st.cardIds.map(id => { const entry = cardIndex.get(id); return entry ? entry.card : null; }).filter(Boolean);
+}
+function startDailyDeck(){
+  const st = ensureDailyDeckState();
+  const cards = dailyDeckCards(st);
+  if (!cards.length){ showToast('Add some cards first to build a daily deck.'); return; }
+  startStudy({ id: 'daily-'+st.date+'-'+st.seq, name: 'Daily deck · ' + dailyDeckLabel(st), cards }, { real: false, isDaily: true });
+}
 
 function fmtTime(seconds){
   if (seconds < 60) return Math.round(seconds)+'s';
@@ -3474,7 +3638,7 @@ function doDeleteCard(){
       showToast('Exiting study since the deck just changed');
       exitStudy();
     } else {
-      renderStudyCard(); // synthetic session (starred/tough/peek) holding its own copy — safe to just refresh
+      renderStudyCard({ keepTimer: true }); // synthetic session (starred/tough/peek) holding its own copy — safe to just refresh
     }
   }
 }
@@ -3854,7 +4018,7 @@ function saveCardEditorAndAddAnother(){
    underlying data but not those DOM nodes, so re-render whichever of
    those is currently open on top of. */
 function refreshLiveCardViews(){
-  if (state.studying) renderStudyCard();
+  if (state.studying) renderStudyCard({ keepTimer: true });
   if (state.notebookDeckId) renderNotebookPages();
 }
 
@@ -4053,6 +4217,7 @@ function renderContent(){
 
   if (state.currentPath.length === 1){
     renderHome(el);
+    renderDailyDeckSection(el);
   }
 
   const folderNode = findFolder(state.currentPath);
@@ -4113,9 +4278,48 @@ function folderTile(f){
   return div;
 }
 
+function renderDailyDeckSection(el){
+  if (!cardIndexList.length) return; // nothing in the library yet to build a deck from
+  const st = ensureDailyDeckState();
+  const cards = dailyDeckCards(st);
+  if (!cards.length) return;
+
+  const label = document.createElement('div');
+  label.className = 'section-label'; label.textContent = 'Today';
+  el.appendChild(label);
+
+  const grid = document.createElement('div'); grid.className = 'grid';
+  grid.appendChild(dailyDeckTile(st, cards));
+  el.appendChild(grid);
+}
+function dailyDeckTile(st, cards){
+  const div = document.createElement('div');
+  div.className = 'deck-tile daily-deck-tile';
+  div.innerHTML = `
+    <div class="stack"></div>
+    <div class="card">
+      <div class="dname">🗓️ Daily deck</div>
+      <div class="drow">
+        <span>${escapeHtml(dailyDeckLabel(st))}</span>
+        <span>${cards.length} card${cards.length!==1?'s':''}</span>
+      </div>
+    </div>`;
+  div.onclick = () => startDailyDeck();
+  return div;
+}
+
 function deckTile(d){
   const srsMap = getSRSMap();
   const due = d.cards.filter(c => isCardDue(c.id, srsMap)).length;
+  const toughCount = d.cards.filter(c => c.tough).length;
+  // In Tough mode, opening this deck only studies its tough cards — so the
+  // tile should reflect that: how many tough cards are waiting, not the
+  // deck's total size or its normal due count (which isn't what you'll
+  // actually be studying right now).
+  const metaHtml = toughMode
+    ? `<span>${toughCount ? `<span class="due-dot"></span>${toughCount} tough card${toughCount!==1?'s':''}` : 'no tough cards'}</span>`
+    : `<span>${d.cards.length} card${d.cards.length!==1?'s':''}</span>
+       <span>${due ? `<span class="due-dot"></span>${due} due` : (d.lastStudied ? d.lastStudied : '<span class="due-dot"></span>new')}</span>`;
   const div = document.createElement('div');
   div.className='deck-tile';
   div.draggable = true;
@@ -4124,10 +4328,7 @@ function deckTile(d){
     <div class="stack"></div>
     <div class="card">
       <div class="dname">${escapeHtml(d.name)}</div>
-      <div class="drow">
-        <span>${d.cards.length} card${d.cards.length!==1?'s':''}</span>
-        <span>${due ? `<span class="due-dot"></span>${due} due` : (d.lastStudied ? d.lastStudied : '<span class="due-dot"></span>new')}</span>
-      </div>
+      <div class="drow">${metaHtml}</div>
     </div>`;
   div.querySelector('.kebab-btn').onclick = (e)=>{ e.stopPropagation(); openCtxMenu(e, d.id); };
   div.onclick = ()=> startStudy(d);
@@ -4343,11 +4544,28 @@ function escapeHtml(s){
 }
 
 function formatInlineMarkdownSegment(str){
-  return escapeHtml(str || '')
+  // Same LaTeX-extract-then-reinsert approach as formatInlineMarkdown, so
+  // table cells and list items (which run through this shorter path) also
+  // support $...$ / $$...$$ math without it being mangled by the
+  // bold/italic/underline/highlight passes below.
+  const latexTokens = [];
+  let working = (str || '').replace(/\$\$([\s\S]+?)\$\$/g, (m, expr) => {
+    const token = `##LATEX_${latexTokens.length}##`;
+    latexTokens.push(renderLatex(expr.trim(), true));
+    return token;
+  });
+  working = working.replace(/\$(?!\s)([^$\n]+?)(?<!\s)\$/g, (m, expr) => {
+    const token = `##LATEX_${latexTokens.length}##`;
+    latexTokens.push(renderLatex(expr, false));
+    return token;
+  });
+  let html = escapeHtml(working)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/__(.+?)__/g, '<u>$1</u>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/==(.+?)==/g, '<span class="highlight">$1</span>');
+  latexTokens.forEach((rendered, idx) => html = html.replace(`##LATEX_${idx}##`, rendered));
+  return html;
 }
 
 function splitPipeTableRow(line){
@@ -4489,6 +4707,20 @@ function renderListFromLines(lines) {
   return buildNested(items);
 }
 
+/* Renders a LaTeX expression via KaTeX. Falls back to showing the raw
+   source (escaped, so it's never mistaken for real text) if KaTeX hasn't
+   loaded — e.g. the CDN is blocked — or the expression doesn't parse,
+   rather than silently dropping the card content. */
+function renderLatex(expr, displayMode){
+  if (window.katex){
+    try {
+      return katex.renderToString(expr, { throwOnError: false, displayMode });
+    } catch(e){ /* fall through to raw-source fallback below */ }
+  }
+  const raw = displayMode ? ('$$' + expr + '$$') : ('$' + expr + '$');
+  return `<span class="latex-fallback" title="LaTeX couldn't be rendered">${escapeHtml(raw)}</span>`;
+}
+
 function formatInlineMarkdown(str) {
   const raw = str || '';
   if (!raw.trim()) return '';
@@ -4496,7 +4728,31 @@ function formatInlineMarkdown(str) {
   const htmlTableTokens = [];
   const listTokens = [];
   const pipeTableTokens = [];
-  const htmlTableInput = raw.replace(/<table[\s\S]*?<\/table>/gi, match => {
+  const latexTokens = [];
+
+  // LaTeX is pulled out and rendered to real KaTeX HTML first, before
+  // anything else touches the text, and swapped back in only at the very
+  // end. That keeps the bold/italic/underline/highlight passes below —
+  // which key off *, _, and = — from misfiring on ordinary math syntax
+  // (x_i, a*b, ...) and stops the rendered KaTeX markup itself from ever
+  // being escaped or reprocessed as if it were card text. Block math
+  // ($$...$$) is extracted first so it can't be partially eaten by the
+  // inline-math pass below.
+  // Inline math requires no whitespace right after the opening $ or right
+  // before the closing $ — without that guard, ordinary prices like
+  // "$5 and $3" would get misread as one inline-math span.
+  let latexInput = raw.replace(/\$\$([\s\S]+?)\$\$/g, (m, expr) => {
+    const token = `##LATEX_${latexTokens.length}##`;
+    latexTokens.push(renderLatex(expr.trim(), true));
+    return token;
+  });
+  latexInput = latexInput.replace(/\$(?!\s)([^$\n]+?)(?<!\s)\$/g, (m, expr) => {
+    const token = `##LATEX_${latexTokens.length}##`;
+    latexTokens.push(renderLatex(expr, false));
+    return token;
+  });
+
+  const htmlTableInput = latexInput.replace(/<table[\s\S]*?<\/table>/gi, match => {
     const token = `##HTMLTABLE_${htmlTableTokens.length}##`;
     htmlTableTokens.push(sanitizeAndRenderHtmlTable(match));
     return token;
@@ -4554,6 +4810,7 @@ function formatInlineMarkdown(str) {
   htmlTableTokens.forEach((table, idx) => html = html.replace(`##HTMLTABLE_${idx}##`, table));
   listTokens.forEach((list, idx) => html = html.replace(`##LIST_${idx}##`, list));
   pipeTableTokens.forEach((table, idx) => html = html.replace(`##PIPETABLE_${idx}##`, table));
+  latexTokens.forEach((rendered, idx) => html = html.replace(`##LATEX_${idx}##`, rendered));
 
   return html;
 }
@@ -5758,6 +6015,13 @@ function resumeStudy(){
     toughIds: new Set(pendingSession.toughIds || []),
     times: pendingSession.times || [],
     cardStartTs: Date.now() - elapsedOnCard * 1000,
+    // Resume always comes back showing the question face (flipped:false
+    // above), so the frozen elapsed time is credited entirely to the
+    // question stopwatch — the answer stopwatch starts fresh from here.
+    questionElapsed: elapsedOnCard,
+    answerElapsed: 0,
+    activeFace: 'q',
+    faceStartTs: null, // set by renderStudyCard below
     tickHandle: null,
     isRealDeck: pendingSession.isRealDeck !== false,
     logSession: true,
@@ -5805,9 +6069,17 @@ function _startStudyCore(d, opts={}){
     toughIds: new Set(),
     times: [],
     cardStartTs: Date.now(),
+    // Two independent stopwatches: only one runs at a time, switching on
+    // every flip, so viewing the answer doesn't silently keep padding the
+    // "question" time. See flushFaceTime().
+    questionElapsed: 0,
+    answerElapsed: 0,
+    activeFace: 'q',
+    faceStartTs: null, // set by renderStudyCard below
     tickHandle: null,
     isRealDeck,
     logSession: isRealDeck,
+    isDaily: !!opts.isDaily,
   };
   if (isRealDeck) d.lastStudied = 'today';
   document.getElementById('topbar').style.display='none';
@@ -5831,6 +6103,11 @@ function exitStudy(){
 }
 async function renderStudyCard(opts={}){
   const s = state.studying;
+  // Flush whatever face's stopwatch was running before this redraw (the
+  // same-card "refresh after edit" callers pass keepTimer so this segment
+  // isn't lost; a genuinely new card discards it a moment later anyway
+  // when questionElapsed/answerElapsed get reset to 0 below).
+  flushFaceTime(s);
   document.getElementById('studyTitle').textContent = s.deck.name + ` · ${s.pos+1}/${s.order.length}`;
   document.getElementById('progressFill').style.width = ((s.pos)/s.order.length*100)+'%';
   const fc = document.getElementById('flashCard');
@@ -5851,7 +6128,15 @@ async function renderStudyCard(opts={}){
   const backEl = document.getElementById('backText').querySelector('.card-img');
   if (frontEl){ frontEl.src = await resolveImageRef(c.img && c.img.front) || ''; }
   if (backEl){ backEl.src = await resolveImageRef(c.img && c.img.back) || ''; }
-  if (!opts.keepTimer) s.cardStartTs = Date.now();
+  if (!opts.keepTimer){
+    s.cardStartTs = Date.now();
+    s.questionElapsed = 0;
+    s.answerElapsed = 0;
+  }
+  // The visual flip always resets to the question face above, so the
+  // active stopwatch follows suit — a fresh segment starting now.
+  s.activeFace = 'q';
+  s.faceStartTs = Date.now();
   updateTicker();
   renderStarToggle();
   renderSeeAlso(c);
@@ -5892,6 +6177,10 @@ function peekCard(targetCard){
     toughIds: new Set(),
     times: [],
     cardStartTs: Date.now(),
+    questionElapsed: 0,
+    answerElapsed: 0,
+    activeFace: 'q',
+    faceStartTs: null,
     tickHandle: null,
     isRealDeck: false,
     logSession: false,
@@ -5914,8 +6203,12 @@ function studyBack(){
 }
 function flipCard(){
   const s = state.studying;
+  flushFaceTime(s); // bank whatever face's stopwatch was running
   s.flipped = !s.flipped;
+  s.activeFace = s.flipped ? 'a' : 'q';
+  s.faceStartTs = Date.now();
   document.getElementById('flashCard').classList.toggle('flipped', s.flipped);
+  updateTicker();
 }
 function nextCard(){
   const s = state.studying;
@@ -6357,12 +6650,29 @@ function onNotebookDelete(e, deckId, cardId){
   confirmDeleteCard(deckId, cardId);
 }
 
-/* --- live per-card timer ---
-   Uses a single module-level handle (rather than one stored on the
-   swappable `state.studying` object) so a stray/leaked interval can
-   never survive a session change, and updateTicker refuses to run
-   once the "reviewed" screen is showing — belt-and-suspenders so the
-   timer can never keep ticking after a session finishes. */
+/* --- live per-card timer: two independent stopwatches, one per face ---
+   Only one of questionElapsed/answerElapsed is "live" (still running) at
+   any moment — flushFaceTime() banks the running segment into whichever
+   accumulator owns it. Everything that changes what's on screen (a flip,
+   a new card, grading) calls flushFaceTime() first so no segment is lost
+   or double-counted. */
+function flushFaceTime(s){
+  if (!s || !s.faceStartTs) return;
+  const delta = (Date.now() - s.faceStartTs) / 1000;
+  if (s.activeFace === 'a') s.answerElapsed = (s.answerElapsed || 0) + delta;
+  else s.questionElapsed = (s.questionElapsed || 0) + delta;
+  s.faceStartTs = Date.now(); // segment banked — restart the clock from now
+}
+/* Live (not-yet-flushed) totals for display — includes whatever's ticking
+   right now on top of the already-banked accumulator. */
+function liveFaceTimes(s){
+  const running = s.faceStartTs ? (Date.now() - s.faceStartTs) / 1000 : 0;
+  return {
+    question: (s.questionElapsed || 0) + (s.activeFace === 'q' ? running : 0),
+    answer: (s.answerElapsed || 0) + (s.activeFace === 'a' ? running : 0),
+  };
+}
+
 let _tickHandle = null;
 function startTicker(){
   stopTicker();
@@ -6381,16 +6691,34 @@ function updateTicker(){
     stopTicker();
     return;
   }
-  const elapsed = (Date.now() - s.cardStartTs)/1000;
-  document.getElementById('cardTimer').textContent = '⏱ ' + fmtTime(elapsed);
+  const { question, answer } = liveFaceTimes(s);
+  const qEl = document.getElementById('cardTimerQ');
+  const aEl = document.getElementById('cardTimerA');
+  if (qEl){
+    qEl.textContent = '❓ ' + fmtTime(question);
+    qEl.classList.toggle('active', s.activeFace === 'q');
+  }
+  if (aEl){
+    aEl.textContent = '💡 ' + fmtTime(answer);
+    aEl.classList.toggle('active', s.activeFace === 'a');
+  }
 }
 
 /* --- grading, tough tracking, session finish --- */
 function gradeCard(good){
   const s = state.studying;
   const c = s.deck.cards[s.order[s.pos]];
-  const elapsed = (Date.now() - s.cardStartTs)/1000;
+  flushFaceTime(s);
+  const questionSeconds = s.questionElapsed || 0;
+  const answerSeconds = s.answerElapsed || 0;
+  const elapsed = questionSeconds + answerSeconds;
   s.times.push(elapsed);
+  // Per-face timing, kept both on the card (a simple rolling average, cheap
+  // to read for sorting) and in the review log (full history). Not used
+  // anywhere yet — this is the data the future Daily Random Deck will sort
+  // on to prioritize cards that take longer.
+  c.avgQuestionSeconds = c.avgQuestionSeconds == null ? questionSeconds : (c.avgQuestionSeconds * 0.7 + questionSeconds * 0.3);
+  c.avgAnswerSeconds = c.avgAnswerSeconds == null ? answerSeconds : (c.avgAnswerSeconds * 0.7 + answerSeconds * 0.3);
   if (!good){
     s.toughIds.add(c.id);
     c.tough = true;
@@ -6398,7 +6726,7 @@ function gradeCard(good){
   } else {
     c.tough = false;
   }
-  reviewLog.push({ cardId: c.id, good, ts: Date.now() });
+  reviewLog.push({ cardId: c.id, good, ts: Date.now(), questionSeconds, answerSeconds });
   srsMapCache = null;
   persistTextState();
   updateToughCount();
@@ -6413,6 +6741,7 @@ function finishSession(){
   const s = state.studying;
   stopTicker();
   if (s.logSession) clearPendingSession();
+  if (s.isDaily) advanceDailyDeck(); // today's next numbered 20 is ready by the time they get back to the home screen
   const total = s.times.reduce((a,b)=>a+b, 0);
   const avg = total / s.times.length;
 
@@ -6511,7 +6840,34 @@ function tooManyAuthRedirects(){
 function showAuthDiagnostic(msg){
   console.error('[Kardex auth]', msg);
   const box = document.getElementById('accountBox');
-  if (box) box.innerHTML = `<span class="account-name" style="color:#E0857A;">${msg}</span>`;
+  if (!box) return;
+  box.innerHTML = `
+    <span class="account-name" style="color:#E0857A;">${msg}</span>
+    <button class="mini-btn" onclick="clearStuckAuthSessionAndRetry()">Clear session &amp; retry</button>
+  `;
+}
+/* Last-resort recovery for the "stuck bouncing between sign-in and the
+   app" state — wipes anything that could be holding onto a stale/invalid
+   session (Supabase's own localStorage token, the redirect-loop guard,
+   the stashed bounce reason) and sends the person back to sign-in fresh,
+   so they don't have to go find DevTools themselves to unstick it. */
+function clearStuckAuthSessionAndRetry(){
+  try {
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('sb-') && k.includes('auth-token'))
+      .forEach(k => localStorage.removeItem(k));
+  } catch(e){}
+  try { sessionStorage.removeItem('kardex_redirect_guard'); } catch(e){}
+  try { sessionStorage.removeItem('kardex_bounce_reason'); } catch(e){}
+  try {
+    // Local-only sign-out (no network round trip) — best-effort, since a
+    // network hiccup is often exactly what's causing the stuck state and
+    // shouldn't be able to block this recovery path.
+    if (supabaseClient && supabaseClient.auth && supabaseClient.auth.signOut){
+      supabaseClient.auth.signOut({ scope: 'local' }).catch(()=>{});
+    }
+  } catch(e){}
+  window.location.href = kardexSignInUrl();
 }
 function goToSignIn(reason){
   if (reason){
@@ -6520,7 +6876,7 @@ function goToSignIn(reason){
     try { sessionStorage.setItem('kardex_bounce_reason', reason); } catch(e){}
   }
   if (tooManyAuthRedirects()){
-    showAuthDiagnostic('Stuck bouncing between the app and sign-in — likely a stale/invalid session. Open DevTools → Application → Storage → "Clear site data" on both pages, then reload and sign in again.');
+    showAuthDiagnostic('Stuck bouncing between the app and sign-in — likely a stale/invalid session.');
     return;
   }
   window.location.href = kardexSignInUrl();
@@ -6611,6 +6967,12 @@ Predefined in the editor toolbar (B / I / U / H buttons), or type the markers yo
 - Italic: wrap text in *text*
 - Underline: wrap text in __text__
 - Highlight: wrap text in ==text==
+
+— MATH (LaTeX) —
+Inline: wrap an expression in single $ signs, e.g. $x^2 + y^2 = r^2$
+Block (its own centered line): wrap in double $$, e.g.
+$$\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$
+Rendered with KaTeX — works in card text, table cells, and list items.
 
 — TABLES —
 Pipe syntax:
