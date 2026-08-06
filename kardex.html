@@ -488,23 +488,11 @@ button{font-family:inherit;cursor:pointer;}
   background:var(--paper-dark); padding:2px 8px; border-radius:10px; flex-shrink:0;
 }
 .search-section-body{ margin-top:8px; }
-.search-card-list{ display:flex; flex-direction:column; gap:8px; max-width:640px; }
-.search-card-item{
-  display:flex; align-items:center; gap:12px;
-  background:var(--paper-raised);
-  border:1px solid var(--line);
-  border-left:3px solid var(--teal);
-  border-radius:8px;
-  padding:11px 14px;
-  box-shadow:var(--shadow);
-  cursor:pointer;
-}
-.search-card-item:hover{ border-left-color:var(--teal-dark); }
-.sc-ico{ flex-shrink:0; color:var(--teal); display:flex; }
-.sc-text{ min-width:0; flex:1; }
-.sc-front{ font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.sc-back{ font-size:11.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:1px; }
-.sc-path{ font-size:10px; color:var(--ink-soft); margin-top:2px; font-family:'IBM Plex Mono', monospace; }
+.search-card-list{ display:flex; flex-direction:column; gap:14px; max-width:640px; }
+/* Reuses .notebook-entry's look (see the Notebook view rules) for visual
+   parity — just clickable, with a hover lift to signal that. */
+.search-notebook-card{ cursor:pointer; transition:transform .12s ease, box-shadow .12s ease; }
+.search-notebook-card:hover{ transform:translateY(-2px); box-shadow:var(--shadow-lg); border-color:var(--teal); }
 
 .sort-control{
   display:flex;
@@ -1164,6 +1152,23 @@ button{font-family:inherit;cursor:pointer;}
   font-family:inherit; font-size:13.5px; margin-bottom:12px; outline:none; resize:vertical;
   background:var(--surface);
 }
+.modal select{
+  width:100%; padding:9px 11px; border-radius:7px; border:1px solid var(--line);
+  font-family:inherit; font-size:13.5px; margin-bottom:6px; outline:none;
+  background:var(--surface); color:var(--ink);
+}
+.modal select:focus{ border-color:var(--teal); }
+.link-picker-new-btn{
+  width:100%; text-align:left; padding:9px 10px; border-radius:7px;
+  border:1px dashed var(--line); background:transparent; color:var(--teal-dark);
+  font-size:12.5px; margin-bottom:14px; cursor:pointer;
+}
+.link-picker-new-btn:hover{ border-color:var(--teal); background:rgba(47,111,98,.06); }
+.link-picker-new-form{
+  border:1px solid var(--line); border-radius:9px; padding:12px;
+  margin-bottom:14px; background:var(--paper-raised);
+}
+.link-picker-new-form textarea{ min-height:44px; }
 .modal input:focus, .modal textarea:focus{ border-color:var(--teal); }
 .modal input.input-error{ border-color:var(--maroon) !important; }
 .input-shake{ animation:shakeX .32s ease; }
@@ -1986,6 +1991,21 @@ button{font-family:inherit;cursor:pointer;}
     <h3>Link a card</h3>
     <input type="text" id="linkPickerSearch" placeholder="Search cards…" oninput="onLinkPickerSearch(this.value)" style="margin-bottom:10px;">
     <div class="move-picker" id="linkPickerList" style="max-height:280px;"></div>
+
+    <button type="button" class="link-picker-new-btn" id="linkPickerNewBtn" onclick="openLinkPickerNewCard()">+ Card not found? Create &amp; link a new one</button>
+
+    <div id="linkPickerNewForm" class="link-picker-new-form" style="display:none;">
+      <label class="settings-label" style="margin-top:0;">New card</label>
+      <textarea id="linkPickerNewFront" placeholder="Front" rows="2"></textarea>
+      <textarea id="linkPickerNewBack" placeholder="Back" rows="2" style="margin-top:8px;"></textarea>
+      <label class="settings-label">Add to deck</label>
+      <select id="linkPickerNewDeck"></select>
+      <div class="modal-row" style="margin-top:10px;">
+        <button class="cancel" type="button" onclick="closeLinkPickerNewCard()">Cancel</button>
+        <button class="confirm" type="button" onclick="confirmLinkPickerNewCard()">Add &amp; link</button>
+      </div>
+    </div>
+
     <div class="modal-row">
       <button class="cancel" onclick="closeModal('linkPickerOverlay')">Cancel</button>
       <button class="confirm" onclick="confirmLinkPicker()">Done</button>
@@ -2879,6 +2899,19 @@ function gatherTough(){
     });
   })(root, '');
   return results;
+}
+/* Every deck in the tree (including empty ones), each with its drawer
+   path — used to populate the "add to deck" picker when quick-creating
+   a card from the link picker. */
+function gatherAllDecks(){
+  const decks = [];
+  (function walk(node, pathLabel){
+    node.children.forEach(c=>{
+      if (c.type==='folder') walk(c, pathLabel ? pathLabel+' / '+c.name : c.name);
+      else decks.push({ deck: c, pathLabel });
+    });
+  })(root, '');
+  return decks;
 }
 
 /* ---------------------------------------------------------
@@ -4034,6 +4067,7 @@ function openLinkPicker(){
   linkPickerSelected = new Set(cardEditorState.links);
   document.getElementById('linkPickerSearch').value = '';
   renderLinkPicker('');
+  closeLinkPickerNewCard(); // reset any leftover quick-create state from a previous open
   document.getElementById('linkPickerOverlay').classList.add('active');
   setTimeout(()=> document.getElementById('linkPickerSearch').focus(), 50);
 }
@@ -4075,6 +4109,74 @@ function confirmLinkPicker(){
   cardEditorState.links = [...linkPickerSelected];
   closeModal('linkPickerOverlay');
   renderCardEditorLinks();
+}
+
+/* --- quick-create: link a card that doesn't exist yet ---
+   A lightweight inline form rather than reusing the full card editor —
+   opening that on top of itself would clobber cardEditorState for the
+   card currently being edited (the one we're adding this link *to*).
+   Front/back only; anything more (images, cloze, tags) can be added
+   later by editing the new card normally. */
+function openLinkPickerNewCard(){
+  document.getElementById('linkPickerNewForm').style.display = 'block';
+  document.getElementById('linkPickerNewBtn').style.display = 'none';
+
+  const deckSelect = document.getElementById('linkPickerNewDeck');
+  const decks = gatherAllDecks();
+  deckSelect.innerHTML = decks.map(({deck, pathLabel}) =>
+    `<option value="${deck.id}">${escapeHtml(pathLabel ? pathLabel + ' / ' + deck.name : deck.name)}</option>`
+  ).join('');
+  // Default to the deck of the card currently being edited — the card
+  // being linked from — since a related card is most often filed
+  // alongside it.
+  if (cardEditorState && cardEditorState.deckId && decks.some(d => d.deck.id === cardEditorState.deckId)){
+    deckSelect.value = cardEditorState.deckId;
+  }
+
+  // Whatever they'd already typed in the search box was presumably an
+  // attempt to find this exact card — carry it over as a starting point
+  // for the front instead of making them retype it.
+  const query = document.getElementById('linkPickerSearch').value.trim();
+  const frontEl = document.getElementById('linkPickerNewFront');
+  const backEl = document.getElementById('linkPickerNewBack');
+  frontEl.value = query;
+  backEl.value = '';
+  setTimeout(()=> (query ? backEl : frontEl).focus(), 50);
+}
+function closeLinkPickerNewCard(){
+  const form = document.getElementById('linkPickerNewForm');
+  if (form) form.style.display = 'none';
+  const btn = document.getElementById('linkPickerNewBtn');
+  if (btn) btn.style.display = 'block';
+  const frontEl = document.getElementById('linkPickerNewFront');
+  const backEl = document.getElementById('linkPickerNewBack');
+  if (frontEl) frontEl.value = '';
+  if (backEl) backEl.value = '';
+}
+function confirmLinkPickerNewCard(){
+  const frontEl = document.getElementById('linkPickerNewFront');
+  const backEl = document.getElementById('linkPickerNewBack');
+  const f = frontEl.value.trim();
+  const b = backEl.value.trim();
+  if (!f){ flagEmptyName(frontEl, 'Add a front side'); return; }
+  if (!b){ flagEmptyName(backEl, 'Add a back side'); return; }
+
+  const deckId = document.getElementById('linkPickerNewDeck').value;
+  const deck = nodeById(deckId);
+  if (!deck){ showToast('Pick a deck for the new card'); return; }
+
+  const newCard = card(f, b);
+  deck.cards.push(newCard);
+  rebuildIndex();
+  persistTextState();
+  updateStarredCount();
+  updateToughCount();
+  if (state.managingDeckId) renderManageCards();
+
+  linkPickerSelected.add(newCard.id);
+  closeLinkPickerNewCard();
+  renderLinkPicker(document.getElementById('linkPickerSearch').value);
+  showToast('Card added and linked');
 }
 
 function renderHome(el){
@@ -4312,7 +4414,8 @@ function dailyDeckTile(st, cards){
   return div;
 }
 
-function deckTile(d){
+function deckTile(d, opts){
+  opts = opts || {};
   const srsMap = getSRSMap();
   const due = d.cards.filter(c => isCardDue(c.id, srsMap)).length;
   const toughCount = d.cards.filter(c => c.tough).length;
@@ -4335,7 +4438,9 @@ function deckTile(d){
       <div class="drow">${metaHtml}</div>
     </div>`;
   div.querySelector('.kebab-btn').onclick = (e)=>{ e.stopPropagation(); openCtxMenu(e, d.id); };
-  div.onclick = ()=> startStudy(d);
+  // From search results: open a filtered front/back viewer of just the
+  // matching cards in this deck, instead of studying the whole thing.
+  div.onclick = opts.searchQuery ? (()=> startSearchDeckPeek(d, opts.searchQuery)) : (()=> startStudy(d));
   div.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', d.id); div.classList.add('dragging'); };
   div.ondragend = ()=> div.classList.remove('dragging');
   return div;
@@ -4395,7 +4500,7 @@ function renderSearchResults(el){
   if (decksFound.length){
     el.appendChild(searchSection('decks', 'Decks', decksFound.length, state.searchDecksCollapsed, (body)=>{
       const grid = document.createElement('div'); grid.className='grid';
-      decksFound.forEach(d=>grid.appendChild(deckTile(d)));
+      decksFound.forEach(d=>grid.appendChild(deckTile(d, { searchQuery: state.search })));
       body.appendChild(grid);
     }));
   }
@@ -4435,19 +4540,26 @@ function toggleSearchSection(key){
   renderSearchResults(el);
 }
 
-const searchCardIcoSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>`;
-
+/* Renders a search "Cards" hit the same way notebook mode renders a card
+   — full formatted markdown (bold/tables/LaTeX/etc.) and any images, not
+   a truncated plain-text preview — just without the star/edit/delete
+   controls, since clicking straight through to the card editor covers
+   editing and this is a result list, not a browsing surface. */
 function searchCardRow(i){
   const { card: cd, deck: dk, pathLabel } = i;
+  const frontImg = cd.img && cd.img.front ? `<img class="nb-img" data-image-ref="${cd.img.front}" alt="">` : '';
+  const backImg = cd.img && cd.img.back ? `<img class="nb-img" data-image-ref="${cd.img.back}" alt="">` : '';
   const row = document.createElement('div');
-  row.className = 'search-card-item';
+  row.className = 'notebook-entry search-notebook-card';
   row.innerHTML = `
-    <div class="sc-ico">${searchCardIcoSvg}</div>
-    <div class="sc-text">
-      <div class="sc-front">${escapeHtml(truncate(stripMarkup(cd.f), 90))}</div>
-      <div class="sc-back">${escapeHtml(truncate(stripMarkup(cd.b), 90))}</div>
-      <div class="sc-path">${escapeHtml(pathLabel)} / ${escapeHtml(dk.name)}</div>
-    </div>`;
+    <div class="nb-index">${escapeHtml(pathLabel)} / ${escapeHtml(dk.name)}</div>
+    <div class="nb-front">${formatInlineMarkdown(cd.f)}${frontImg}</div>
+    <div class="nb-back">${formatInlineMarkdown(cd.b)}${backImg}</div>
+  `;
+  row.querySelectorAll('.nb-img[data-image-ref]').forEach(async img => {
+    const ref = img.getAttribute('data-image-ref');
+    img.src = await resolveImageRef(ref) || '';
+  });
   row.onclick = ()=> goToSearchCardResult(dk.id, cd.id);
   return row;
 }
@@ -6112,7 +6224,16 @@ async function renderStudyCard(opts={}){
   // isn't lost; a genuinely new card discards it a moment later anyway
   // when questionElapsed/answerElapsed get reset to 0 below).
   flushFaceTime(s);
-  document.getElementById('studyTitle').textContent = s.deck.name + ` · ${s.pos+1}/${s.order.length}`;
+  if (s.isBrowseOnly && s.originalIndexes){
+    // Show where this card actually sits in the full deck, not its
+    // position among just the matched cards — e.g. "Card 7 of 20 in
+    // deck" rather than a confusing "2/3" that only makes sense next to
+    // the search that produced this subset.
+    const realNum = s.originalIndexes[s.order[s.pos]];
+    document.getElementById('studyTitle').textContent = s.deck.name + ` · Card ${realNum} of ${s.totalInDeck} · match ${s.pos+1}/${s.order.length}`;
+  } else {
+    document.getElementById('studyTitle').textContent = s.deck.name + ` · ${s.pos+1}/${s.order.length}`;
+  }
   document.getElementById('progressFill').style.width = ((s.pos)/s.order.length*100)+'%';
   const fc = document.getElementById('flashCard');
   // snap back instantly (no animated reverse-flip) BEFORE swapping content,
@@ -6147,8 +6268,9 @@ async function renderStudyCard(opts={}){
   savePendingSession();
 
   const isPeek = !!s.isPeek;
+  const isBrowseOnly = !!s.isBrowseOnly;
   document.querySelector('.study-controls').style.display = isPeek ? 'none' : 'flex';
-  document.querySelector('.grade-row').style.display = isPeek ? 'none' : 'flex';
+  document.querySelector('.grade-row').style.display = (isPeek || isBrowseOnly) ? 'none' : 'flex';
   const peekRow = document.getElementById('peekBackRow');
   peekRow.style.display = isPeek ? 'flex' : 'none';
   if (isPeek) document.getElementById('peekBackLabel').textContent = s.peekReturnLabel;
@@ -6198,6 +6320,63 @@ function returnFromPeek(){
   if (!state.peekStack.length) return;
   stopTicker();
   state.studying = state.peekStack.pop();
+  renderStudyCard();
+  startTicker();
+}
+
+/* --- viewing search-result matches within one deck ---
+   Opens a front/back viewer scoped to just the cards in this deck that
+   matched the search — not the whole deck, and not a graded study
+   session (no SRS/tough-marking side effects for cards someone only
+   opened to check a search hit). Each card still shows its real position
+   in the full deck (e.g. "Card 7 of 20"), not its position among just
+   the matches, so it's clear where it sits in context. */
+function startSearchDeckPeek(deck, query){
+  const q = (query || '').trim().toLowerCase();
+  if (!q) return;
+  const matches = [];
+  deck.cards.forEach((c, idx) => {
+    if (c.f.toLowerCase().includes(q) || c.b.toLowerCase().includes(q)){
+      matches.push({ card: c, originalIndex: idx + 1 }); // 1-based, matches "Card N" elsewhere
+    }
+  });
+  if (!matches.length) return;
+
+  state.search = '';
+  const searchInputEl = document.getElementById('searchInput');
+  if (searchInputEl) searchInputEl.value = '';
+  closeSearchOverlay();
+  state.viewingStarred = false;
+  state.viewingTough = false;
+  state.managingDeckId = null;
+  closeSidebar();
+
+  state.studying = {
+    deck: { id: 'search-peek-'+deck.id, name: deck.name, cards: matches.map(m => m.card) },
+    order: matches.map((_, i) => i),
+    pos: 0,
+    flipped: false,
+    toughIds: new Set(),
+    times: [],
+    cardStartTs: Date.now(),
+    questionElapsed: 0,
+    answerElapsed: 0,
+    activeFace: 'q',
+    faceStartTs: null,
+    tickHandle: null,
+    isRealDeck: false,
+    logSession: false,
+    isBrowseOnly: true,                        // view-only: no grading, no SRS effects
+    originalIndexes: matches.map(m => m.originalIndex),
+    totalInDeck: deck.cards.length,
+  };
+  document.getElementById('topbar').style.display='none';
+  document.getElementById('study').classList.add('active');
+  document.getElementById('content').style.display='none';
+  document.getElementById('studyDone').style.display='none';
+  document.getElementById('studyBody').style.display='flex';
+  document.getElementById('studyBody').style.flexDirection='column';
+  document.getElementById('studyBody').style.alignItems='center';
   renderStudyCard();
   startTicker();
 }
@@ -6356,12 +6535,42 @@ async function exportNotebookAs(format){
   const statusEl = document.getElementById('notebookExportStatus');
   statusEl.textContent = 'Rendering cards…';
 
-  const PAGE_W = 1000;
-  const PAGE_H = Math.round(PAGE_W * 297 / 210); // A4 proportions
-  const MARGIN = 50;
-  const CONTENT_W = PAGE_W - MARGIN * 2;
-  const GAP = 20;
-  const TITLE_AREA_H = 108;
+  // Layout is defined in CSS pixels (unchanged from before — this is what
+  // controls text wrapping, spacing, and how big everything looks
+  // relative to everything else). RENDER_SCALE is how many actual image
+  // pixels each CSS pixel becomes — this is the actual quality knob.
+  // Previously this was 2, and worse, the page-compositing step below
+  // threw away even that by redrawing each card back down to its
+  // un-scaled CSS width — so the export was effectively rendering at
+  // ~121 DPI, well below print/zoom quality. 3x brings that to print
+  // resolution, while each card canvas is drawn onto the page at its
+  // native captured resolution (no more downscale-then-reembed loss).
+  //
+  // Important: PAGE_W/PAGE_H below are RASTER pixel dimensions for the
+  // canvases — how much actual image detail gets captured. They are NOT
+  // the PDF page's physical size. jsPDF's addImage() lets those be set
+  // independently, and PDF_PAGE_W/PDF_PAGE_H (unscaled — same numbers
+  // used before this change) are what the PDF is actually told its page
+  // measures. Tying the PDF's physical page size to RENDER_SCALE too was
+  // a bug caught in testing: it made every page 3x too big in real-world
+  // inches, which a printer would either scale drastically or refuse.
+  // Higher pixel density on the *same*-size page is the correct way to
+  // raise DPI — that's what this split achieves.
+  const CONTENT_W = 900;       // CSS px — layout width, same as the on-screen notebook
+  const MARGIN_CSS = 50;
+  const GAP_CSS = 20;
+  const TITLE_AREA_H_CSS = 108;
+  const RENDER_SCALE = 3;
+
+  const PDF_PAGE_W = CONTENT_W + MARGIN_CSS * 2; // physical PDF page size, in jsPDF's "px" (1/96in) units — unchanged from before
+  const PDF_PAGE_H = Math.round(PDF_PAGE_W * 297 / 210); // A4 proportions
+
+  const PAGE_W = PDF_PAGE_W * RENDER_SCALE; // raster canvas pixel dimensions — this is what got sharper
+  const PAGE_H = PDF_PAGE_H * RENDER_SCALE;
+  const MARGIN = MARGIN_CSS * RENDER_SCALE;
+  const GAP = GAP_CSS * RENDER_SCALE;
+  const TITLE_AREA_H = TITLE_AREA_H_CSS * RENDER_SCALE;
+  const CONTENT_W_PX = CONTENT_W * RENDER_SCALE; // CONTENT_W's equivalent in page (physical) pixels
 
   // Everything below can fail in ways outside our control — a card image
   // that won't resolve, a canvas the browser refuses to allocate, jsPDF
@@ -6416,7 +6625,7 @@ async function exportNotebookAs(format){
         <div class="nb-back">${formatInlineMarkdown(c.b)}${backImgSrc ? `<img class="nb-img" src="${backImgSrc}">` : ''}</div>
       </div>`;
     const entryEl = scratch.firstElementChild;
-    const canvas = await html2canvas(entryEl, { scale: 2, backgroundColor: '#FCFAF3', useCORS: true });
+    const canvas = await html2canvas(entryEl, { scale: RENDER_SCALE, backgroundColor: '#FCFAF3', useCORS: true });
     cardCanvases.push(canvas);
   }
   scratch.remove();
@@ -6439,18 +6648,18 @@ async function exportNotebookAs(format){
     y = MARGIN;
     if (withTitle){
       pageCtx.fillStyle = '#232323';
-      pageCtx.font = "700 42px Fraunces, serif";
+      pageCtx.font = `700 ${42 * RENDER_SCALE}px Fraunces, serif`;
       pageCtx.textAlign = 'center';
       pageCtx.textBaseline = 'top';
-      pageCtx.fillText(deck.name || 'Untitled deck', PAGE_W / 2, y, CONTENT_W);
-      y += 58;
+      pageCtx.fillText(deck.name || 'Untitled deck', PAGE_W / 2, y, CONTENT_W_PX);
+      y += 58 * RENDER_SCALE;
       pageCtx.strokeStyle = '#DAD0B4';
-      pageCtx.lineWidth = 2;
+      pageCtx.lineWidth = 2 * RENDER_SCALE;
       pageCtx.beginPath();
       pageCtx.moveTo(MARGIN, y);
       pageCtx.lineTo(PAGE_W - MARGIN, y);
       pageCtx.stroke();
-      y += 30;
+      y += 30 * RENDER_SCALE;
     }
     pageCanvases.push(pc);
     return pc;
@@ -6460,8 +6669,12 @@ async function exportNotebookAs(format){
   const firstPageTop = MARGIN + TITLE_AREA_H;
 
   cardCanvases.forEach((cc, idx) => {
-    let drawW = CONTENT_W;
-    let drawH = cc.height * (drawW / cc.width);
+    // Draw each card at its own native captured resolution (cc.width is
+    // already CONTENT_W * RENDER_SCALE physical pixels) instead of
+    // resampling it down to the old CSS-pixel width — that resample was
+    // the main source of the blur/pixelation.
+    let drawW = cc.width;
+    let drawH = cc.height;
     const isFirstCardOnPage = (idx === 0) ? (y <= firstPageTop) : (y <= MARGIN);
     if (!isFirstCardOnPage && (y + drawH > PAGE_H - MARGIN)){
       startPage(false);
@@ -6474,7 +6687,7 @@ async function exportNotebookAs(format){
       drawH = availH;
       drawW = drawW * scale;
     }
-    const drawX = MARGIN + (CONTENT_W - drawW) / 2;
+    const drawX = MARGIN + (CONTENT_W_PX - drawW) / 2;
     pageCtx.drawImage(cc, drawX, y, drawW, drawH);
     y += drawH + GAP;
   });
@@ -6484,24 +6697,33 @@ async function exportNotebookAs(format){
 
   if (format === 'pdf'){
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: 'px', format: [PAGE_W, PAGE_H], hotfixes: ['px_scaling'] });
+    const doc = new jsPDF({ unit: 'px', format: [PDF_PAGE_W, PDF_PAGE_H], hotfixes: ['px_scaling'] });
     pageCanvases.forEach((pc, idx) => {
-      if (idx > 0) doc.addPage([PAGE_W, PAGE_H]);
-      doc.addImage(pc.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, PAGE_W, PAGE_H);
+      if (idx > 0) doc.addPage([PDF_PAGE_W, PDF_PAGE_H]);
+      // The canvas (pc) is PAGE_W×PAGE_H raster pixels — RENDER_SCALE times
+      // denser than the page itself — but drawn to fill a PDF_PAGE_W×
+      // PDF_PAGE_H page, so the physical page size is unchanged and only
+      // the pixel density (DPI) goes up.
+      // JPEG, not PNG: tried lossless PNG here and it backfired badly —
+      // at this resolution, anti-aliased text edges produce huge numbers
+      // of unique intermediate colors, which is close to a worst case for
+      // PNG's compression and produced 100MB+ files. High-quality JPEG
+      // handles this kind of content far better, at a fraction of the size.
+      doc.addImage(pc.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, PDF_PAGE_W, PDF_PAGE_H);
     });
     doc.save(`${fname}-notebook.pdf`);
     showToast('PDF exported');
   } else {
     if (pageCanvases.length === 1){
       const a = document.createElement('a');
-      a.href = pageCanvases[0].toDataURL('image/jpeg', 0.92);
+      a.href = pageCanvases[0].toDataURL('image/jpeg', 0.97);
       a.download = `${fname}-notebook.jpg`;
       a.click();
       showToast('JPG exported');
     } else if (window.JSZip){
       const zip = new JSZip();
       pageCanvases.forEach((pc, idx) => {
-        const dataUrl = pc.toDataURL('image/jpeg', 0.92);
+        const dataUrl = pc.toDataURL('image/jpeg', 0.97);
         zip.file(`page-${String(idx + 1).padStart(2, '0')}.jpg`, dataUrl.split(',')[1], { base64: true });
       });
       const blob = await zip.generateAsync({ type: 'blob' });
@@ -6514,7 +6736,7 @@ async function exportNotebookAs(format){
       // fallback: download each page individually if zipping isn't available
       pageCanvases.forEach((pc, idx) => {
         const a = document.createElement('a');
-        a.href = pc.toDataURL('image/jpeg', 0.92);
+        a.href = pc.toDataURL('image/jpeg', 0.97);
         a.download = `${fname}-notebook-page-${idx + 1}.jpg`;
         a.click();
       });
