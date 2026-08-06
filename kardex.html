@@ -458,6 +458,46 @@ button{font-family:inherit;cursor:pointer;}
   margin:6px 0 12px;
 }
 
+/* ---------- Search results: collapsible "Cards" / "Decks" sections ---------- */
+.search-section{ margin-bottom:24px; }
+.search-section-header{
+  display:flex; align-items:center; gap:9px; padding:7px 4px;
+  cursor:pointer; border-radius:7px; max-width:640px;
+}
+.search-section-header:hover{ background:rgba(35,35,35,.04); }
+.search-section-header .caret{
+  width:14px; height:14px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  color:var(--ink-soft); transition:transform .15s ease; font-size:12px;
+}
+.search-section.collapsed .search-section-header .caret{ transform:rotate(-90deg); }
+.search-section.collapsed .search-section-body{ display:none; }
+.search-section-title{
+  font-family:'IBM Plex Mono', monospace; text-transform:uppercase;
+  letter-spacing:.14em; font-size:10.5px; color:var(--ink-soft);
+}
+.search-section-count{
+  font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--ink-soft);
+  background:var(--paper-dark); padding:2px 8px; border-radius:10px; flex-shrink:0;
+}
+.search-section-body{ margin-top:8px; }
+.search-card-list{ display:flex; flex-direction:column; gap:8px; max-width:640px; }
+.search-card-item{
+  display:flex; align-items:center; gap:12px;
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-left:3px solid var(--teal);
+  border-radius:8px;
+  padding:11px 14px;
+  box-shadow:var(--shadow);
+  cursor:pointer;
+}
+.search-card-item:hover{ border-left-color:var(--teal-dark); }
+.sc-ico{ flex-shrink:0; color:var(--teal); display:flex; }
+.sc-text{ min-width:0; flex:1; }
+.sc-front{ font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sc-back{ font-size:11.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:1px; }
+.sc-path{ font-size:10px; color:var(--ink-soft); margin-top:2px; font-family:'IBM Plex Mono', monospace; }
+
 .sort-control{
   display:flex;
   align-items:center;
@@ -2699,6 +2739,8 @@ let pendingPromptCtx = null; // { newDeck, opts } while the "unfinished deck" mo
 const state = {
   currentPath: [root.id],   // array of folder ids from root
   search: '',
+  searchCardsCollapsed: false, // "Cards" results section on the main search page — expanded by default
+  searchDecksCollapsed: false, // "Decks" results section on the main search page — expanded by default
   studying: null,           // { deck, order, pos, flipped, toughIds, times, cardStartTs, isRealDeck, logSession }
   viewingStarred: false,
   starredSort: 'subject',   // 'subject' | 'recent'
@@ -4110,24 +4152,109 @@ function renderSearchResults(el){
     });
   })(root);
 
+  // Individual card hits — pulled straight from the flat card index rather
+  // than re-walking the tree, and kept distinct from "Decks" below so a
+  // match deep in one card doesn't just surface an entire deck to scan
+  // through by hand.
+  const cardsFound = cardIndexList.filter(i =>
+    i.card.f.toLowerCase().includes(q) || i.card.b.toLowerCase().includes(q)
+  );
+
   const label = document.createElement('div');
   label.className='section-label'; label.textContent = `Results for "${state.search}"`;
   el.appendChild(label);
 
-  if (!foldersFound.length && !decksFound.length){
+  if (!foldersFound.length && !decksFound.length && !cardsFound.length){
     el.innerHTML += `<div class="empty"><div class="stamp">no matches</div></div>`;
     return;
   }
+
   if (foldersFound.length){
+    const foldersLabel = document.createElement('div');
+    foldersLabel.className='section-label'; foldersLabel.textContent = 'Drawers';
+    el.appendChild(foldersLabel);
     const grid = document.createElement('div'); grid.className='grid';
     foldersFound.forEach(f=>grid.appendChild(folderTile(f)));
     el.appendChild(grid);
   }
-  if (decksFound.length){
-    const grid = document.createElement('div'); grid.className='grid';
-    decksFound.forEach(d=>grid.appendChild(deckTile(d)));
-    el.appendChild(grid);
+
+  if (cardsFound.length){
+    el.appendChild(searchSection('cards', 'Cards', cardsFound.length, state.searchCardsCollapsed, (body)=>{
+      const list = document.createElement('div');
+      list.className = 'search-card-list';
+      cardsFound.forEach(i => list.appendChild(searchCardRow(i)));
+      body.appendChild(list);
+    }));
   }
+
+  if (decksFound.length){
+    el.appendChild(searchSection('decks', 'Decks', decksFound.length, state.searchDecksCollapsed, (body)=>{
+      const grid = document.createElement('div'); grid.className='grid';
+      decksFound.forEach(d=>grid.appendChild(deckTile(d)));
+      body.appendChild(grid);
+    }));
+  }
+}
+
+/* Builds one collapsible search-results section (used for "Cards" and
+   "Decks"). `fill(bodyEl)` populates the body — kept as a callback so each
+   section can render its own kind of content (a list of cards vs a grid
+   of deck tiles) into the same collapsible shell. */
+function searchSection(key, title, count, collapsed, fill){
+  const wrap = document.createElement('div');
+  wrap.className = 'search-section' + (collapsed ? ' collapsed' : '');
+
+  const header = document.createElement('div');
+  header.className = 'search-section-header';
+  header.innerHTML = `
+    <span class="caret">▾</span>
+    <span class="search-section-title">${escapeHtml(title)}</span>
+    <span class="search-section-count">${count}</span>
+  `;
+  header.onclick = ()=> toggleSearchSection(key);
+  wrap.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'search-section-body';
+  fill(body);
+  wrap.appendChild(body);
+
+  return wrap;
+}
+
+function toggleSearchSection(key){
+  if (key === 'cards') state.searchCardsCollapsed = !state.searchCardsCollapsed;
+  else state.searchDecksCollapsed = !state.searchDecksCollapsed;
+  const el = document.getElementById('content');
+  el.innerHTML = '';
+  renderSearchResults(el);
+}
+
+const searchCardIcoSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>`;
+
+function searchCardRow(i){
+  const { card: cd, deck: dk, pathLabel } = i;
+  const row = document.createElement('div');
+  row.className = 'search-card-item';
+  row.innerHTML = `
+    <div class="sc-ico">${searchCardIcoSvg}</div>
+    <div class="sc-text">
+      <div class="sc-front">${escapeHtml(truncate(stripMarkup(cd.f), 90))}</div>
+      <div class="sc-back">${escapeHtml(truncate(stripMarkup(cd.b), 90))}</div>
+      <div class="sc-path">${escapeHtml(pathLabel)} / ${escapeHtml(dk.name)}</div>
+    </div>`;
+  row.onclick = ()=> goToSearchCardResult(dk.id, cd.id);
+  return row;
+}
+
+function goToSearchCardResult(deckId, cardId){
+  state.search = '';
+  document.getElementById('searchInput').value = '';
+  state.viewingStarred = false;
+  state.viewingTough = false;
+  state.currentPath = pathToNode(deckId).slice(0, -1);
+  openCardManager(deckId);
+  openCardEditor(deckId, cardId);
 }
 
 function onSearch(v){ state.search = v; state.viewingStarred = false; state.viewingTough = false; state.managingDeckId = null; render(); }
@@ -5939,6 +6066,16 @@ async function exportNotebookAs(format){
   const GAP = 20;
   const TITLE_AREA_H = 108;
 
+  // Everything below can fail in ways outside our control — a card image
+  // that won't resolve, a canvas the browser refuses to allocate, jsPDF
+  // choking on a huge multi-page doc, etc. Without a top-level try/catch
+  // any of those leaves the modal stuck forever on "Rendering card X of
+  // Y…" with no feedback, which just looks like "export doesn't work".
+  // Wrap the whole thing so a failure always surfaces and always resets
+  // the modal back to a usable state.
+  let scratch = null;
+  try{
+
   try{
     await Promise.all([
       document.fonts.load('700 40px Fraunces'),
@@ -5950,30 +6087,43 @@ async function exportNotebookAs(format){
   // Render each card, one at a time, into an offscreen container that
   // mirrors the notebook-entry look but strips the star/edit/delete
   // controls (those aren't part of the printed page).
-  const scratch = document.createElement('div');
-  scratch.style.cssText = `position:fixed; left:-99999px; top:0; width:${CONTENT_W}px; background:transparent;`;
+  //
+  // NOTE: this used to sit at left:-99999px. Some mobile browsers (iOS
+  // Safari in particular) have known rendering/tiling bugs with elements
+  // positioned that far outside the viewport — html2canvas can end up
+  // capturing a blank canvas instead of throwing, which made export look
+  // like it "worked" but silently produced empty pages. Keeping the
+  // scratch element just off the top-left corner of the viewport (a few
+  // hundred px, not tens of thousands) stays reliably out of sight while
+  // avoiding that whole class of bug.
+  scratch = document.createElement('div');
+  scratch.style.cssText = `position:fixed; left:0; top:-6000px; width:${CONTENT_W}px; background:transparent; pointer-events:none;`;
   document.body.appendChild(scratch);
 
   const cardCanvases = [];
-  try{
-    for (let i = 0; i < deck.cards.length; i++){
-      const c = deck.cards[i];
-      statusEl.textContent = `Rendering card ${i+1} of ${deck.cards.length}…`;
-      const frontImgSrc = c.img && c.img.front ? await resolveImageRef(c.img.front) : null;
-      const backImgSrc = c.img && c.img.back ? await resolveImageRef(c.img.back) : null;
-      scratch.innerHTML = `
-        <div class="notebook-entry" style="width:${CONTENT_W}px; box-sizing:border-box; position:static; box-shadow:none;">
-          <div class="nb-index">Card ${i+1}</div>
-          <div class="nb-front">${formatInlineMarkdown(c.f)}${frontImgSrc ? `<img class="nb-img" src="${frontImgSrc}">` : ''}</div>
-          <div class="nb-back">${formatInlineMarkdown(c.b)}${backImgSrc ? `<img class="nb-img" src="${backImgSrc}">` : ''}</div>
-        </div>`;
-      const entryEl = scratch.firstElementChild;
-      const canvas = await html2canvas(entryEl, { scale: 2, backgroundColor: '#FCFAF3', useCORS: true });
-      cardCanvases.push(canvas);
-    }
-  } finally {
-    scratch.remove();
+  for (let i = 0; i < deck.cards.length; i++){
+    const c = deck.cards[i];
+    statusEl.textContent = `Rendering card ${i+1} of ${deck.cards.length}…`;
+    // A single card's image failing to resolve (bad cloud reference, a
+    // network hiccup, etc.) shouldn't take down the whole export — fall
+    // back to rendering that card without the image.
+    let frontImgSrc = null, backImgSrc = null;
+    try{ frontImgSrc = c.img && c.img.front ? await resolveImageRef(c.img.front) : null; }
+    catch(e){ console.warn('Notebook export: could not resolve front image for card', c.id, e); }
+    try{ backImgSrc = c.img && c.img.back ? await resolveImageRef(c.img.back) : null; }
+    catch(e){ console.warn('Notebook export: could not resolve back image for card', c.id, e); }
+    scratch.innerHTML = `
+      <div class="notebook-entry" style="width:${CONTENT_W}px; box-sizing:border-box; position:static; box-shadow:none;">
+        <div class="nb-index">Card ${i+1}</div>
+        <div class="nb-front">${formatInlineMarkdown(c.f)}${frontImgSrc ? `<img class="nb-img" src="${frontImgSrc}">` : ''}</div>
+        <div class="nb-back">${formatInlineMarkdown(c.b)}${backImgSrc ? `<img class="nb-img" src="${backImgSrc}">` : ''}</div>
+      </div>`;
+    const entryEl = scratch.firstElementChild;
+    const canvas = await html2canvas(entryEl, { scale: 2, backgroundColor: '#FCFAF3', useCORS: true });
+    cardCanvases.push(canvas);
   }
+  scratch.remove();
+  scratch = null;
 
   statusEl.textContent = 'Laying out pages…';
 
@@ -6077,6 +6227,15 @@ async function exportNotebookAs(format){
 
   statusEl.textContent = '';
   closeModal('notebookExportOverlay');
+
+  } catch (err) {
+    // Surface the failure instead of leaving the modal stuck on a stale
+    // "Rendering card X of Y…" message forever.
+    console.error('Notebook export failed', err);
+    if (scratch) scratch.remove();
+    statusEl.textContent = '';
+    showToast(`Export failed — ${err && err.message ? err.message : 'please try again'}`);
+  }
 }
 function toggleNotebookStar(e, deckId, cardId){
   e.stopPropagation();
