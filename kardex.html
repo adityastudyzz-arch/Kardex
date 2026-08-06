@@ -566,10 +566,24 @@ button{font-family:inherit;cursor:pointer;}
 }
 .stat-box.accuracy{ border-left-color:var(--teal); }
 .stat-box.due{ border-left-color:var(--teal-dark); }
-.stat-box.focus{ border-left-color:var(--maroon); }
 .stat-box.clickable{ cursor:pointer; transition: transform .12s ease, box-shadow .12s ease; }
 .stat-box.clickable:hover{ transform:translateY(-2px); box-shadow:var(--shadow-lg); }
-.stat-box.focus .stat-num{ font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Daily deck stat box — deliberately a little more eye-catching than its
+   neighbors (a soft breathing glow) since it's the one thing on this
+   screen meant to be revisited every day, not just a passive readout. */
+.stat-box.daily-box{
+  border-left-color:var(--teal);
+  animation: daily-box-glow 2.8s ease-in-out infinite;
+}
+.stat-box.daily-box:hover{ animation-play-state:paused; }
+@keyframes daily-box-glow{
+  0%, 100% { box-shadow:var(--shadow), 0 0 0 0 rgba(47,111,98,.22); }
+  50%      { box-shadow:var(--shadow), 0 0 0 7px rgba(47,111,98,0); }
+}
+.stat-daily-top{ display:flex; align-items:center; gap:7px; margin-bottom:4px; }
+.stat-daily-ico{ color:var(--teal); flex-shrink:0; }
+.stat-daily-top .stat-num{ margin-bottom:0; }
 
 /* ---------- Mobile: collapse the stat cards into one summary row ---------- */
 .stat-summary-toggle{ display:none; }
@@ -670,8 +684,6 @@ button{font-family:inherit;cursor:pointer;}
   flex-direction:column;
 }
 .deck-tile:hover .card{ transform:translateY(-3px) rotate(-.4deg); box-shadow:var(--shadow-lg); }
-.daily-deck-tile .card{ border-left-color:var(--teal); }
-.daily-deck-tile .dname{ display:flex; align-items:center; gap:6px; }
 .deck-tile .dname{
   font-family:'Fraunces', serif;
   font-weight:600;
@@ -3023,10 +3035,19 @@ function dailyDeckLabel(st){
   const [y, m, d] = st.date.split('-').map(Number);
   const dt = new Date(y, m-1, d);
   const month = dt.toLocaleString('en-US', { month: 'short' });
-  return `${month} ${d} · #${String(st.seq).padStart(2,'0')}`;
+  // Spelled out ("2nd today") rather than a bare "#02" — a raw sequence
+  // number reads as an ID, not as "this is your second one today", which
+  // was the whole point of numbering them.
+  return `${month} ${d} · ${ordinal(st.seq)} today`;
 }
 function dailyDeckCards(st){
   return st.cardIds.map(id => { const entry = cardIndex.get(id); return entry ? entry.card : null; }).filter(Boolean);
+}
+/* "1st", "2nd", "3rd", "4th", "11th", "21st"... */
+function ordinal(n){
+  const suffixes = ['th','st','nd','rd'];
+  const v = n % 100;
+  return n + (suffixes[(v-20)%10] || suffixes[v] || suffixes[0]);
 }
 function startDailyDeck(){
   const st = ensureDailyDeckState();
@@ -3066,24 +3087,7 @@ function starredAccuracy(){
   const good = relevant.filter(r => r.good).length;
   return Math.round((good/relevant.length)*100);
 }
-/* Deck with the most "again" presses in the last 14 days — the topic most worth revisiting. */
-function focusTopic(){
-  const DAY = 24*3600*1000;
-  const cutoff = Date.now() - 14*DAY;
-  const counts = new Map(); // deckId -> {deck, pathLabel, count}
-  reviewLog.forEach(r => {
-    if (r.good || r.ts < cutoff) return;
-    const entry = cardIndex.get(r.cardId);
-    if (!entry) return;
-    const key = entry.deck.id;
-    const cur = counts.get(key) || { deck: entry.deck, pathLabel: entry.pathLabel, count: 0 };
-    cur.count++;
-    counts.set(key, cur);
-  });
-  let best = null;
-  counts.forEach(v => { if (!best || v.count > best.count) best = v; });
-  return best;
-}
+
 
 /* ---------------------------------------------------------
    SPACED REPETITION — simplified SM-2. Deliberately NOT stored
@@ -4191,11 +4195,12 @@ function renderHome(el){
   const added = cardsAddedToday();
   const reviewed = reviewsToday();
   const acc = starredAccuracy();
-  const focus = focusTopic();
   const due = dueCount();
+  const dailyState = cardIndexList.length ? ensureDailyDeckState() : null;
+  const dailyCards = dailyState ? dailyDeckCards(dailyState) : [];
 
   // On mobile this whole block collapses to a single toggle row so the
-  // drawers/decks below are reachable without scrolling past 5 stat cards.
+  // drawers/decks below are reachable without scrolling past the stat cards.
   const wrap = document.createElement('div');
   wrap.className = 'stat-summary-wrap' + (state.homeStatsExpanded ? ' expanded' : '');
   wrap.id = 'statSummaryWrap';
@@ -4228,18 +4233,22 @@ function renderHome(el){
       <div class="stat-num${acc===null?' dash':''}">${acc===null ? '—' : acc+'%'}</div>
       <div class="stat-label">Starred accuracy</div>
     </div>
-    <div class="stat-box focus${focus?' clickable':''}" id="focusBox">
-      <div class="stat-num${focus?'':' dash'}">${focus ? escapeHtml(focus.deck.name) : 'All caught up'}</div>
-      <div class="stat-label">${focus ? `Focus · ${focus.count} again` : 'Needs revision'}</div>
-    </div>`;
+    ${dailyCards.length ? `
+    <div class="stat-box daily-box clickable" id="dailyBox" title="Study today's mixed practice set">
+      <div class="stat-daily-top">
+        <svg class="stat-daily-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        <span class="stat-num">${dailyCards.length}</span>
+      </div>
+      <div class="stat-label">Daily deck · ${escapeHtml(ordinal(dailyState.seq))} today</div>
+    </div>` : ''}`;
   wrap.appendChild(grid);
   el.appendChild(wrap);
 
   if (due){
     grid.querySelector('#dueBox').onclick = () => studyDueCards();
   }
-  if (focus){
-    grid.querySelector('#focusBox').onclick = () => startStudy(focus.deck);
+  if (dailyCards.length){
+    grid.querySelector('#dailyBox').onclick = () => startDailyDeck();
   }
 }
 function toggleHomeStats(){
@@ -4321,12 +4330,21 @@ function renderContent(){
     return;
   }
 
-  if (state.currentPath.length === 1){
-    renderHome(el);
-    renderDailyDeckSection(el);
+  let folderNode = findFolder(state.currentPath);
+  if (!folderNode){
+    // Belt-and-suspenders: render() already sanitizes state.currentPath
+    // before this runs, but this function doesn't know that and
+    // shouldn't have to trust it — falling back here directly instead of
+    // crashing on folderNode.children below is what actually prevents
+    // the blank-screen failure mode, regardless of how a bad path got in.
+    state.currentPath = [root.id];
+    folderNode = root;
   }
 
-  const folderNode = findFolder(state.currentPath);
+  if (state.currentPath.length === 1){
+    renderHome(el);
+  }
+
   const currentFolderId = state.currentPath[state.currentPath.length-1];
   const subfolders = folderNode.children.filter(c=>c.type==='folder');
   const decks = folderNode.children.filter(c=>c.type==='deck');
@@ -4381,36 +4399,6 @@ function folderTile(f){
   div.ondragover = (e)=>{ e.preventDefault(); div.classList.add('dragover'); };
   div.ondragleave = ()=> div.classList.remove('dragover');
   div.ondrop = (e)=>{ e.preventDefault(); div.classList.remove('dragover'); moveItem(e.dataTransfer.getData('text/plain'), f.id); };
-  return div;
-}
-
-function renderDailyDeckSection(el){
-  if (!cardIndexList.length) return; // nothing in the library yet to build a deck from
-  const st = ensureDailyDeckState();
-  const cards = dailyDeckCards(st);
-  if (!cards.length) return;
-
-  const label = document.createElement('div');
-  label.className = 'section-label'; label.textContent = 'Today';
-  el.appendChild(label);
-
-  const grid = document.createElement('div'); grid.className = 'grid';
-  grid.appendChild(dailyDeckTile(st, cards));
-  el.appendChild(grid);
-}
-function dailyDeckTile(st, cards){
-  const div = document.createElement('div');
-  div.className = 'deck-tile daily-deck-tile';
-  div.innerHTML = `
-    <div class="stack"></div>
-    <div class="card">
-      <div class="dname">🗓️ Daily deck</div>
-      <div class="drow">
-        <span>${escapeHtml(dailyDeckLabel(st))}</span>
-        <span>${cards.length} card${cards.length!==1?'s':''}</span>
-      </div>
-    </div>`;
-  div.onclick = () => startDailyDeck();
   return div;
 }
 
@@ -7027,7 +7015,25 @@ function restartDeck(){
 /* ---------------------------------------------------------
    RENDER ALL
 --------------------------------------------------------- */
+/* If any folder in state.currentPath no longer exists in the current
+   tree — most commonly because cloud data just replaced what was loaded
+   locally (e.g. right after signing in) and wherever the person was
+   browsing isn't part of it anymore — rendering that path crashes
+   mid-render (nodeById/findFolder return null, and the render code
+   wasn't written to expect that) and leaves a blank screen with no
+   recovery. Catch it here, before anything tries to render the stale
+   path, and fall back to the root drawer view instead. */
+function sanitizeCurrentPath(){
+  if (state.currentPath.length <= 1) return;
+  for (let i = 1; i < state.currentPath.length; i++){
+    if (!nodeById(state.currentPath[i])){
+      state.currentPath = [root.id];
+      return;
+    }
+  }
+}
 function render(){
+  sanitizeCurrentPath();
   renderTree();
   updateStarredCount();
   updateToughCount();
