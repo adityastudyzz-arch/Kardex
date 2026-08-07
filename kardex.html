@@ -2083,14 +2083,24 @@ let currentUser = null;   // set once signed in
 let accessToken = null;   // the user's Supabase access token, sent so RLS can see auth.uid()
 let imageDbPromise = null;
 
-/* ---------------- Image cloud storage (Supabase Storage) ----------------
-   Images are compressed client-side, cached locally in IndexedDB for instant
-   redraws, and mirrored to a per-user folder in this Storage bucket so any
-   signed-in device can pull them down. Requires a bucket with this name in
-   the Supabase project, with RLS policies scoping each user to their own
-   folder — see SETUP.md.
---------------------------------------------------------- */
-const IMAGE_BUCKET = 'kardex-images';
+/* ---------------- Image cloud storage (Imgur, via a server relay) ----------------
+   Images are compressed client-side, cached locally in IndexedDB for
+   instant redraws, and mirrored to Imgur (anonymous upload, no account
+   needed) so any signed-in device can pull them down via the plain URL
+   Imgur returns — that URL is synced alongside the rest of the card data
+   in imageUrlMap (see persistLocalState), so no separate storage bucket
+   or per-user folder setup is needed at all.
+
+   The actual Imgur call happens server-side, in /api/upload-image.js (a
+   Vercel serverless function) — not directly from this page. Two reasons:
+   1. Every upload then goes out from Vercel's IP, not the visitor's,
+      which sidesteps residential-ISP shared-IP rate-limit exhaustion
+      (many customers behind one NAT'd IP competing for the same
+      anonymous per-IP Imgur quota).
+   2. The Imgur Client-ID stays a server-side secret (a Vercel
+      environment variable) instead of sitting in this page's source,
+      where anyone could read it out and use it themselves.
+   See the comment at the top of api/upload-image.js for setup. */
 const IMAGE_MAX_DIM = 1600;      // longest edge, in px, after resize
 const IMAGE_QUALITY = 0.82;      // WebP/JPEG quality, 0-1
 
@@ -2131,46 +2141,50 @@ async function compressImageForUpload(file){
   }
 }
 
-function storageExtCandidates(){
-  return ['.webp', '.jpg', '.png', '.gif', '.bin'];
-}
-
-// Fire-and-forget: mirrors a locally-cached image up to Storage so other
-// devices can find it. Safe to call repeatedly — a duplicate upload for a
-// hash that's already there is treated as a no-op, not an error.
-/* Image cloud sync can fail for an entire session at once — most
-   commonly because the "kardex-images" Storage bucket hasn't been
-   created in this Supabase project yet. Every image saved after that
-   would otherwise dump its own full StorageApiError to the console,
-   which reads exactly like "your image didn't save" even though each
-   one is already safely written to local IndexedDB before this ever
-   runs (see storeImageFromDataUrl below — the local write is
-   unconditional and happens first; this is a fire-and-forget mirror on
-   top of it, not a dependency). Warn once per session instead, in plain
-   language, rather than repeating a scary raw error per image. */
+// Fire-and-forget: uploads a locally-cached image to Imgur so other
+// devices can find it, and records the resulting URL in imageUrlMap
+// (synced via the normal text-state payload) once it succeeds. Safe to
+// call repeatedly — if a hash already has a URL recorded, this is a
+// no-op rather than a duplicate upload.
+/* Image cloud sync can fail for an entire session at once — a bad or
+   missing Client-ID, Imgur rate-limiting, or just being offline. Every
+   image saved after that would otherwise dump its own fetch/network
+   error to the console, which reads exactly like "your image didn't
+   save" even though each one is already safely written to local
+   IndexedDB before this ever runs (see storeImageFromDataUrl below —
+   the local write is unconditional and happens first; this is a
+   fire-and-forget mirror on top of it, not a dependency). Warn once per
+   session instead, in plain language, rather than repeating a raw error
+   per image. */
 let cloudImageSyncWarnedOnce = false;
 function warnImageCloudSyncFailed(err){
   if (cloudImageSyncWarnedOnce) return;
   cloudImageSyncWarnedOnce = true;
-  const bucketMissing = /bucket not found/i.test((err && err.message) || '');
   console.warn(
-    bucketMissing
-      ? 'Image cloud sync is unavailable this session — the "kardex-images" Storage bucket doesn\'t exist in this Supabase project yet. Images are still saved locally on this device; they just won\'t sync to other devices until that bucket is created (Supabase dashboard → Storage → New bucket → name it exactly "kardex-images").'
-      : 'Image cloud sync failed — images are still saved locally on this device.',
+    'Image cloud sync failed — images are still saved locally on this device. ' +
+    '(If this persists, check that IMGUR_CLIENT_ID is set as an environment variable ' +
+    'on the Vercel project and that api/upload-image.js deployed correctly.)',
     err
   );
 }
 async function uploadImageToCloud(hash, mimeType, blob){
-  if (!currentUser || !SUPABASE_CONFIGURED) return; // local-only mode — nothing to sync to
+  if (!SUPABASE_CONFIGURED) return; // local-only mode — nothing to sync to
+  if (imageUrlMap[hash]) return; // already uploaded and recorded
   try {
-    const path = `${currentUser.id}/${hash}${mimeToExtension(mimeType)}`;
-    const { error } = await supabaseClient.storage.from(IMAGE_BUCKET).upload(path, blob, {
-      contentType: mimeType,
-      upsert: false,
-      cacheControl: '31536000'
+    const dataUrl = await readFileAsDataUrl(blob);
+    const base64 = (dataUrl.split(',')[1]) || '';
+    if (!base64) throw new Error('Could not read image data for upload');
+    const res = await fetch('/api/upload-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: base64 })
     });
-    if (error && !/already exists|duplicate/i.test(error.message || '')){
-      warnImageCloudSyncFailed(error);
+    const data = await res.json().catch(() => null);
+    if (res.ok && data && data.url){
+      imageUrlMap[hash] = data.url;
+      persistTextState(); // sync the new URL out to other devices
+    } else {
+      warnImageCloudSyncFailed(data && data.error ? data.error : `HTTP ${res.status}`);
     }
   } catch (err) {
     warnImageCloudSyncFailed(err);
@@ -2178,17 +2192,21 @@ async function uploadImageToCloud(hash, mimeType, blob){
 }
 
 // Used when an image hash is referenced (e.g. a card synced from another
-// device) but isn't in this browser's local IndexedDB cache yet.
+// device) but isn't in this browser's local IndexedDB cache yet. Imgur
+// URLs are stored directly in imageUrlMap (synced with the rest of the
+// card data), so this is just a plain fetch — no per-user path/auth
+// needed the way Storage-bucket lookups required.
 async function downloadImageFromCloud(hash){
-  if (!currentUser || !SUPABASE_CONFIGURED) return null;
-  for (const ext of storageExtCandidates()){
-    try {
-      const path = `${currentUser.id}/${hash}${ext}`;
-      const { data, error } = await supabaseClient.storage.from(IMAGE_BUCKET).download(path);
-      if (data && !error) return { blob: data, mimeType: data.type || undefined };
-    } catch (err) { /* try the next extension */ }
+  const url = imageUrlMap[hash];
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return { blob, mimeType: blob.type || undefined };
+  } catch (err) {
+    return null;
   }
-  return null;
 }
 
 function requestToPromise(request){
@@ -2284,7 +2302,7 @@ async function resolveImageRef(ref){
     const record = await getImageRecord(ref);
     if (record) return record.dataUrl;
     // Not cached in this browser — likely a card synced in from another
-    // device. Pull the image down once from Storage, then cache it locally
+    // device. Pull the image down once from Imgur, then cache it locally
     // so every future render is instant again.
     const cloud = await downloadImageFromCloud(ref);
     if (!cloud) return null;
@@ -2389,13 +2407,21 @@ function playHmmSoundFallback(){
     setTimeout(()=>ctx.close(), 900);
   } catch(e){ /* audio not available — the modal still gets the point across */ }
 }
+// hash -> Imgur URL, for images that have finished uploading. Rides along
+// in the same synced JSON payload as the tree/reviewLog — no separate
+// storage bucket needed, and it means another device can resolve an
+// image purely from data it already pulled down, without any extra
+// round trip beyond fetching that URL.
+let imageUrlMap = {};
+
 function persistLocalState(){
   const payload = {
     version: 1,
     updatedAt: Date.now(),
     uid,
     tree: root,
-    reviewLog
+    reviewLog,
+    imageUrls: imageUrlMap
   };
   // Save synchronously to localStorage immediately — this is the critical backup
   localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(payload));
@@ -2440,6 +2466,7 @@ function applyPersistedPayload(parsed){
   root.collapsed = parsed.tree.collapsed ?? root.collapsed;
   root.id = parsed.tree.id || root.id;
   reviewLog = Array.isArray(parsed.reviewLog) ? parsed.reviewLog : [];
+  imageUrlMap = (parsed.imageUrls && typeof parsed.imageUrls === 'object') ? parsed.imageUrls : {};
   srsMapCache = null;
   uid = parsed.uid || uid;
   rebuildIndex();
