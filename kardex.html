@@ -2411,11 +2411,13 @@ function savePendingSession(){
   };
   try { localStorage.setItem(PENDING_SESSION_KEY, JSON.stringify(pendingSession)); } catch(e){}
   renderResumeButtons();
+  queueTreeSkeletonSave(); // carries pendingSession along — see its own comment for why
 }
 function clearPendingSession(){
   pendingSession = null;
   try { localStorage.removeItem(PENDING_SESSION_KEY); } catch(e){}
   renderResumeButtons();
+  queueTreeSkeletonSave();
 }
 function renderResumeButtons(){
   const btn = document.getElementById('resumeStudyBtn');
@@ -2589,11 +2591,17 @@ function queueTreeSkeletonSave(){
   if (!SUPABASE_CONFIGURED || !currentUser || !accessToken) return Promise.resolve(false);
   ensureInitialFullDeckSync();
   const skeleton = buildTreeSkeleton(root);
+  // pendingSession rides along here too — it's small, global (one per
+  // user, not per-deck), and changes infrequently (pause/resume/finish a
+  // study session), so it doesn't need its own table. Syncing it also
+  // gives an easy visual proof sync is actually working: pause a study
+  // session on one device, and the "Resume: X" button should appear on
+  // another without touching anything else.
   return queueSyncJob('tree', async () => {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_tree`, {
       method: 'POST',
       headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates' }),
-      body: JSON.stringify({ user_id: currentUser.id, skeleton, updated_at: new Date().toISOString() })
+      body: JSON.stringify({ user_id: currentUser.id, skeleton, pending_session: pendingSession, updated_at: new Date().toISOString() })
     });
     return res.ok;
   });
@@ -2677,7 +2685,7 @@ async function loadEverythingFromCloud(){
   if (!currentUser || !accessToken) return false;
   try {
     const [treeRes, decksRes, logRes, urlsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=skeleton`, { headers: sbHeaders() }),
+      fetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=skeleton,pending_session`, { headers: sbHeaders() }),
       fetch(`${SUPABASE_URL}/rest/v1/kardex_decks?user_id=eq.${currentUser.id}&select=deck_id,name,cards,sessions`, { headers: sbHeaders() }),
       fetch(`${SUPABASE_URL}/rest/v1/kardex_review_log?user_id=eq.${currentUser.id}&select=card_id,good,ts,question_seconds,answer_seconds&order=id.asc`, { headers: sbHeaders() }),
       fetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls?user_id=eq.${currentUser.id}&select=hash,url`, { headers: sbHeaders() }),
@@ -2706,6 +2714,23 @@ async function loadEverythingFromCloud(){
     root.children = stitchedRoot.children;
     root.collapsed = stitchedRoot.collapsed;
     root.id = stitchedRoot.id;
+
+    // Cross-device resume: only adopt the cloud's pending session if it's
+    // actually newer than whatever this device already has locally (or
+    // this device has none) — otherwise switching back to a device that
+    // itself has a more recent pause would confusingly overwrite it with
+    // an older one from elsewhere.
+    const cloudPending = treeRows[0].pending_session || null;
+    if (cloudPending && (!pendingSession || (cloudPending.savedAt || 0) > (pendingSession.savedAt || 0))){
+      pendingSession = cloudPending;
+      try { localStorage.setItem(PENDING_SESSION_KEY, JSON.stringify(pendingSession)); } catch(e){}
+    } else if (!cloudPending && pendingSession){
+      // Cloud has no pending session (finished/cleared elsewhere) but this
+      // device still thinks there's one — clear it to match.
+      pendingSession = null;
+      try { localStorage.removeItem(PENDING_SESSION_KEY); } catch(e){}
+    }
+    renderResumeButtons();
 
     reviewLog = logRows.map(r => ({
       cardId: r.card_id, good: r.good, ts: r.ts,
