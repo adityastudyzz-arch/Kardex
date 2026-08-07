@@ -4955,6 +4955,7 @@ function openDeckModal(path){
   document.getElementById('importStatus').textContent='';
   document.getElementById('importStatus').className='import-status';
   importedCards = null;
+  importedCardsIsFromDocx = false;
   document.getElementById('deckOverlay').classList.add('active');
   setTimeout(()=>document.getElementById('deckNameInput').focus(), 50);
 }
@@ -4989,6 +4990,16 @@ function toggleLightboxZoom(e){
 --------------------------------------------------------- */
 let deckMode = 'blank';       // 'blank' | 'import'
 let importedCards = null;     // parsed cards waiting to be committed
+// True when importedCards came from parsing a DOCX file rather than the
+// textarea's own text. This matters because after a DOCX parse, the
+// textarea is filled with previewCardsAsMarkdown(importedCards) purely
+// for the user to see/edit — and that preview is plain markdown text
+// with no way to represent embedded images. Re-parsing that text on
+// submit (which used to happen unconditionally, as a safety net for the
+// manual paste/type flow) silently threw every DOCX-sourced image away.
+// This flag tells confirmDeck() to trust the already-parsed
+// importedCards instead of re-deriving it from the lossy preview.
+let importedCardsIsFromDocx = false;
 
 function setDeckMode(mode){
   deckMode = mode;
@@ -5129,9 +5140,20 @@ async function parseWordDocxBlocksToCards(blocks) {
   };
 
   if (!hasQALabel) {
+    // A standalone image (its own paragraph, no text alongside it) used
+    // to be silently skipped here — completely dropped, no card, no
+    // warning. Carry it forward instead and attach it to whichever card
+    // comes next, the way the labeled Q/A branch below already does;
+    // if nothing follows (a trailing image at the end of the doc),
+    // attach it to the last card instead of losing it.
+    let carryImages = [];
     for (const block of blocks) {
-      if (!block.text && block.images && block.images.length) continue;
-      const imgHash = block.images?.[0] ? await storeImage(block.images[0]) : null;
+      if (!block.text && block.images && block.images.length) {
+        carryImages.push(...block.images);
+        continue;
+      }
+      const frontImg = carryImages[0] || block.images?.[0] || null;
+      const imgHash = frontImg ? await storeImage(frontImg) : null;
       cards.push({
         id: cards.length + 1,
         type: 'basic',
@@ -5142,6 +5164,10 @@ async function parseWordDocxBlocksToCards(blocks) {
         img: { front: imgHash, back: null },
         clozeSource: null
       });
+      carryImages = [];
+    }
+    if (carryImages.length && cards.length){
+      cards[cards.length-1].img.back = await storeImage(carryImages[0]);
     }
     return cards;
   }
@@ -5153,7 +5179,20 @@ async function parseWordDocxBlocksToCards(blocks) {
     const text = block.text || '';
     const images = block.images || [];
     if (!text && images.length) {
-      carryImages.push(...images);
+      // Attach right away, based on whichever field is currently open,
+      // instead of deferring to whatever text block happens to come
+      // next. An image placed right after a question — before its
+      // answer has been typed — reads as illustrating the question, not
+      // a not-yet-seen answer; the old defer-to-next-block logic got
+      // this backwards (it ended up on the back every time, since "A:"
+      // was almost always the next labeled line to claim it).
+      if (current && !current.answer){
+        if (!current.img.front) current.img.front = await storeImage(images[0]);
+      } else if (current && current.answer){
+        if (!current.img.back) current.img.back = await storeImage(images[0]);
+      } else {
+        carryImages.push(...images); // no open card yet — carry to whatever starts next
+      }
       continue;
     }
 
@@ -5268,7 +5307,20 @@ async function parseWordDocxBlocksToCards(blocks) {
     }
   }
 
-  if (current) cards.push(current);
+  if (current){
+    // A trailing standalone image after the last answer (current still
+    // has an open question with no answer, or was mid-answer) — attach
+    // it rather than let it fall on the floor.
+    if (!current.img.back && carryImages.length){
+      current.img.back = await storeImage(carryImages[0]);
+    }
+    cards.push(current);
+  } else if (carryImages.length && cards.length){
+    // Same idea, but the last card was already completed (its "A:" line
+    // already came through) and a stray image showed up after it.
+    const last = cards[cards.length-1];
+    if (!last.img.back) last.img.back = await storeImage(carryImages[0]);
+  }
   return cards;
 }
 
@@ -5299,6 +5351,9 @@ function parseDeckInput(text){
 }
 
 function onImportTextChange(){
+  // The person is editing the text directly — from here on the textarea
+  // is the source of truth again, not whatever DOCX (if any) produced it.
+  importedCardsIsFromDocx = false;
   const text = document.getElementById('importText').value;
   const statusEl = document.getElementById('importStatus');
   if (!text.trim()){
@@ -5328,6 +5383,7 @@ async function onDeckFileChosen(e){
     if (/\.docx$/i.test(file.name) || /\.doc$/i.test(file.name)){
       const parsed = await parseDocxFile(file);
       importedCards = parsed.map(normalizeDocumentCard);
+      importedCardsIsFromDocx = true;
       document.getElementById('importText').value = previewCardsAsMarkdown(importedCards);
       statusEl.textContent = `✓ Parsed ${importedCards.length} card${importedCards.length!==1?'s':''} from ${file.name}`;
       statusEl.className = 'import-status ok';
@@ -5346,6 +5402,7 @@ async function onDeckFileChosen(e){
     reader.readAsText(file);
   } catch (err) {
     importedCards = null;
+    importedCardsIsFromDocx = false;
     statusEl.textContent = '✗ ' + (err && err.message ? err.message : String(err));
     statusEl.className = 'import-status err';
   }
@@ -5418,12 +5475,25 @@ function confirmDeck(){
   const parent = findFolder(modalTargetPath);
 
   if (deckMode === 'import'){
-    // (Re)parse on submit in case the user tabbed away without triggering input events
-    try{
-      importedCards = parseDeckInput(document.getElementById('importText').value);
-    } catch(err){
+    // (Re)parse on submit in case the user tabbed away without triggering
+    // input events — but NOT when the current importedCards came from a
+    // DOCX file: the textarea only holds a plain-markdown preview of that
+    // parse (for the person to see/edit), which can't represent embedded
+    // images at all. Re-parsing it unconditionally used to silently
+    // discard every image from a DOCX import, every single time.
+    if (!importedCardsIsFromDocx){
+      try{
+        importedCards = parseDeckInput(document.getElementById('importText').value);
+      } catch(err){
+        const statusEl = document.getElementById('importStatus');
+        statusEl.textContent = '✗ ' + err.message;
+        statusEl.className = 'import-status err';
+        return;
+      }
+    }
+    if (!importedCards || !importedCards.length){
       const statusEl = document.getElementById('importStatus');
-      statusEl.textContent = '✗ ' + err.message;
+      statusEl.textContent = '✗ Nothing to import yet — paste or upload a file first.';
       statusEl.className = 'import-status err';
       return;
     }
@@ -5471,6 +5541,7 @@ function confirmDeck(){
 let bulkAddDeckId = null;
 let bulkParsedCards = null;   // last successfully parsed batch, waiting to be committed
 let bulkDuplicateInfo = null; // { idClashes, textClashes } for the current bulkParsedCards
+let bulkParsedCardsIsFromDocx = false; // same reasoning as importedCardsIsFromDocx above
 
 function openBulkAddModal(deckId){
   const deck = nodeById(deckId);
@@ -5479,6 +5550,7 @@ function openBulkAddModal(deckId){
   bulkAddDeckId = deckId;
   bulkParsedCards = null;
   bulkDuplicateInfo = null;
+  bulkParsedCardsIsFromDocx = false;
   document.getElementById('bulkAddDeckName').textContent = deck.name;
   document.getElementById('bulkImportText').value = '';
   document.getElementById('bulkFileNameLabel').textContent = '';
@@ -5541,6 +5613,7 @@ function describeBulkDuplicates({ idClashes, textClashes }){
 }
 
 function onBulkImportTextChange(){
+  bulkParsedCardsIsFromDocx = false;
   const text = document.getElementById('bulkImportText').value;
   const statusEl = document.getElementById('bulkImportStatus');
   if (!text.trim()){
@@ -5579,6 +5652,7 @@ async function onBulkDeckFileChosen(e){
     if (/\.docx$/i.test(file.name) || /\.doc$/i.test(file.name)){
       const parsed = await parseDocxFile(file);
       bulkParsedCards = parsed.map(normalizeDocumentCard);
+      bulkParsedCardsIsFromDocx = true;
       document.getElementById('bulkImportText').value = previewCardsAsMarkdown(bulkParsedCards);
       bulkDuplicateInfo = analyzeBulkDuplicates(bulkAddDeckId, bulkParsedCards);
       const dupText = describeBulkDuplicates(bulkDuplicateInfo);
@@ -5599,6 +5673,7 @@ async function onBulkDeckFileChosen(e){
     reader.readAsText(file);
   } catch (err) {
     bulkParsedCards = null;
+    bulkParsedCardsIsFromDocx = false;
     bulkDuplicateInfo = null;
     statusEl.textContent = '✗ ' + (err && err.message ? err.message : String(err));
     statusEl.className = 'import-status err';
@@ -5626,6 +5701,7 @@ document.addEventListener('drop', async e=>{
         if (/\.docx$/i.test(file.name) || /\.doc$/i.test(file.name)){
           const parsed = await parseDocxFile(file);
           bulkParsedCards = parsed.map(normalizeDocumentCard);
+      bulkParsedCardsIsFromDocx = true;
           document.getElementById('bulkImportText').value = previewCardsAsMarkdown(bulkParsedCards);
           bulkDuplicateInfo = analyzeBulkDuplicates(bulkAddDeckId, bulkParsedCards);
           const dupText = describeBulkDuplicates(bulkDuplicateInfo);
@@ -5645,6 +5721,7 @@ document.addEventListener('drop', async e=>{
         reader.readAsText(file);
       } catch (err) {
         bulkParsedCards = null;
+        bulkParsedCardsIsFromDocx = false;
         bulkDuplicateInfo = null;
         statusEl.textContent = '✗ ' + (err && err.message ? err.message : String(err));
         statusEl.className = 'import-status err';
@@ -5658,13 +5735,25 @@ function confirmBulkAdd(){
   const deck = nodeById(deckId);
   if (!deck){ closeModal('bulkAddOverlay'); return; }
 
-  // (Re)parse on submit in case the user tabbed away without triggering input events
+  // (Re)parse on submit in case the user tabbed away without triggering
+  // input events — but NOT when bulkParsedCards came from a DOCX file;
+  // see the comment on bulkParsedCardsIsFromDocx above for why.
   let cards;
-  try{
-    cards = parseDeckInput(document.getElementById('bulkImportText').value);
-  } catch(err){
+  if (!bulkParsedCardsIsFromDocx){
+    try{
+      cards = parseDeckInput(document.getElementById('bulkImportText').value);
+    } catch(err){
+      const statusEl = document.getElementById('bulkImportStatus');
+      statusEl.textContent = '✗ ' + err.message;
+      statusEl.className = 'import-status err';
+      return;
+    }
+  } else {
+    cards = bulkParsedCards;
+  }
+  if (!cards || !cards.length){
     const statusEl = document.getElementById('bulkImportStatus');
-    statusEl.textContent = '✗ ' + err.message;
+    statusEl.textContent = '✗ Nothing to add yet — paste or upload a file first.';
     statusEl.className = 'import-status err';
     return;
   }
@@ -5707,6 +5796,7 @@ function confirmBulkAdd(){
   closeModal('bulkAddOverlay');
   bulkAddDeckId = null;
   bulkParsedCards = null;
+  bulkParsedCardsIsFromDocx = false;
   bulkDuplicateInfo = null;
   persistTextState();
   updateStarredCount();
