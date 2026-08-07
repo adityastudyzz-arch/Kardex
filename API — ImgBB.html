@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<!-- saved from url=(0022)https://api.imgbb.com/ -->
+<html lang="en" dir="ltr" class="device-nonmobile tone-light js js laptop history svg localstorage sessionstorage hashchange canvas opacity rgba fontface chrome chrome151 windows" prefix="og: http://ogp.me/ns#"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google" content="notranslate">
+<meta name="description" content="Free image hosting and sharing service, upload pictures, photo host. Offers integration solutions for uploading images to forums.">
+<meta name="keywords" content="free image hosting, image uploader, forum image hosting, image upload mod, image host, photo sharing, upload pictures">
+<title>API — ImgBB</title>
+<link rel="preconnect" href="https://simgbb.com/">
+<link rel="preconnect" href="https://fonts.googleapis.com/">
+<link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+<link href="./API — ImgBB_files/css2" rel="stylesheet">
+<link rel="stylesheet" href="./API — ImgBB_files/ibb.css">
+<script>document.documentElement.className+=" js";var devices=["phone","phablet","tablet","laptop","desktop","largescreen"],window_to_device=function(){for(var e=[480,768,992,1200,1880,2180],t=[],n="",d=document.documentElement.clientWidth||document.getElementsByTagName("body")[0].clientWidth||window.innerWidth,c=0;c<devices.length;++c)d>=e[c]&&t.push(devices[c]);for(0==t.length&&t.push(devices[0]),n=t[t.length-1],c=0;c<devices.length;++c)document.documentElement.className=document.documentElement.className.replace(devices[c],""),c==devices.length-1&&(document.documentElement.className+=" "+n),document.documentElement.className=document.documentElement.className.replace(/\s+/g," ");if("laptop"==n||"desktop"==n){var o=document.getElementById("pop-box-mask");null!==o&&o.parentNode.removeChild(o)}};window_to_device(),window.onresize=window_to_device;function jQueryLoaded(){!function(n,d){n.each(readyQ,function(d,e){n(e)}),n.each(bindReadyQ,function(e,i){n(d).bind("ready",i)})}(jQuery,document)}!function(n,d,e){function i(d,e){"ready"==d?n.bindReadyQ.push(e):n.readyQ.push(d)}n.readyQ=[],n.bindReadyQ=[];var u={ready:i,bind:i};n.$=n.jQuery=function(n){return n===d||void 0===n?u:void i(n)}}(window,document);</script><link rel="shortcut icon" href="https://simgbb.com/images/favicon.png">
+<link rel="icon" type="image/png" href="https://simgbb.com/images/favicon.png" sizes="192x192">
+<link rel="apple-touch-icon" href="https://simgbb.com/images/favicon.png" sizes="180x180">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://api.imgbb.com">
+<meta property="og:title" content="Upload Image — Free Image Hosting">
+<meta property="og:site_name" content="ImgBB">
+<meta property="og:description" content="Free image hosting and sharing service, upload pictures, photo host. Offers integration solutions for uploading images to forums.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:description" content="Free image hosting and sharing service, upload pictures, photo host. Offers integration solutions for uploading images to forums.">
+<meta name="twitter:title" content="API">
+<meta name="twitter:site" content="@imgbb_com">
+<style type="text/css"></style></head>
+<body id="api">
+<header id="top-bar" class="top-bar scroll-up">
+<div class="content-width">
+<div id="logo" class="top-bar-logo"><a href="https://imgbb.com/"><img width="116px" height="24px" src="./API — ImgBB_files/logo.png" alt="ImgBB"></a></div>
+<ul class="top-bar-left float-left">
+<li data-action="top-bar-menu-full" data-nav="mobile-menu" class="top-btn-el phone-show phablet-show hidden">
+<span class="top-btn-text"><span class="icon icon-bars"></span></span>
+</li>
+<li data-nav="about" class="phone-hide phablet-hide pop-btn pop-keep-click">
+<span class="top-btn-text"><span class="icon icon-circle-question"></span><span class="btn-text phone-hide phablet-hide">About</span><span class="arrow-down"></span></span>
+<div class="pop-box arrow-box arrow-box-top anchor-left">
+<div class="pop-box-inner pop-box-menu">
+<ul><li class="with-icon text-overflow-ellipsis"><a href="https://imgbb.com/plugin"><span class="btn-icon icon-code"></span>Plugin</a></li>
+<li class="with-icon text-overflow-ellipsis"><a href="https://api.imgbb.com/"><span class="btn-icon icon-gear"></span>API</a></li>
+<li class="with-icon text-overflow-ellipsis"><a href="https://imgbb.com/tos"><span class="btn-icon icon-landmark"></span>Terms of Service</a></li>
+<li class="with-icon text-overflow-ellipsis"><a href="https://imgbb.com/privacy"><span class="btn-icon icon-lock"></span>Privacy</a></li>
+<li class="with-icon text-overflow-ellipsis"><a href="https://imgbb.com/contact"><span class="btn-icon icon-at"></span>Contact</a></li></ul></div>
+</div>
+</li>
+</ul>
+<ul class="top-bar-right float-right keep-visible">
+<li data-action="top-bar-upload" data-nav="upload" class="pop-btn"><span class="top-btn-text"><span class="icon icon-cloud-arrow-up"></span><span class="btn-text phone-hide phablet-hide">Upload</span></span></li>
+<li id="top-bar-user" data-nav="user" class="pop-btn pop-keep-click">
+<span class="top-btn-text">
+<img src="./API — ImgBB_files/WnGhjkvktw54.jpg" alt="" class="user-image">
+<span class="user-image default-user-image hidden"><span class="icon icon-face-meh"></span></span>
+<span class="text phone-hide">BoomBoom</span><span class="phone-hide arrow-down"></span> 
+</span>
+<div class="pop-box arrow-box arrow-box-top anchor-right">
+<div class="pop-box-inner pop-box-menu">
+<ul>
+<li class="with-icon"><a href="https://boomboom6.imgbb.com/"><span class="btn-icon icon-id-card"></span>My Profile</a></li>
+<li class="with-icon"><a href="https://boomboom6.imgbb.com/albums"><span class="btn-icon icon-images"></span>Albums</a></li>
+<li class="with-icon"><a href="https://boomboom6.imgbb.com/following"><span class="btn-icon icon-rss"></span>Following</a></li>
+<li class="with-icon"><a href="https://boomboom6.imgbb.com/followers"><span class="btn-icon icon-users"></span>Followers</a></li>
+<li class="with-icon"><a href="https://imgbb.com/settings"><span class="btn-icon icon-user-gear"></span>Settings</a></li>
+<li class="with-icon"><a href="https://imgbb.com/upgrade"><span class="btn-icon icon-star"></span>Upgrade</a></li>
+<li class="with-icon"><a href="https://imgbb.com/logout"><span class="btn-icon icon-right-from-bracket"></span>Sign out</a></li>
+</ul>
+</div>
+</div>
+</li>
+<li id="top-bar-signup" data-nav="signup" class=" top-btn-el"><a href="https://imgbb.com/upgrade" class="top-btn-text top-btn-create-account btn blue text">Upgrade</a></li>
+</ul>
+</div>
+</header><div class="c24 center-box margin-top-40 margin-bottom-40">
+	<div class="content-width">
+		<div class="header default-margin-bottom">
+			<h1>API version 1</h1>
+		</div>
+		<div class="text-content">
+<p>Imgbb's API v1 allows you to upload images.</p>
+<div class="panel-share-item">
+<div class="copy-hover-display">
+<div class="c24 grid-columns"><input id="0" type="text" class="text-input" value="f234bec12e8d05e9509f1394c4a27578" data-focus="select-all" autocomplete="off" spellcheck="false" readonly=""><button class="input-action" data-action="copy" data-action-target="#0">copy</button><form action="https://api.imgbb.com/" method="post"><p><input class="btn red" type="submit" name="f234bec12e8d05e9509f1394c4a27578" value="Delete"></p><input type="hidden" name="auth_token" value="c991215ecf79303c353d16dfff07a58d8785b707"></form></div>
+</div>
+</div>
+<form action="https://api.imgbb.com/" method="post"><p><input class="btn blue" type="submit" name="key" value="Add API key"></p><input type="hidden" name="auth_token" value="c991215ecf79303c353d16dfff07a58d8785b707"></form>
+<h2>Request method</h2>
+<p>API v1 calls can be made using the POST or GET request methods, but since GET requests are limited by the maximum allowed URL length, you should prefer the POST method.</p>
+<h2>Image Upload</h2>
+<div class="panel-share-item"><div class="copy-hover-display"><div class="c24 grid-columns">
+<input id="code" type="text" class="text-input" value="https://api.imgbb.com/1/upload" data-focus="select-all" autocomplete="off" spellcheck="false" readonly=""><button class="input-action" data-action="copy" data-action-target="#code">copy</button>
+</div></div></div>
+<br>
+<h2>Parameters</h2>
+<div class="input-label">
+<label>key (required)</label>
+<div class="input-below">The API key.</div>
+</div>
+<div class="input-label">
+<label>image (required)</label>
+<div class="input-below">A binary file, base64 data, or an image URL (up to 32 MB).</div>
+</div>
+<div class="input-label">
+<label>name (optional)</label>
+<div class="input-below">The name of the file; this is automatically detected if you upload a file using POST and multipart/form-data.</div>
+</div>
+<div class="input-label">
+<label>expiration (optional)</label>
+<div class="input-below">Enable this if you want uploads to be automatically deleted after a certain time (in seconds, 60-15552000).</div>
+</div>
+<h2>Example call</h2>
+<p><textarea>curl --location --request POST "https://api.imgbb.com/1/upload?expiration=600&amp;key=YOUR_CLIENT_API_KEY" --form "image=R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"</textarea></p>
+<p class="highlight padding-5">Note: Always use POST when uploading local files. URL encoding may alter the base64 source due to encoded characters or simply because of the URL length limit when using GET.</p>
+<h2 id="api-response">API response</h2>
+<p>API v1 responses display all uploaded image information in JSON format.</p>
+<p>In the JSON response, the headers will include status codes to let you easily determine whether the request was OK. It will also include the <code class="hint">status</code> property.</p>
+<h2>Example response (JSON)</h2>
+<div class="code">
+<textarea style="height:500px">{
+	"data": {
+		"id": "2ndCYJK",
+		"title": "c1f64245afb2",
+		"url_viewer": "https://ibb.co/2ndCYJK",
+		"url": "https://i.ibb.co/w04Prt6/c1f64245afb2.gif",
+		"display_url": "https://i.ibb.co/98W13PY/c1f64245afb2.gif",
+		"width":"1",
+		"height":"1",
+		"size": "42",
+		"time": "1552042565",
+		"expiration":"0",
+		"image": {
+			"filename": "c1f64245afb2.gif",
+			"name": "c1f64245afb2",
+			"mime": "image/gif",
+			"extension": "gif",
+			"url": "https://i.ibb.co/w04Prt6/c1f64245afb2.gif",
+		},
+		"thumb": {
+			"filename": "c1f64245afb2.gif",
+			"name": "c1f64245afb2",
+			"mime": "image/gif",
+			"extension": "gif",
+			"url": "https://i.ibb.co/2ndCYJK/c1f64245afb2.gif",
+		},
+		"medium": {
+			"filename": "c1f64245afb2.gif",
+			"name": "c1f64245afb2",
+			"mime": "image/gif",
+			"extension": "gif",
+			"url": "https://i.ibb.co/98W13PY/c1f64245afb2.gif",
+		},
+		"delete_url": "https://ibb.co/2ndCYJK/670a7e48ddcb85ac340c717a41047e5c"
+	},
+	"success": true,
+	"status": 200
+}</textarea>
+</div>
+		</div>
+	</div>
+</div>
+<div id="anywhere-upload" class="upload-box upload-box--fixed upload-box--hidden queueEmpty" data-queue-size="0">
+<div class="content-width"><div class="upload-box-inner"><div class="upload-box-heading c16 center-box"><div class="upload-box-status">
+<div data-group="upload" style="padding: 80px 0;">
+<span class="icon icon-cloud-arrow-up cursor-pointer" data-trigger="anywhere-upload-input"></span>
+<div class="heading"><a data-trigger="anywhere-upload-input">Drag and drop or paste images here to upload</a></div>
+<div class="upload-box-status-text">You can also <a data-trigger="anywhere-upload-input">browse from your computer</a> or <a data-modal="form" data-target="anywhere-upload-paste-url">add image URLs</a>.</div>
+</div>
+<div data-group="upload-queue-ready" class="soft-hidden">
+<span class="icon icon-images" data-trigger="anywhere-upload-input"></span>
+<div class="heading">Edit or resize any image by clicking the image preview</div>
+<div class="upload-box-status-text">You can add more images from <a data-trigger="anywhere-upload-input">your computer</a> or <a data-modal="form" data-target="anywhere-upload-paste-url">add image URLs</a>.</div>
+</div>
+<div data-group="uploading" class="soft-hidden">
+<span class="icon icon-cloud-arrow-up"></span>
+<div class="heading">Uploading <span data-text="queue-size">0</span> <span data-text="queue-objects">image</span> (<span data-text="queue-progress">0</span>% complete)</div>
+<div class="upload-box-status-text">The queue is being uploaded; it should take just a few seconds to complete.</div>
+</div>
+<div data-group="upload-result" data-result="success" class="soft-hidden">
+<span class="icon icon-circle-check color-green"></span>
+<div class="heading">Upload complete</div>
+<div class="upload-box-status-text">
+<div data-group="user" class="soft-hidden">
+<div data-group="user-stream" class="soft-hidden">
+Uploaded content added to <a data-text="upload-target" data-link="upload-target"></a>. You can <a data-modal="form" data-target="form-uploaded-create-album">create a new album</a> with the content just uploaded.</div>
+<div data-group="user-album" class="soft-hidden">Uploaded content added to <a data-text="upload-target" data-link="upload-target"></a>.</div>
+</div>
+</div>
+</div>
+<div data-group="upload-result" data-result="error" class="soft-hidden">
+<span class="icon icon-xmark color-red"></span>
+<div class="heading">No <span data-text="queue-objects">image</span> have been uploaded</div>
+<div class="upload-box-status-text">Some errors occurred, and the system couldn't process your request.</div>
+</div>
+</div>
+</div>
+<input id="anywhere-upload-input" data-action="anywhere-upload-input" class="hidden-visibility" type="file" accept="image/*,application/pdf,application/postscript,.arw,.avif,.bmp,.cr2,.cr3,.cur,.cut,.dcm,.dds,.dib,.dng,.emf,.exr,.fax,.fig,.fits,.fpx,.gbr,.gd,.gif,.hdr,.heic,.heif,.icns,.ico,.iff,.ilbm,.j2k,.jpe,.jpeg,.jpg,.jpf,.jpm,.jp2,.jpx,.jxl,.miff,.mng,.mpo,.nef,.nrrd,.orf,.pbm,.pcx,.pdf,.pgm,.pic,.pict,.png,.pnm,.ppm,.ps,.psb,.psd,.qoi,.raf,.raw,.rw2,.sgi,.sid,.sr2,.svg,.tga,.tif,.tiff,.vtf,.webp,.wmf,.xbm,.xcf,.xpm,.jpeg,.tiff,.heif" multiple="">
+<input id="anywhere-upload-input-camera" data-action="anywhere-upload-input" class="hidden-visibility" type="file" capture="camera" accept="image/*">
+<ul id="anywhere-upload-queue" class="upload-box-queue content-width soft-hidden" data-group="upload-queue"></ul>
+<div id="anywhere-upload-submit" class="btn-container text-align-center margin-bottom-0 soft-hidden" data-group="upload-queue-ready">
+<div data-group="upload-queue-ready">
+<div class="input-label upload-input-col center-box text-align-left"><label for="upload-expiration" class="text-overflow-ellipsis">Automatically delete image</label><select type="text" name="upload-expiration" id="upload-expiration" class="text-input"><option value="" selected="">Don't autodelete</option><option value="PT5M">After 5 minutes</option><option value="PT15M">After 15 minutes</option><option value="PT30M">After 30 minutes</option><option value="PT1H">After 1 hour</option><option value="PT3H">After 3 hours</option><option value="PT6H">After 6 hours</option><option value="PT12H">After 12 hours</option><option value="P1D">After 1 day</option><option value="P2D">After 2 days</option><option value="P3D">After 3 days</option><option value="P4D">After 4 days</option><option value="P5D">After 5 days</option><option value="P6D">After 6 days</option><option value="P1W">After 1 week</option><option value="P2W">After 2 weeks</option><option value="P3W">After 3 weeks</option><option value="P1M">After 1 month</option><option value="P2M">After 2 months</option><option value="P3M">After 3 months</option><option value="P4M">After 4 months</option><option value="P5M">After 5 months</option><option value="P6M">After 6 months</option></select></div>
+<button class="btn btn-big green" data-action="upload">Upload</button>
+</div>
+<div data-group="uploading" class="soft-hidden"><button class="btn btn-big disabled off" disabled="">Uploading</button> <span class="btn-alt">or <a data-action="cancel-upload" data-button="close-cancel">cancel</a><a data-action="cancel-upload-remaining" data-button="close-cancel" class="soft-hidden">cancel remaining</a></span></div>
+</div>
+<div id="anywhere-upload-report">
+<div data-group="upload-result" data-result="mixted" class="soft-hidden margin-top-10 text-align-center upload-box-status-text">Note: Some images couldn't be uploaded. <a data-modal="simple" data-target="failed-upload-result">learn more</a></div>
+<div data-group="upload-result" data-result="error" class="soft-hidden margin-top-10 text-align-center upload-box-status-text">Check the <a data-modal="simple" data-target="failed-upload-result">error report</a> for more information.</div>
+</div>
+<div class="upload-box-close position-absolute">
+<a data-action="reset-upload" data-button="close-cancel"><span class="btn-icon icon-rotate-left"></span><span class="btn-text">reset</span></a>
+<a data-action="close-upload" data-button="close-cancel"><span class="btn-icon icon-xmark"></span><span class="btn-text">close</span></a>
+<a data-action="cancel-upload" data-button="close-cancel"><span class="btn-icon icon-xmark"></span><span class="btn-text">cancel</span></a>
+<a data-action="cancel-upload-remaining" data-button="close-cancel"><span class="btn-icon icon-xmark"></span><span class="btn-text">cancel remaining</span></a>
+</div>
+<div data-group="upload-result" data-result="success" class="c16 center-box soft-hidden">
+<div class="input-label margin-bottom-0 copy-hover-display">
+<label for="uploaded-embed-toggle">Embed codes</label>
+<div class="c7 margin-bottom-10">
+<select name="uploaded-embed-toggle" id="uploaded-embed-toggle" class="text-input" data-combo="uploaded-embed-toggle-combo" onchange="changeEmbed(this.value);">
+<optgroup label="Links"><option value="viewer-links" data-size="viewer">Viewer links</option><option value="direct-links" data-size="full">Direct links</option></optgroup>
+<optgroup label="HTML Codes"><option value="html-embed" data-size="full">HTML image</option><option value="html-embed-full" data-size="full">HTML full linked</option><option value="html-embed-medium" data-size="medium">HTML medium linked</option><option value="html-embed-thumbnail" data-size="thumb">HTML thumbnail linked</option></optgroup>
+<optgroup label="BBCodes"><option value="bbcode-embed" data-size="full">BBCode full</option><option value="bbcode-embed-full" data-size="full">BBCode full linked</option><option value="bbcode-embed-medium" data-size="medium">BBCode medium linked</option><option value="bbcode-embed-thumbnail" data-size="thumb">BBCode thumbnail linked</option></optgroup>
+</select>
+</div>
+<div id="uploaded-embed-toggle-combo">
+<div data-combo-value="viewer-links" class="switch-combo"><textarea id="uploaded-embed-code-0" class="r2 resize-vertical" name="viewer-links" data-size="viewer" data-focus="select-all"></textarea><button class="input-action" data-action="copy" data-action-target="#uploaded-embed-code-0">copy</button></div>
+<div data-combo-value="direct-links" class="switch-combo soft-hidden"><textarea id="uploaded-embed-code-1" class="r2 resize-vertical" name="direct-links" data-size="full" data-focus="select-all"></textarea><button class="input-action" data-action="copy" data-action-target="#uploaded-embed-code-1">copy</button></div>
+<div data-combo-value="html-embed" class="switch-combo soft-hidden"><textarea id="uploaded-embed-code-2" class="r2 resize-vertical" name="html-embed" data-size="full" data-focus="select-all"></textarea><button class="input-action" data-action="copy" data-action-target="#uploaded-embed-code-2">copy</button></div>
+<div data-combo-value="html-embed-full" class="switch-combo soft-hidden"><textarea id="uploaded-embed-code-3" class="r2 resize-vertical" name="html-embed-full" data-size="full" data-focus="select-all"></textarea><button class="input-action" data-action="copy" data-action-target="#uploaded-embed-code-3">copy</button></div>
+<div data-combo-value="html-embed-medium" class="switch-combo soft-hidden"><textarea id="uploaded-embed-code-4" class="r2 resize-vertical" name="html-embed-medium" data-size="medium" data-focus="select-all"></textarea><button class="input-action" data-action="copy" data-action-target="#uploaded-embed-code-4">copy</button></div>
+<div data-combo-value="html-embed-thumbnail" class="switch-combo soft-hidden"><textarea id="uploaded-embed-code-5" class="r2 resize-vertical" name="html-embed-thumbnail" data-size="thumb" data-focus="select-all"></textarea><button class="input-action" data-action="copy" data-action-target="#uploaded-embed-code-5">copy</button></div>
+<div data-combo-value="bbcode-embed" class="switch-combo soft-hidden"><textarea id="uploaded-embed-code-6" class="r2 resize-vertical" name="bbcode-embed" data-size="full" data-focus="select-all"></textarea><button class="input-action" data-action="copy" data-action-target="#uploaded-embed-code-6">copy</button></div>
+<div data-combo-value="bbcode-embed-full" class="switch-combo soft-hidden"><textarea id="uploaded-embed-code-7" class="r2 resize-vertical" name="bbcode-embed-full" data-size="full" data-focus="select-all"></textarea><button class="input-action" data-action="copy" data-action-target="#uploaded-embed-code-7">copy</button></div>
+<div data-combo-value="bbcode-embed-medium" class="switch-combo soft-hidden"><textarea id="uploaded-embed-code-8" class="r2 resize-vertical" name="bbcode-embed-medium" data-size="medium" data-focus="select-all"></textarea><button class="input-action" data-action="copy" data-action-target="#uploaded-embed-code-8">copy</button></div>
+<div data-combo-value="bbcode-embed-thumbnail" class="switch-combo soft-hidden"><textarea id="uploaded-embed-code-9" class="r2 resize-vertical" name="bbcode-embed-thumbnail" data-size="thumb" data-focus="select-all"></textarea><button class="input-action" data-action="copy" data-action-target="#uploaded-embed-code-9">copy</button></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="hidden">
+<div id="anywhere-upload-item-template">
+<li class="queue-item">
+<a class="block image-link" data-group="image-link" href="https://api.imgbb.com/#file" target="_blank"></a>
+<div class="result done block"><span class="icon icon-circle-check"></span></div>
+<div class="result failed block"><span class="icon icon-triangle-exclamation"></span></div>
+<div class="load-url block"><span class="big-icon icon-network-wired"></span></div>
+<div class="preview block"></div>
+<div class="progress block">
+<div class="progress-percent"><b data-text="progress-percent">0</b><span>%</span></div>
+<div class="progress-bar" data-content="progress-bar"></div>
+</div>
+<div class="block edit" data-action="edit" title="Edit">
+</div>
+<div class="queue-item-button edit" data-action="edit" title="Edit">
+<span class="icon icon-pen-to-square"></span>
+</div>
+<div class="queue-item-button cancel hover-display" data-action="cancel" title="Remove">
+<span class="icon icon-xmark"></span>
+</div>
+</li>
+</div>
+<div id="anywhere-upload-edit-item">
+<span class="modal-box-title">Edit</span>
+<div class="modal-form">
+<div class="image-preview"></div>
+<div class="input-label">
+<label for="form-title">Title <span class="optional">optional</span></label>
+<input type="text" id="form-title" name="form-title" class="text-input" value="" maxlength="100">
+</div>
+<div class="input-label" data-action="resize-combo-input">
+<label for="form-width" class="display-block-forced">Resize image</label>
+<div class="c6 overflow-auto clear-both">
+<div class="c3 float-left">
+<input type="number" min="16" pattern="\d+" name="form-width" id="form-width" class="text-input" title="Width" rel="template-tooltip" data-tiptip="top">
+</div>
+<div class="c3 float-left margin-left-10">
+<input type="number" min="16" pattern="\d+" name="form-height" id="form-height" class="text-input" title="Height" rel="template-tooltip" data-tiptip="top">
+</div>
+</div>
+<div class="input-below font-size-small" data-content="animated-gif-warning">Note: Animated GIF images won't be resized.</div>
+</div>
+<div class="input-label"><label for="form-description">Description <span class="optional">optional</span></label><textarea id="form-description" name="form-description" class="text-input no-resize" placeholder="Brief description of this image"></textarea></div>
+</div>
+</div>
+<div id="anywhere-upload-paste-url" data-submit-fn="CHV.fn.uploader.pasteURL"><span class="modal-box-title">Add image URLs</span><div class="modal-form"><textarea class="resize-vertical" placeholder="Add the image URLs here" name="urls"></textarea></div></div>
+</div>
+<div data-modal="form-uploaded-create-album" class="hidden" data-is-xhr="" data-submit-fn="CHV.fn.submit_upload_edit" data-ajax-deferred="CHV.fn.complete_upload_edit">
+<span class="modal-box-title">Create album</span>
+<p>The uploaded content will be moved to this newly created album. You can also move the content to an <a class="modal-switch" data-switch="move-existing-album">existing album</a>.</p>
+<div class="modal-form">
+<div name="move-existing-album" id="move-existing-album" data-view="switchable" class="c7 input-label soft-hidden">
+<label for="form-album-id">Existing album</label>
+<select name="form-album-id" id="form-album-id" class="text-input">
+	</select>
+<span class="btn-alt c7">or <a data-switch="move-new-album">create new album</a></span></div>
+<div name="move-new-album" id="move-new-album" data-content="form-new-album" data-view="switchable">
+<div class="c7 input-label">
+	    <label for="form-album-name">Album name</label>
+    <input type="text" name="form-album-name" class="text-input" value="" placeholder="Album name" maxlength="100" required="">
+	    <span data-action="album-switch" class="btn-alt c7">or <a data-switch="move-existing-album">move to existing album</a></span>
+	</div>
+<div class="input-label">
+	<label for="form-album-description">Album description <span class="optional">optional</span></label>
+	<textarea id="form-album-description" name="form-album-description" class="text-input no-resize" placeholder="Brief description of this album"></textarea>
+</div>
+<div class="input-label overflow-auto">
+    <div class="c7 grid-columns">
+		<label for="form-privacy">Album privacy</label>
+		<select name="form-privacy" id="form-privacy" class="text-input" data-combo="form-privacy-combo" rel="template-tooltip" data-tiptip="right" data-title="Who can view this content">
+<option value="public">Public</option><option value="private">Private (just me)</option><option value="private_but_link">Private (anyone with the link)</option><option value="password">Private (password protected)</option>		</select>
+	</div>
+</div>
+<div id="form-privacy-combo">
+	<div data-combo-value="password" class="switch-combo soft-hidden">
+		<div class="input-label overflow-auto">
+			<div class="c7 grid-columns">
+				<label for="form-album-password">Album password</label>
+				<input type="text" name="form-album-password" class="text-input" value="" data-required="">
+			</div>
+		</div>
+	</div>
+</div>
+</div>
+</div>
+</div>
+<div data-modal="form-uploaded-move-album" class="hidden" data-is-xhr="" data-submit-fn="CHV.fn.submit_upload_edit" data-ajax-deferred="CHV.fn.complete_upload_edit">
+<span class="modal-box-title">Move to album</span>
+<p>Select an existing album to move the uploaded content. You can also <a class="modal-switch" data-switch="move-new-album">create a new album</a> and move the content there.</p>
+<div class="modal-form">
+<div name="move-existing-album" id="move-existing-album" data-view="switchable" class="c7 input-label">
+<label for="form-album-id">Existing album</label>
+<select name="form-album-id" id="form-album-id" class="text-input">
+	</select>
+<span class="btn-alt c7">or <a data-switch="move-new-album">create new album</a></span></div>
+<div name="move-new-album" id="move-new-album" data-content="form-new-album" data-view="switchable" class="soft-hidden">
+<div class="c7 input-label">
+	    <label for="form-album-name">Album name</label>
+    <input type="text" name="form-album-name" class="text-input" value="" placeholder="Album name" maxlength="100" required="">
+	    <span data-action="album-switch" class="btn-alt c7">or <a data-switch="move-existing-album">move to existing album</a></span>
+	</div>
+<div class="input-label">
+	<label for="form-album-description">Album description <span class="optional">optional</span></label>
+	<textarea id="form-album-description" name="form-album-description" class="text-input no-resize" placeholder="Brief description of this album"></textarea>
+</div>
+<div class="input-label overflow-auto">
+    <div class="c7 grid-columns">
+		<label for="form-privacy">Album privacy</label>
+		<select name="form-privacy" id="form-privacy" class="text-input" data-combo="form-privacy-combo" rel="template-tooltip" data-tiptip="right" data-title="Who can view this content">
+<option value="public">Public</option><option value="private">Private (just me)</option><option value="private_but_link">Private (anyone with the link)</option><option value="password">Private (password protected)</option>		</select>
+	</div>
+</div>
+<div id="form-privacy-combo">
+	<div data-combo-value="password" class="switch-combo soft-hidden">
+		<div class="input-label overflow-auto">
+			<div class="c7 grid-columns">
+				<label for="form-album-password">Album password</label>
+				<input type="text" name="form-album-password" class="text-input" value="" data-required="">
+			</div>
+		</div>
+	</div>
+</div>
+</div>
+</div>
+</div>
+<div data-modal="failed-upload-result" class="hidden"><span class="modal-box-title">Error report</span><ul data-content="failed-upload-result" style="max-height: 115px;" class="overflow-auto"></ul></div>
+</div><div id="modal-share" class="hidden">
+<span class="modal-box-title">Share</span>
+<div class="image-preview"></div>
+<p class="highlight margin-bottom-20 font-size-small text-align-center" data-content="privacy-private">__privacy_notes__</p>
+<ul class="panel-share-networks">
+</ul>
+<div class="input-label margin-bottom-0">
+<label for="modal-share-url">Link</label>
+<div class="position-relative">
+<input type="text" name="modal-share-url" id="modal-share-url" class="text-input" value="__url__" data-focus="select-all" readonly="">
+<button class="input-action" data-action="copy" data-action-target="#modal-share-url" value="">copy</button>
+</div>
+</div>
+</div>
+<script defer="" src="./API — ImgBB_files/jquery2.js.download" onload="jQueryLoaded(this, event)"></script>
+<script defer="" src="./API — ImgBB_files/ibb.js.download" id="ibbjs"></script><script>
+document.getElementById("ibbjs").addEventListener("load", function () {
+PF.obj.devices = window.devices;
+PF.fn.window_to_device = window.window_to_device;
+PF.obj.config.base_url="https://api.imgbb.com";
+PF.obj.config.json_api="https://api.imgbb.com/json";
+PF.obj.config.listing.items_per_page="32";
+PF.obj.config.auth_token="c991215ecf79303c353d16dfff07a58d8785b707";
+PF.obj.l10n={"An error occurred. Please try again later.":["An error occurred. Please try again later."],"average":["average"],"cancel":["cancel"],"Check the errors in the form to continue.":["Check the errors in the form to continue."],"Clipboard image":["Clipboard image"],"Confirm":["Confirm"],"Confirm action":["Confirm action"],"continue anyway":["continue anyway"],"File too large.":["File too large."],"Go back to the form":["Go back to the form"],"Invalid content owner request":["Invalid content owner request"],"Invalid or unsupported file format.":["Invalid or unsupported file format."],"loading":["loading"],"image":["image"],"or":["or"],"Save changes":["Save changes"],"Saving":["Saving"],"Sending":["Sending"],"Some files couldn't be added":["Some files couldn't be added"],"Submit":["Submit"],"very weak":["very weak"],"weak":["weak"],"Album edited successfully.":["Album edited successfully."],"All the changes that you have made will be lost if you continue.":["All the changes that you have made will be lost if you continue."],"Profile background image deleted.":["Profile background image deleted."],"Profile background image updated.":["Profile background image updated."],"Profile image updated.":["Profile image updated."],"Unselect":["Unselect"],"Select":["Select"],"Select existing album":["Select existing album"],"The content has been deleted.":["The content has been deleted."],"The content has been edited.":["The content has been edited."],"The content has been moved.":["The content has been moved."]};
+CHV.obj.embed_tpl={"links":{"label":"Links","options":{"viewer-links":{"label":"Viewer links","template":"%URL_VIEWER%","size":"viewer"},"direct-links":{"label":"Direct links","template":"%URL%","size":"full"}}},"html-codes":{"label":"HTML Codes","options":{"html-embed":{"label":"HTML image","template":"<img src=\"%URL%\" alt=\"%NAME%\" border=\"0\">","size":"full"},"html-embed-full":{"label":"HTML full linked","template":"<a href=\"%URL_VIEWER%\"><img src=\"%URL%\" alt=\"%NAME%\" border=\"0\"><\/a>","size":"full"},"html-embed-medium":{"label":"HTML medium linked","template":"<a href=\"%URL_VIEWER_PREVIEW%\"><img src=\"%MEDIUM_URL%\" alt=\"%MEDIUM_NAME%\" border=\"0\"><\/a>","size":"medium"},"html-embed-thumbnail":{"label":"HTML thumbnail linked","template":"<a href=\"%URL_VIEWER_THUMB%\"><img src=\"%THUMB_URL%\" alt=\"%THUMB_NAME%\" border=\"0\"><\/a>","size":"thumb"}}},"bbcodes":{"label":"BBCodes","options":{"bbcode-embed":{"label":"BBCode full","template":"[img]%URL%[\/img]","size":"full"},"bbcode-embed-full":{"label":"BBCode full linked","template":"[url=%URL_VIEWER%][img]%URL%[\/img][\/url]","size":"full"},"bbcode-embed-medium":{"label":"BBCode medium linked","template":"[url=%URL_VIEWER_PREVIEW%][img]%MEDIUM_URL%[\/img][\/url]","size":"medium"},"bbcode-embed-thumbnail":{"label":"BBCode thumbnail linked","template":"[url=%URL_VIEWER_THUMB%][img]%THUMB_URL%[\/img][\/url]","size":"thumb"}}}};
+CHV.obj.config={"image":{"max_filesize":32000000,"load_max_filesize":8000000},"upload":{"image_types":["arw","avif","bmp","cr2","cr3","cur","cut","dcm","dds","dib","dng","emf","exr","fax","fig","fits","fpx","gbr","gd","gif","hdr","heic","heif","icns","ico","iff","ilbm","j2k","jpe","jpeg","jpg","jpf","jpm","jp2","jpx","jxl","miff","mng","mpo","nef","nrrd","orf","pbm","pcx","pdf","pgm","pic","pict","png","pnm","ppm","ps","psb","psd","qoi","raf","raw","rw2","sgi","sid","sr2","svg","tga","tif","tiff","vtf","webp","wmf","xbm","xcf","xpm","jpeg","tiff","heif"]},"listing":{"viewer":true},"user":{"avatar_max_filesize":1000000,"background_max_filesize":2000000}};CHV.obj.page_info={"doctitle":"API \u2014 ImgBB","pre_doctitle":"API","pos_doctitle":" \u2014 ImgBB"};
+CHV.obj.logged_user = {"name":"BoomBoom","username":"boomboom6","id":"Jnnpg4V7CHbL","url":"https:\/\/boomboom6.imgbb.com\/","url_albums":"https:\/\/boomboom6.imgbb.com\/albums"};
+ibb();
+});
+</script>
+
+<div contenteditable="true" id="anywhere-upload-paste"></div></body></html>

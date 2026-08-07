@@ -2551,9 +2551,31 @@ function queueSyncToSupabase(payload){
   return waitForThis;
 }
 
+/* Tracks whether the last push actually succeeded. Set on every edit,
+   cleared only when a push genuinely completes — not just attempted.
+   This is what makes "local changes will retry automatically" (the
+   message already shown elsewhere) actually true, instead of just
+   aspirational text: without this, a push that silently failed (most
+   commonly: an edit made in the first moment after page load, before
+   the auth check has actually confirmed a signed-in session yet —
+   syncToSupabase quietly gives up if currentUser/accessToken aren't set
+   yet) just sat there forever with nothing to ever retry it, unless you
+   happened to trigger another sync later. */
+let hasUnsyncedChanges = false;
+function retryUnsyncedChangesIfAny(){
+  if (!hasUnsyncedChanges || !SUPABASE_CONFIGURED || !currentUser || !accessToken) return;
+  queueSyncToSupabase(persistLocalState()).then(success => {
+    if (success) hasUnsyncedChanges = false;
+  });
+}
+// Safety net beyond event-driven retries below — catches anything missed
+// (e.g. a tab that's never refocused) within half a minute either way.
+setInterval(retryUnsyncedChangesIfAny, 30000);
+
 function persistTextState(){
   // Save to localStorage immediately (synchronous) — this is critical for data safety
   const payload = persistLocalState();
+  hasUnsyncedChanges = true;
 
   // Push to the cloud right away instead of debouncing (see
   // queueSyncToSupabase's comment for why this is safe against
@@ -2577,7 +2599,13 @@ function persistTextState(){
   // the edit, sidesteps both problems — it's already in flight by the
   // time this function returns, regardless of what happens a moment later.
   clearTimeout(persistTimeoutId);
-  queueSyncToSupabase(payload);
+  queueSyncToSupabase(payload).then(success => {
+    if (success) hasUnsyncedChanges = false;
+    // If it failed (offline, token not ready yet, transient server error),
+    // hasUnsyncedChanges stays true — retryUnsyncedChangesIfAny() picks
+    // it up the moment auth is confirmed ready, on the next focus/visibility
+    // return, or within 30s regardless via the interval above.
+  });
 }
 function applyPersistedPayload(parsed){
   if (!parsed || !parsed.tree) return;
@@ -2660,6 +2688,7 @@ async function doSync(opts){
   try {
     const payload = persistLocalState();
     const pushed = await queueSyncToSupabase(payload);
+    if (pushed) hasUnsyncedChanges = false;
     await restorePersistedState();
     srsMapCache = null;
     updateStarredCount();
@@ -7745,6 +7774,7 @@ async function initAuthAndApp(){
             renderAccountBox();
             await restorePersistedState();
             render();
+            retryUnsyncedChangesIfAny();
             return;
           }
         }
@@ -7766,6 +7796,7 @@ async function initAuthAndApp(){
       renderAccountBox();
       await restorePersistedState();
       render();
+      retryUnsyncedChangesIfAny();
     } else if (event === 'SIGNED_OUT'){
       if (withinAuthGracePeriod()){
         logAuthEvent('ignored-early-signed-out', 'moments after establishing a session — not bouncing');
@@ -7776,6 +7807,7 @@ async function initAuthAndApp(){
       sessionEstablishedAt = Date.now();
       accessToken = session.access_token;
       currentUser = session.user;
+      retryUnsyncedChangesIfAny(); // e.g. TOKEN_REFRESHED — exactly the moment a previously-stale token gets fixed
     }
   });
 
@@ -7802,6 +7834,7 @@ async function initAuthAndApp(){
     renderAccountBox();
     await restorePersistedState();
     render();
+    retryUnsyncedChangesIfAny();
   }, 4000);
 }
 
