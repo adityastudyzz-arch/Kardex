@@ -3105,6 +3105,17 @@ if (typeof document !== 'undefined'){
   window.addEventListener('pageshow', (e) => {
     if (e.persisted) autoSync(); // restored from bfcache — re-check as if freshly returned to
   });
+  // The actual gap this closes: going offline WHILE already sitting on
+  // the app, staying on that same tab the whole time (never switching
+  // away and back), then reconnecting. None of the listeners above ever
+  // fire in that case — there's no focus change, no visibility change,
+  // nothing to react to except the 30s safety-net timer, which only
+  // pushes pending local edits and never pulls. That means changes made
+  // elsewhere during the offline window could sit unseen indefinitely.
+  // The browser's own 'online' event exists specifically for this
+  // moment — listen for it directly instead of hoping some other event
+  // happens to coincide with reconnection.
+  window.addEventListener('online', autoSync);
 }
 function arrayBufferToBase64(buffer){
   let binary = '';
@@ -3978,7 +3989,13 @@ function renderStarredContent(){
   ) : allItems;
 
   if (!items.length){
-    el.innerHTML += `<div class="empty" style="margin-top:30px;"><div class="stamp">no matches</div></div>`;
+    // insertAdjacentHTML, not innerHTML += — the += pattern re-parses the
+    // ENTIRE existing DOM from a serialized string, which destroys the
+    // "Study all..." button appended just above (a real element with a
+    // .onclick closure attached) and replaces it with a lookalike that
+    // has no handler at all. Confirmed this exact bug in the empty-deck
+    // "Manage cards" view; same trap, same fix, applies here too.
+    el.insertAdjacentHTML('beforeend', `<div class="empty" style="margin-top:30px;"><div class="stamp">no matches</div></div>`);
     return;
   }
 
@@ -4106,7 +4123,13 @@ function renderToughContent(){
   ) : allItems;
 
   if (!items.length){
-    el.innerHTML += `<div class="empty" style="margin-top:30px;"><div class="stamp">no matches</div></div>`;
+    // insertAdjacentHTML, not innerHTML += — the += pattern re-parses the
+    // ENTIRE existing DOM from a serialized string, which destroys the
+    // "Study all..." button appended just above (a real element with a
+    // .onclick closure attached) and replaces it with a lookalike that
+    // has no handler at all. Confirmed this exact bug in the empty-deck
+    // "Manage cards" view; same trap, same fix, applies here too.
+    el.insertAdjacentHTML('beforeend', `<div class="empty" style="margin-top:30px;"><div class="stamp">no matches</div></div>`);
     return;
   }
 
@@ -4234,8 +4257,16 @@ function renderManageCards(){
   el.appendChild(header);
 
   if (!deck.cards.length){
-    el.innerHTML += `<div class="empty" style="margin-top:20px;"><div class="stamp">no cards yet</div>
-      <p class="mono" style="margin-top:16px; font-size:12.5px;">Add your first card to start this deck.</p></div>`;
+    // insertAdjacentHTML, not innerHTML +=. The += pattern serializes the
+    // WHOLE existing DOM back into a string and re-parses everything from
+    // scratch — which destroys the buttons appended just above (the real
+    // DOM element objects that notebookBtn.onclick etc. were attached to)
+    // and replaces them with visually identical clones that have no click
+    // handlers at all. They still looked right, which is exactly why this
+    // was easy to miss — insertAdjacentHTML appends without touching any
+    // existing element.
+    el.insertAdjacentHTML('beforeend', `<div class="empty" style="margin-top:20px;"><div class="stamp">no cards yet</div>
+      <p class="mono" style="margin-top:16px; font-size:12.5px;">Add your first card to start this deck.</p></div>`);
     return;
   }
 
@@ -5086,7 +5117,11 @@ function renderSearchResults(el){
   el.appendChild(label);
 
   if (!foldersFound.length && !decksFound.length && !cardsFound.length){
-    el.innerHTML += `<div class="empty"><div class="stamp">no matches</div></div>`;
+    // Same insertAdjacentHTML fix as the other two occurrences — no
+    // interactive element currently sits before this one, so this
+    // specific spot isn't actively broken today, but the += pattern is
+    // the same trap waiting for the next thing added above it.
+    el.insertAdjacentHTML('beforeend', `<div class="empty"><div class="stamp">no matches</div></div>`);
     return;
   }
 
@@ -5290,7 +5325,8 @@ function formatInlineMarkdownSegment(str){
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/__(.+?)__/g, '<u>$1</u>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/==(.+?)==/g, '<span class="highlight">$1</span>');
+    .replace(/==(.+?)==/g, '<span class="highlight">$1</span>')
+    .replace(/\n/g, '<br>'); // same reasoning as formatInlineMarkdown() — a bare \n otherwise just vanishes in HTML
   latexTokens.forEach((rendered, idx) => html = html.replace(`##LATEX_${idx}##`, rendered));
   return html;
 }
@@ -5533,6 +5569,14 @@ function formatInlineMarkdown(str) {
     .replace(/__(.+?)__/g, '<u>$1</u>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/==(.+?)==/g, '<span class="highlight">$1</span>');
+  // A line break typed in the card editor (or a Shift+Enter carried over
+  // from a Word import) used to just vanish here — HTML collapses a bare
+  // \n by default, so nothing enforced it becoming a visible line break
+  // in the rendered card. This is safe to do now, not before the block
+  // above: everything else on this line is either escaped text or a
+  // ##TOKEN## placeholder, neither of which can legitimately contain a
+  // literal newline of its own.
+  html = html.replace(/\n/g, '<br>');
 
   htmlTableTokens.forEach((table, idx) => html = html.replace(`##HTMLTABLE_${idx}##`, table));
   listTokens.forEach((list, idx) => html = html.replace(`##LIST_${idx}##`, list));
@@ -5696,7 +5740,15 @@ function normalizeDocumentCard(item){
   const links = Array.isArray(item.links) ? item.links : [];
   const img = item.img && typeof item.img === 'object' ? { front: item.img.front || null, back: item.img.back || null } : { front:null, back:null };
   if (type === 'cloze'){
-    const clozeSource = (item.cloze ?? '').toString().trim();
+    // item.cloze is what the JSON-import format uses (see Settings' own
+    // documented shape: {question, answer, tags, type, cloze, links});
+    // item.clozeSource is what the docx parser above actually produces.
+    // Reading only "cloze" here meant every cloze card coming from a
+    // Word import was always empty — clozeToFB('') on the missing field
+    // silently returns blank question/answer — regardless of anything
+    // else about the source document. Pre-existing bug, unrelated to
+    // the formatting work above; just happened to surface while testing it.
+    const clozeSource = (item.clozeSource ?? item.cloze ?? '').toString().trim();
     const { f, b } = clozeToFB(clozeSource);
     return { refId: item.id ?? null, type:'cloze', question:f, answer:b, clozeSource, tags, links, img };
   }
@@ -5706,23 +5758,139 @@ function normalizeDocumentCard(item){
 function normalizeWordText(text){
   return (text || '').replace(/\s+/g, ' ').trim();
 }
-
+// Same idea as normalizeWordText, but preserves intentional line breaks
+// (from a Shift+Enter <br> in the source) instead of collapsing them
+// into spaces — needed once extractWordDocBlocks() started producing
+// markdown text that can legitimately contain \n.
+function normalizeWordMarkdownText(text){
+  return (text || '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+/* Recursively converts a DOM node (from Mammoth's docx→HTML output) into
+   the app's OWN card markdown syntax — **bold**, *italic*, __underline__
+   — so Word formatting actually survives into how the card renders,
+   instead of being stripped to plain text the way a plain .textContent
+   read always did. <br> (a Shift+Enter soft line break in Word) becomes
+   a literal \n, which formatInlineMarkdown() now turns into a real
+   visual line break too (see the comment there). */
+function wordNodeToCardMarkdown(node){
+  let out = '';
+  node.childNodes.forEach(child => {
+    if (child.nodeType === Node.TEXT_NODE){
+      out += child.textContent;
+      return;
+    }
+    if (child.nodeType !== Node.ELEMENT_NODE) return;
+    const tag = child.tagName.toLowerCase();
+    if (tag === 'br'){ out += '\n'; return; }
+    if (tag === 'img') return; // images are extracted separately, never part of the text flow
+    const inner = wordNodeToCardMarkdown(child);
+    if (!inner) return;
+    if (tag === 'strong' || tag === 'b') out += `**${inner}**`;
+    else if (tag === 'u') out += `__${inner}__`;
+    else if (tag === 'em' || tag === 'i') out += `*${inner}*`;
+    else out += inner; // span, a, sup, sub, etc. — no equivalent in the app's syntax, keep the text plain
+  });
+  return out;
+}
+/* Flattens a (possibly nested) <ul>/<ol> into the app's own indented list
+   lines ("- item" / "1. item"), two spaces per indent level to match
+   renderListFromLines()'s own indent math — recursing into any list
+   nested inside an <li> one level deeper. */
+function wordListToMarkdownLines(listEl, depth){
+  const ordered = listEl.tagName.toLowerCase() === 'ol';
+  const indent = '  '.repeat(depth);
+  const lines = [];
+  let n = 1;
+  Array.from(listEl.children).forEach(li => {
+    if (li.tagName.toLowerCase() !== 'li') return;
+    // This <li>'s own text only — excluding any list nested inside it,
+    // which gets walked separately right below, one level deeper.
+    const ownNode = li.cloneNode(true);
+    ownNode.querySelectorAll('ul, ol').forEach(nested => nested.remove());
+    const text = normalizeWordMarkdownText(wordNodeToCardMarkdown(ownNode));
+    const marker = ordered ? `${n}.` : '-';
+    if (text){ lines.push(`${indent}${marker} ${text}`); if (ordered) n++; }
+    const nestedList = Array.from(li.children).find(c => c.tagName === 'UL' || c.tagName === 'OL');
+    if (nestedList) lines.push(...wordListToMarkdownLines(nestedList, depth + 1));
+  });
+  return lines;
+}
+/* Converts a <table> into the app's own pipe-table markdown
+   ("| a | b |\n|---|---|\n| c | d |"), each cell's own bold/italic/
+   underline preserved via wordNodeToCardMarkdown() rather than
+   flattened to plain text. A cell can't contain a literal newline or
+   pipe without breaking the one-line-per-row format, so those get
+   folded to a space / slash rather than corrupting the table structure. */
+function wordTableToMarkdownLines(tableEl){
+  const rows = Array.from(tableEl.querySelectorAll('tr')).map(tr =>
+    Array.from(tr.children)
+      .filter(c => c.tagName === 'TD' || c.tagName === 'TH')
+      .map(cell => {
+        const raw = normalizeWordMarkdownText(wordNodeToCardMarkdown(cell));
+        return (raw.replace(/\|/g, '/').replace(/\n/g, ' ')) || ' ';
+      })
+  );
+  if (!rows.length) return [];
+  const colCount = Math.max(...rows.map(r => r.length));
+  const pad = row => { while (row.length < colCount) row.push(' '); return row; };
+  const lines = [];
+  lines.push('| ' + pad(rows[0]).join(' | ') + ' |');
+  lines.push('|' + Array(colCount).fill('---').join('|') + '|');
+  rows.slice(1).forEach(r => lines.push('| ' + pad(r).join(' | ') + ' |'));
+  return lines;
+}
 function extractWordDocBlocks(html){
   const container = document.createElement('div');
   container.innerHTML = html || '';
   const blocks = [];
-  const nodes = Array.from(container.querySelectorAll('p, li, h1, h2, h3'));
+  const nodes = Array.from(container.querySelectorAll('p, li, h1, h2, h3, ul, ol, table'));
   nodes.forEach(node => {
-    const text = normalizeWordText(node.textContent || '');
-    // Ignore blocks that only contain "[image]" (common from Word)
-    if (/^\s*\[image\]\s*$/i.test(text)) return;
+    const tag = node.tagName.toLowerCase();
+
+    if (tag === 'table'){
+      const lines = wordTableToMarkdownLines(node);
+      if (lines.length) blocks.push({ text: lines.join('\n'), images: [] });
+      return;
+    }
+    // Anything else living inside a table (a paragraph inside a cell,
+    // say) is already covered by that table's own block above — walking
+    // it again here would duplicate it as a second, separate block.
+    if (node.closest('table')) return;
+
+    if (tag === 'li') return; // handled by its containing <ul>/<ol> below
+    if (tag === 'ul' || tag === 'ol'){
+      if (node.closest('li')) return; // nested list — walked recursively by its parent <li>'s pass, not as its own top-level block
+      const lines = wordListToMarkdownLines(node, 0);
+      if (lines.length) blocks.push({ text: lines.join('\n'), images: [] });
+      return;
+    }
+
     const images = Array.from(node.querySelectorAll('img')).map(img => {
       const src = img.getAttribute('src') || '';
       const mimeType = src.match(/^data:(image\/[^;]+);base64,/i)?.[1] || 'image/png';
       return { src, mimeType };
     });
-    if (text || images.length) {
-      blocks.push({ text, images });
+    const text = normalizeWordMarkdownText(wordNodeToCardMarkdown(node));
+    // Ignore blocks that only contain "[image]" (common from Word)
+    if (/^\s*\[image\]\s*$/i.test(text)) {
+      if (images.length) blocks.push({ text: '', images });
+      return;
+    }
+    // A line that's purely a divider ("--", "---", "___", "***", ...) is a
+    // common, completely normal way to visually separate entries in a
+    // document. Treat it as a blank line, not literal question text —
+    // without this, each divider silently became its own spurious empty
+    // card (confirmed: a real docx using "--" between entries produced
+    // two junk cards alongside the real ones).
+    const isPureDivider = /^\s*[-_*]{2,}\s*$/.test(text);
+    const effectiveText = isPureDivider ? '' : text;
+    if (effectiveText || images.length) {
+      blocks.push({ text: effectiveText, images });
     }
   });
   return blocks;
@@ -5741,7 +5909,18 @@ async function parseWordDocxBlocksToCards(blocks) {
   const cards = [];
   const hasQALabel = blocks.some(block => /\bQ\s*:/i.test(block.text) || /\bA\s*:/i.test(block.text));
 
-  const nl = (s) => (s || '').replace(/\s+/g, ' ').trim();
+  // Preserves line breaks (so a Shift+Enter from the source, or the
+  // \n between list-item lines, survives into the saved card) while
+  // still collapsing runs of spaces/tabs and trimming — this used to
+  // collapse ALL whitespace including newlines into single spaces,
+  // which is exactly what was silently erasing every line break and
+  // running every list item onto one line.
+  const nl = (s) => (s || '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
   const stripLabel = (text, label) => nl(text.replace(new RegExp(`\\b${label}\\s*:`,'i'), '')).replace(/^[-•]\s*/, '');
   const parseTagsAndLinks = (text) => {
     const tags = []; const links = [];
@@ -5777,16 +5956,36 @@ async function parseWordDocxBlocksToCards(blocks) {
       }
       const frontImg = carryImages[0] || block.images?.[0] || null;
       const imgHash = frontImg ? await storeImage(frontImg) : null;
-      cards.push({
-        id: cards.length + 1,
-        type: 'basic',
-        question: block.text || '',
-        answer: '',
-        tags: [],
-        links: [],
-        img: { front: imgHash, back: null },
-        clozeSource: null
-      });
+      // A paragraph containing literal [[double-bracket]] text — typed
+      // directly as plain characters, not any special Word formatting —
+      // is meant as a cloze card, the same way it already works in the
+      // labeled Q/A branch below. This mode used to just ignore that
+      // entirely and treat the whole paragraph as an ordinary blank-
+      // answer question.
+      if (/\[\[(.+?)\]\]/.test(block.text || '')) {
+        const { f, b } = clozeToFB(block.text);
+        cards.push({
+          id: cards.length + 1,
+          type: 'cloze',
+          question: f,
+          answer: b,
+          clozeSource: block.text,
+          tags: [],
+          links: [],
+          img: { front: imgHash, back: null }
+        });
+      } else {
+        cards.push({
+          id: cards.length + 1,
+          type: 'basic',
+          question: block.text || '',
+          answer: '',
+          tags: [],
+          links: [],
+          img: { front: imgHash, back: null },
+          clozeSource: null
+        });
+      }
       carryImages = [];
     }
     if (carryImages.length && cards.length){
@@ -5824,7 +6023,18 @@ async function parseWordDocxBlocksToCards(blocks) {
     const hasA = /\bA\s*:/i.test(text);
     const hasCloze = /\[\[(.+?)\]\]/.test(text);
 
-    if (hasCloze) {
+    // Only treat this as a fresh standalone cloze card (the deck-level
+    // "type: cloze" convention, no Q:/A: labels involved at all) when
+    // it's not actually part of an ongoing Q/A flow. Without the
+    // !current / !hasQ / !hasA guards here, an "A:" line that happened
+    // to contain literal [[double brackets]] — not meant as a cloze at
+    // all, just coincidental text — would silently throw away whatever
+    // "Q:" card was already in progress (current got reset to null with
+    // that card never pushed) and build a broken cloze card from the
+    // "A: ..." text instead, prefix and all. Letting a label always win
+    // means the bracket text just stays as ordinary literal text in
+    // that case instead — visible, but at least the card survives.
+    if (hasCloze && !current && !hasQ && !hasA) {
       const source = nl(text);
       const { f, b } = clozeToFB(source);
       const frontImg = carryImages[0] || images[0] || null;
@@ -5840,6 +6050,40 @@ async function parseWordDocxBlocksToCards(blocks) {
         img: {
           front: frontImg ? await storeImage(frontImg) : null,
           back: backImg ? await storeImage(backImg) : null
+        }
+      };
+      cards.push(card);
+      carryImages = [];
+      current = null;
+      continue;
+    }
+
+    if (hasQ && hasCloze && !hasA) {
+      // "Q: ... [[blank]] ..." — a shortcut for a cloze card that skips
+      // the separate no-label paragraph convention entirely. A cloze
+      // card generates its own front/back from one source text, so it
+      // never actually needed a following "A:" line — this just lets
+      // people keep using the familiar "Q:" prefix instead of having to
+      // remember a completely different, label-less paragraph style
+      // just for cloze cards specifically.
+      if (current && current.answer) {
+        cards.push(current);
+        current = null;
+      }
+      const source = nl(stripLabel(text, 'Q'));
+      const { f, b } = clozeToFB(source);
+      const frontImg = carryImages[0] || images[0] || null;
+      const card = {
+        id: cards.length + 1,
+        type: 'cloze',
+        question: f,
+        answer: b,
+        clozeSource: source,
+        tags: tagMeta.tags,
+        links: tagMeta.links,
+        img: {
+          front: frontImg ? await storeImage(frontImg) : null,
+          back: null
         }
       };
       cards.push(card);
@@ -5894,7 +6138,11 @@ async function parseWordDocxBlocksToCards(blocks) {
     }
 
     if (current && !current.answer) {
-      current.question = nl(current.question + ' ' + text);
+      // Join with a real line break, not a space — this is what keeps a
+      // question's own line visually separate from, say, a list or table
+      // that continues in a following paragraph, instead of running
+      // everything on together as one line.
+      current.question = nl(current.question + '\n' + text);
       if (!current.img.front && (carryImages[0] || images[0])) {
         current.img.front = await storeImage(carryImages[0] || images[0]);
       }
@@ -5903,7 +6151,7 @@ async function parseWordDocxBlocksToCards(blocks) {
     }
 
     if (current && current.answer) {
-      current.answer = nl(current.answer + ' ' + text);
+      current.answer = nl(current.answer + '\n' + text);
       if (!current.img.back && (carryImages[0] || images[0])) {
         current.img.back = await storeImage(carryImages[0] || images[0]);
       }
@@ -5912,6 +6160,26 @@ async function parseWordDocxBlocksToCards(blocks) {
     }
 
     if (!current) {
+      // In a document that's already using Q:/A: labels, a block with no
+      // label of its own — arriving right after a card was just
+      // completed — is almost always meant as more of that answer (a
+      // list or table that logically belongs with it, in its own
+      // paragraph), not a deliberate new question. A genuine new
+      // question in a labeled document always starts with "Q:", so this
+      // is a safe assumption, and it's what actually lets something like
+      // "A: Follow these steps:" immediately followed by a bulleted list
+      // end up as ONE card instead of silently splitting into two — the
+      // list orphaned into its own empty-answer card, disconnected from
+      // the answer it was actually part of.
+      if (cards.length) {
+        const last = cards[cards.length - 1];
+        last.answer = nl((last.answer || '') + '\n' + text);
+        if (!last.img.back && (carryImages[0] || images[0])) {
+          last.img.back = await storeImage(carryImages[0] || images[0]);
+        }
+        carryImages = [];
+        continue;
+      }
       const frontImg = carryImages[0] || images[0] || null;
       const plain = {
         id: cards.length + 1,
@@ -5950,7 +6218,20 @@ async function parseWordDocxBlocksToCards(blocks) {
 async function parseDocxFile(file){
   if (!window.mammoth) throw new Error('Mammoth.js failed to load.');
   const arrayBuffer = await file.arrayBuffer();
-  const result = await mammoth.convertToHtml({ arrayBuffer });
+  // Mammoth ignores underline by default (its own docs: "underlining of
+  // any text is ignored since underlining can be confused with links in
+  // HTML documents") — this style map turns it back on, so it survives
+  // as <u> in the HTML for extractWordDocBlocks() to pick up below.
+  //
+  // Known limitation, worth being upfront about rather than silently
+  // dropping: Mammoth's base library has no support at all for Word's
+  // highlight color or native equation objects (OMML) — neither convert
+  // to anything, with or without a style map; that would need a
+  // different conversion library entirely. Literal "$x^2$" typed as
+  // plain text (not inserted via Word's Equation Editor) still works
+  // fine, since that's the app's own LaTeX syntax being read verbatim,
+  // nothing docx-specific about it.
+  const result = await mammoth.convertToHtml({ arrayBuffer }, { styleMap: ['u => u'] });
   const blocks = extractWordDocBlocks(result.value);
   if (!blocks.length) throw new Error('That DOCX file looks empty.');
   const cards = await parseWordDocxBlocksToCards(blocks);
