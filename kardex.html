@@ -2514,30 +2514,70 @@ async function syncToSupabase(payload){
   }
 }
 
+/* Pushes are serialized through this queue — never more than one request
+   in flight at a time — specifically to prevent a real bug: firing each
+   push independently meant a slower EARLIER request could finish AFTER a
+   faster LATER one (ordinary network jitter, nothing exotic), and since
+   each push just overwrites the cloud row with whatever payload it was
+   carrying, the stale one would win — silently erasing a newer change.
+   That's exactly what removing the old debounce accidentally exposed: the
+   debounce had been hiding this by cancelling any pending timer before
+   scheduling a new one, so only one request was ever in flight. This
+   queue gets that same guarantee back without reintroducing the delay —
+   the first call in a burst still starts immediately; anything that
+   arrives while it's in flight is coalesced into "whatever's newest" and
+   sent the instant the current request finishes, never abandoned or
+   allowed to race it.
+
+   Every push path in the app (the automatic push after each edit, and
+   the manual/auto-sync button) goes through this same queue — a direct
+   call to syncToSupabase() anywhere else would reintroduce the exact
+   race this exists to prevent. */
+let syncQueueTail = Promise.resolve();
+let latestPendingSyncPayload = null;
+let latestPendingSyncWaiters = [];
+function queueSyncToSupabase(payload){
+  latestPendingSyncPayload = payload;
+  const waitForThis = new Promise((resolve) => { latestPendingSyncWaiters.push(resolve); });
+  syncQueueTail = syncQueueTail.then(async () => {
+    if (latestPendingSyncPayload === null) return; // already sent by an earlier link in the chain
+    const toSend = latestPendingSyncPayload;
+    const waiters = latestPendingSyncWaiters;
+    latestPendingSyncPayload = null;
+    latestPendingSyncWaiters = [];
+    const result = await syncToSupabase(toSend);
+    waiters.forEach(resolve => resolve(result));
+  }).catch(err => console.error('Sync queue error', err));
+  return waitForThis;
+}
+
 function persistTextState(){
   // Save to localStorage immediately (synchronous) — this is critical for data safety
   const payload = persistLocalState();
 
-  // Push to the cloud right away instead of debouncing. Every call site of
-  // this function is a discrete, deliberate action (create a deck, save a
-  // card, grade a card, toggle starred, ...) — never continuous typing —
-  // so there was never a real rapid-fire scenario the old 500ms debounce
-  // was protecting against. It was pure delay with no upside, and that
-  // delay is exactly what caused a real gap: create something on one
-  // device, immediately open a *different* device fresh, and the new
-  // thing might not have reached the cloud yet.
+  // Push to the cloud right away instead of debouncing (see
+  // queueSyncToSupabase's comment for why this is safe against
+  // out-of-order completion, which naive "just remove the debounce"
+  // is not). Every call site of this function is a discrete, deliberate
+  // action (create a deck, save a card, grade a card, toggle starred,
+  // ...) — never continuous typing — so there was never a real
+  // rapid-fire scenario the old 500ms debounce was protecting against.
+  // It was pure delay with no upside, and that delay is exactly what
+  // caused a real gap: create something on one device, immediately open
+  // a *different* device fresh, and the new thing might not have
+  // reached the cloud yet.
   //
-  // Worse, deferring via setTimeout was itself unreliable here on top of
-  // that: browsers throttle timers in backgrounded tabs, which is exactly
-  // what happens the instant you switch away to another device — so even
-  // the short debounce window could silently stretch far longer than
+  // Deferring via setTimeout was also unreliable here on its own terms:
+  // browsers throttle timers in backgrounded tabs, which is exactly what
+  // happens the instant you switch away to another device — so even a
+  // short debounce window could silently stretch far longer than
   // intended. And the beforeunload handler meant to flush it doesn't
-  // reliably fire on mobile when you just switch apps rather than closing
-  // the tab. Firing the push synchronously, in the same call as the edit,
-  // sidesteps both problems — it's already in flight by the time this
-  // function returns, regardless of what happens a moment later.
+  // reliably fire on mobile when you just switch apps rather than
+  // closing the tab. Firing the push synchronously, in the same call as
+  // the edit, sidesteps both problems — it's already in flight by the
+  // time this function returns, regardless of what happens a moment later.
   clearTimeout(persistTimeoutId);
-  syncToSupabase(payload);
+  queueSyncToSupabase(payload);
 }
 function applyPersistedPayload(parsed){
   if (!parsed || !parsed.tree) return;
@@ -2619,7 +2659,7 @@ async function doSync(opts){
   if (btn) btn.classList.add('syncing');
   try {
     const payload = persistLocalState();
-    const pushed = await syncToSupabase(payload);
+    const pushed = await queueSyncToSupabase(payload);
     await restorePersistedState();
     srsMapCache = null;
     updateStarredCount();
