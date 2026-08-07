@@ -2517,12 +2517,27 @@ async function syncToSupabase(payload){
 function persistTextState(){
   // Save to localStorage immediately (synchronous) — this is critical for data safety
   const payload = persistLocalState();
-  
-  // Debounce the Supabase sync to avoid hammering the network on rapid edits
+
+  // Push to the cloud right away instead of debouncing. Every call site of
+  // this function is a discrete, deliberate action (create a deck, save a
+  // card, grade a card, toggle starred, ...) — never continuous typing —
+  // so there was never a real rapid-fire scenario the old 500ms debounce
+  // was protecting against. It was pure delay with no upside, and that
+  // delay is exactly what caused a real gap: create something on one
+  // device, immediately open a *different* device fresh, and the new
+  // thing might not have reached the cloud yet.
+  //
+  // Worse, deferring via setTimeout was itself unreliable here on top of
+  // that: browsers throttle timers in backgrounded tabs, which is exactly
+  // what happens the instant you switch away to another device — so even
+  // the short debounce window could silently stretch far longer than
+  // intended. And the beforeunload handler meant to flush it doesn't
+  // reliably fire on mobile when you just switch apps rather than closing
+  // the tab. Firing the push synchronously, in the same call as the edit,
+  // sidesteps both problems — it's already in flight by the time this
+  // function returns, regardless of what happens a moment later.
   clearTimeout(persistTimeoutId);
-  persistTimeoutId = setTimeout(() => {
-    syncToSupabase(payload);
-  }, 500); // wait 500ms of inactivity before syncing to cloud
+  syncToSupabase(payload);
 }
 function applyPersistedPayload(parsed){
   if (!parsed || !parsed.tree) return;
@@ -7757,13 +7772,11 @@ window.addEventListener('beforeunload', ()=> {
   // current card right now, so resuming later picks up from here rather
   // than from zero or from wherever real time happens to be by then.
   if (state.studying) savePendingSession();
-  // On page unload, make sure we save to localStorage and flush any pending Supabase sync
-  const payload = persistLocalState();
-  if (persistTimeoutId) {
-    clearTimeout(persistTimeoutId);
-    // Attempt to sync before leaving (fire-and-forget, doesn't block unload)
-    syncToSupabase(payload);
-  }
+  // persistTextState() now pushes to the cloud immediately on every edit
+  // (see its own comment for why) rather than deferring via a debounce
+  // timer, so there's nothing left pending here to flush — this just
+  // covers the very last local-only save as a final safety net.
+  persistLocalState();
 });
 </script>
 </body>
