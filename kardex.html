@@ -2568,20 +2568,34 @@ async function restorePersistedState(){
     console.warn('Could not restore local backup', err);
   }
 }
-/* Manual "Sync" button in the topbar — an on-demand version of the
-   push/pull that already happens automatically (debounced push on every
-   edit, pull once on load). Pushes first so the cloud has this device's
+/* Push/pull with the cloud — pushes first so the cloud has this device's
    latest before pulling, so the pull can't clobber a change made a
    moment ago; then pulls, in case another device pushed something newer
-   in the meantime. */
+   in the meantime.
+
+   Two ways this runs:
+   - manualSync(): the topbar button — always shows a toast, success or
+     failure, since the person explicitly asked for it.
+   - autoSync(): fires automatically when you come back to the app (tab
+     regains focus/visibility) — silent on success (nobody wants a toast
+     every time they alt-tab back), but still shows one on failure, since
+     a silently-broken sync is worse than a mildly noisy one.
+
+   This is what actually closes the "edits on my phone don't show up on
+   my laptop" gap — the old design only ever synced on page load and on
+   a manual tap, so a laptop already sitting open had no way to know
+   anything changed until you remembered to hit the button. Auto-syncing
+   on return-to-app means it catches up the moment you switch back to it,
+   without needing a true real-time/websocket layer. */
 let syncInFlight = false;
-async function manualSync(){
+async function doSync(opts){
+  opts = opts || {};
   if (!SUPABASE_CONFIGURED){
-    showToast("Cloud sync isn't set up for this app yet — local only.");
+    if (!opts.silent) showToast("Cloud sync isn't set up for this app yet — local only.");
     return;
   }
   if (!currentUser){
-    showToast('Sign in to sync with the cloud.');
+    if (!opts.silent) showToast('Sign in to sync with the cloud.');
     return;
   }
   if (syncInFlight) return;
@@ -2597,22 +2611,48 @@ async function manualSync(){
     updateToughCount();
     renderResumeButtons();
     if (!state.studying) render();
-    showToast(pushed ? 'Synced with the cloud' : 'Synced from the cloud (local changes will retry automatically)');
+    if (!opts.silent){
+      showToast(pushed ? 'Synced with the cloud' : 'Synced from the cloud (local changes will retry automatically)');
+    }
     // Also catch up any images added before cloud image sync existed (or
     // added while it happened to be briefly misconfigured) — runs in the
-    // background rather than being awaited here, so the sync button
-    // doesn't sit spinning through however many images that turns out to
-    // be; it reports its own toast once it's done. Safe to call every
-    // time this button is pressed — anything already synced is skipped
-    // immediately, so repeated syncs cost nothing extra.
+    // background rather than being awaited here, so this doesn't sit
+    // waiting through however many images that turns out to be; it
+    // reports its own toast once it's done. Safe to call every time —
+    // anything already synced is skipped immediately, so repeated calls
+    // cost nothing extra.
     migrateLocalImagesToCloud();
   } catch (err) {
-    console.error('Manual sync failed', err);
+    console.error('Sync failed', err);
+    // Failures always surface, even for the silent auto-sync path — a
+    // sync that's silently broken is worse than one that's mildly noisy.
     showToast('Sync failed — check your connection and try again');
   } finally {
     syncInFlight = false;
     if (btn) btn.classList.remove('syncing');
   }
+}
+function manualSync(){
+  return doSync({ silent: false });
+}
+let lastAutoSyncAt = 0;
+const AUTO_SYNC_MIN_INTERVAL_MS = 15000; // don't re-sync more than once per 15s even if focus/visibility fire repeatedly
+function autoSync(){
+  if (!SUPABASE_CONFIGURED || !currentUser) return;
+  if (state.studying) return; // don't yank a live study session's data out from under it mid-card
+  const now = Date.now();
+  if (now - lastAutoSyncAt < AUTO_SYNC_MIN_INTERVAL_MS) return;
+  lastAutoSyncAt = now;
+  doSync({ silent: true });
+}
+if (typeof document !== 'undefined'){
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') autoSync();
+  });
+  window.addEventListener('focus', autoSync);
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) autoSync(); // restored from bfcache — re-check as if freshly returned to
+  });
 }
 function arrayBufferToBase64(buffer){
   let binary = '';
