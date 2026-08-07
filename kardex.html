@@ -366,6 +366,16 @@ button{font-family:inherit;cursor:pointer;}
   0%, 100%{ box-shadow:0 0 0 0 rgba(47,111,98,.28); }
   50%{ box-shadow:0 0 0 5px rgba(47,111,98,0); }
 }
+#offlineIndicator{
+  display:flex; align-items:center; gap:5px;
+  padding:6px 11px; border-radius:20px;
+  border:1px solid rgba(155,59,52,.35);
+  background:rgba(155,59,52,.08);
+  color:var(--maroon);
+  font-size:11.5px; font-weight:600;
+  white-space:nowrap; flex-shrink:0;
+}
+#offlineIndicator svg{ flex-shrink:0; }
 
 /* ---------- Mobile search overlay: blurred backdrop, bar + results ---------- */
 .search-overlay{
@@ -1616,6 +1626,10 @@ button{font-family:inherit;cursor:pointer;}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         <span id="resumeStudyBtnLabel">Resume</span>
       </button>
+      <div id="offlineIndicator" style="display:none;" title="No internet connection — changes are saved locally and will sync once you're back online">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+        <span>Offline</span>
+      </div>
       <button class="action-btn icon-only" id="syncBtn" onclick="manualSync()" aria-label="Sync" title="Sync with the cloud">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
       </button>
@@ -3105,6 +3119,17 @@ if (typeof document !== 'undefined'){
   window.addEventListener('pageshow', (e) => {
     if (e.persisted) autoSync(); // restored from bfcache — re-check as if freshly returned to
   });
+  // Visible feedback that something real is actually happening, not just
+  // a background assumption — shows the moment connectivity drops, hides
+  // the moment it's back. Checked once immediately too, in case the page
+  // itself loaded while already offline (the service worker below is
+  // what makes that loadable at all).
+  function updateOfflineIndicator(){
+    const el = document.getElementById('offlineIndicator');
+    if (el) el.style.display = navigator.onLine ? 'none' : 'flex';
+  }
+  window.addEventListener('offline', updateOfflineIndicator);
+  updateOfflineIndicator();
   // The actual gap this closes: going offline WHILE already sitting on
   // the app, staying on that same tab the whole time (never switching
   // away and back), then reconnecting. None of the listeners above ever
@@ -3115,7 +3140,18 @@ if (typeof document !== 'undefined'){
   // The browser's own 'online' event exists specifically for this
   // moment — listen for it directly instead of hoping some other event
   // happens to coincide with reconnection.
-  window.addEventListener('online', autoSync);
+  window.addEventListener('online', () => { updateOfflineIndicator(); autoSync(); });
+}
+if ('serviceWorker' in navigator){
+  // Registered directly here, NOT wrapped in a window 'load' listener —
+  // confirmed by testing that document.readyState is already
+  // 'complete' by the time this line runs (this script sits near the
+  // very end of a large document, after everything else, including the
+  // CDN script tags, has already finished loading). A 'load' listener
+  // attached after the event it's listening for has already fired
+  // simply never gets called — which is exactly what silently broke
+  // registration the first time this was written.
+  navigator.serviceWorker.register('sw.js').catch(err => console.warn('Service worker registration failed — offline page loading won\'t work, but everything else is unaffected', err));
 }
 function arrayBufferToBase64(buffer){
   let binary = '';
