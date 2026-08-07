@@ -2138,6 +2138,28 @@ function storageExtCandidates(){
 // Fire-and-forget: mirrors a locally-cached image up to Storage so other
 // devices can find it. Safe to call repeatedly — a duplicate upload for a
 // hash that's already there is treated as a no-op, not an error.
+/* Image cloud sync can fail for an entire session at once — most
+   commonly because the "kardex-images" Storage bucket hasn't been
+   created in this Supabase project yet. Every image saved after that
+   would otherwise dump its own full StorageApiError to the console,
+   which reads exactly like "your image didn't save" even though each
+   one is already safely written to local IndexedDB before this ever
+   runs (see storeImageFromDataUrl below — the local write is
+   unconditional and happens first; this is a fire-and-forget mirror on
+   top of it, not a dependency). Warn once per session instead, in plain
+   language, rather than repeating a scary raw error per image. */
+let cloudImageSyncWarnedOnce = false;
+function warnImageCloudSyncFailed(err){
+  if (cloudImageSyncWarnedOnce) return;
+  cloudImageSyncWarnedOnce = true;
+  const bucketMissing = /bucket not found/i.test((err && err.message) || '');
+  console.warn(
+    bucketMissing
+      ? 'Image cloud sync is unavailable this session — the "kardex-images" Storage bucket doesn\'t exist in this Supabase project yet. Images are still saved locally on this device; they just won\'t sync to other devices until that bucket is created (Supabase dashboard → Storage → New bucket → name it exactly "kardex-images").'
+      : 'Image cloud sync failed — images are still saved locally on this device.',
+    err
+  );
+}
 async function uploadImageToCloud(hash, mimeType, blob){
   if (!currentUser || !SUPABASE_CONFIGURED) return; // local-only mode — nothing to sync to
   try {
@@ -2148,10 +2170,10 @@ async function uploadImageToCloud(hash, mimeType, blob){
       cacheControl: '31536000'
     });
     if (error && !/already exists|duplicate/i.test(error.message || '')){
-      console.warn('Image cloud sync failed', error);
+      warnImageCloudSyncFailed(error);
     }
   } catch (err) {
-    console.warn('Image cloud sync failed', err);
+    warnImageCloudSyncFailed(err);
   }
 }
 
