@@ -2191,7 +2191,8 @@ async function uploadImageToCloud(hash, mimeType, blob){
     const data = await res.json().catch(() => null);
     if (res.ok && data && data.url){
       imageUrlMap[hash] = data.url;
-      persistTextState(); // sync the new URL out to other devices
+      persistLocalState(); // keep the local backup blob current too
+      queueImageUrlSave(hash, data.url); // its own independent row — see the per-record storage block
     } else {
       warnImageCloudSyncFailed(data && data.error ? data.error : `HTTP ${res.status}`);
     }
@@ -2494,6 +2495,310 @@ function persistLocalState(){
   return payload;
 }
 
+/* ============================================================
+   CLOUD SYNC — per-record storage (v2)
+   ============================================================
+   This replaces the old "one JSON blob per user, overwritten wholesale
+   on every save" design. That design meant ANY two saves — even to
+   completely unrelated decks — competed for the same row, so a stale
+   save from one device could silently erase a newer save from another.
+
+   Now: the tree structure (folders + where each deck sits, NOT its
+   cards), each deck's cards, the review log, and the image URL map are
+   all stored separately. Saving Deck A's cards and saving Deck B's
+   cards are now genuinely independent writes to different rows — they
+   cannot collide, no matter how close together in time or how stale
+   either device's other data is. Only two devices editing the exact
+   same deck within moments of each other can still collide — a much
+   narrower, more normal case for any sync design to accept.
+
+   Requires the schema in kardex_schema_v2.sql to be run once on the
+   Supabase project — see that file for the actual table definitions.
+================================================================ */
+
+function sbHeaders(extra){
+  return Object.assign({
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${accessToken}`,
+  }, extra || {});
+}
+
+/* Generic per-key serialized queue — same reasoning as the old single
+   sync queue (never let a slower, earlier write finish after a faster,
+   later one to the SAME target), but keyed, so writes to DIFFERENT
+   targets (tree vs. deck A vs. deck B) run independently and don't wait
+   on each other at all. That per-target independence is the entire
+   point of this redesign. */
+const _syncQueues = new Map(); // key -> { tail, latestJob, waiters }
+function queueSyncJob(key, jobFn){
+  let q = _syncQueues.get(key);
+  if (!q){ q = { tail: Promise.resolve(), latestJob: null, waiters: [] }; _syncQueues.set(key, q); }
+  q.latestJob = jobFn;
+  const waitForThis = new Promise((resolve) => { q.waiters.push(resolve); });
+  q.tail = q.tail.then(async () => {
+    if (!q.latestJob) return; // already run by an earlier link in this key's chain
+    const job = q.latestJob;
+    const waiters = q.waiters;
+    q.latestJob = null;
+    q.waiters = [];
+    let result = false;
+    try { result = await job(); } catch (err) { console.error('Sync job failed', key, err); }
+    waiters.forEach(resolve => resolve(result));
+  }).catch(err => console.error('Sync queue error', key, err));
+  return waitForThis;
+}
+
+function buildTreeSkeleton(node){
+  if (node.type === 'folder'){
+    return {
+      id: node.id, type: 'folder', name: node.name,
+      collapsed: node.collapsed, createdAt: node.createdAt,
+      children: node.children.map(buildTreeSkeleton)
+    };
+  }
+  // deck — cards/sessions live in kardex_decks, not here
+  return { id: node.id, type: 'deck', name: node.name, lastStudied: node.lastStudied, createdAt: node.createdAt };
+}
+
+/* Every deck needs its own row pushed to the cloud at LEAST once — a
+   deck that's only ever existed in the tree skeleton (never individually
+   touched by an edit that names it) would otherwise have a skeleton
+   entry with no matching kardex_decks row at all, and load back on
+   another device as an empty, card-less placeholder. Runs once per
+   device (tracked in localStorage, not re-checked on every save), right
+   alongside the tree skeleton — every path that establishes cloud
+   presence already calls queueTreeSkeletonSave(), so hooking it in here
+   covers all of them without needing to remember to call it separately. */
+let initialFullDeckSyncDone = (function(){
+  try { return localStorage.getItem('kardex_initial_full_sync_done') === '1'; }
+  catch(e){ return false; }
+})();
+function ensureInitialFullDeckSync(){
+  if (initialFullDeckSyncDone) return;
+  initialFullDeckSyncDone = true;
+  try { localStorage.setItem('kardex_initial_full_sync_done', '1'); } catch(e){}
+  (function walk(n){
+    n.children.forEach(c => {
+      if (c.type === 'folder') walk(c);
+      else queueDeckSave(c.id);
+    });
+  })(root);
+}
+function queueTreeSkeletonSave(){
+  if (!SUPABASE_CONFIGURED || !currentUser || !accessToken) return Promise.resolve(false);
+  ensureInitialFullDeckSync();
+  const skeleton = buildTreeSkeleton(root);
+  return queueSyncJob('tree', async () => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_tree`, {
+      method: 'POST',
+      headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates' }),
+      body: JSON.stringify({ user_id: currentUser.id, skeleton, updated_at: new Date().toISOString() })
+    });
+    return res.ok;
+  });
+}
+
+function queueDeckSave(deckId){
+  if (!SUPABASE_CONFIGURED || !currentUser || !accessToken || !deckId) return Promise.resolve(false);
+  const deckNode = nodeById(deckId);
+  if (!deckNode || deckNode.type !== 'deck') return Promise.resolve(false);
+  // Snapshot now, synchronously — not inside the queued job — so a later
+  // edit to this same deck (which will enqueue its own newer save) can
+  // never be represented by an older snapshot captured too late.
+  const snapshot = { deck_id: deckNode.id, user_id: currentUser.id, name: deckNode.name, cards: deckNode.cards, sessions: deckNode.sessions, updated_at: new Date().toISOString() };
+  return queueSyncJob('deck:' + deckId, async () => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_decks`, {
+      method: 'POST',
+      headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates' }),
+      body: JSON.stringify(snapshot)
+    });
+    return res.ok;
+  });
+}
+
+function queueDeckDelete(deckId){
+  if (!SUPABASE_CONFIGURED || !currentUser || !accessToken || !deckId) return Promise.resolve(false);
+  return queueSyncJob('deck:' + deckId, async () => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_decks?deck_id=eq.${encodeURIComponent(deckId)}&user_id=eq.${currentUser.id}`, {
+      method: 'DELETE',
+      headers: sbHeaders()
+    });
+    return res.ok;
+  });
+}
+
+// How many of the LOCAL reviewLog array's entries have already been
+// flushed to the cloud — persisted so a reload doesn't re-send (and
+// duplicate) everything already sent. Append-only, so this is just a
+// simple count, not anything more elaborate.
+let reviewLogSyncedCount = parseInt(localStorage.getItem('kardex_reviewlog_synced_count') || '0', 10) || 0;
+function queueReviewLogFlush(){
+  if (!SUPABASE_CONFIGURED || !currentUser || !accessToken) return Promise.resolve(false);
+  const pending = reviewLog.slice(reviewLogSyncedCount);
+  if (!pending.length) return Promise.resolve(true);
+  const rows = pending.map(r => ({
+    user_id: currentUser.id, card_id: r.cardId, good: r.good, ts: r.ts,
+    question_seconds: r.questionSeconds != null ? r.questionSeconds : null,
+    answer_seconds: r.answerSeconds != null ? r.answerSeconds : null,
+  }));
+  const upToCount = reviewLog.length;
+  return queueSyncJob('reviewlog', async () => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_review_log`, {
+      method: 'POST',
+      headers: sbHeaders(),
+      body: JSON.stringify(rows)
+    });
+    if (res.ok){
+      reviewLogSyncedCount = upToCount;
+      try { localStorage.setItem('kardex_reviewlog_synced_count', String(reviewLogSyncedCount)); } catch(e){}
+    }
+    return res.ok;
+  });
+}
+
+function queueImageUrlSave(hash, url){
+  if (!SUPABASE_CONFIGURED || !currentUser || !accessToken) return Promise.resolve(false);
+  return queueSyncJob('imgurl:' + hash, async () => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls`, {
+      method: 'POST',
+      headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates' }),
+      body: JSON.stringify({ hash, user_id: currentUser.id, url })
+    });
+    return res.ok;
+  });
+}
+
+/* Fetches everything and rebuilds root/reviewLog/imageUrlMap in memory.
+   Unlike the old restorePersistedState(), there's no single "payload" —
+   the tree skeleton gives the folder/deck shape, and each deck's cards
+   get stitched into its matching placeholder from a separate fetch. */
+async function loadEverythingFromCloud(){
+  if (!currentUser || !accessToken) return false;
+  try {
+    const [treeRes, decksRes, logRes, urlsRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=skeleton`, { headers: sbHeaders() }),
+      fetch(`${SUPABASE_URL}/rest/v1/kardex_decks?user_id=eq.${currentUser.id}&select=deck_id,name,cards,sessions`, { headers: sbHeaders() }),
+      fetch(`${SUPABASE_URL}/rest/v1/kardex_review_log?user_id=eq.${currentUser.id}&select=card_id,good,ts,question_seconds,answer_seconds&order=id.asc`, { headers: sbHeaders() }),
+      fetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls?user_id=eq.${currentUser.id}&select=hash,url`, { headers: sbHeaders() }),
+    ]);
+    if (!treeRes.ok) return false;
+    const treeRows = await treeRes.json();
+    if (!treeRows.length) return false; // no cloud data yet for this user — caller falls back to local/migration
+
+    const decksRows = decksRes.ok ? await decksRes.json() : [];
+    const logRows = logRes.ok ? await logRes.json() : [];
+    const urlsRows = urlsRes.ok ? await urlsRes.json() : [];
+
+    const decksById = new Map(decksRows.map(d => [d.deck_id, d]));
+    function stitch(node){
+      if (node.type === 'folder'){
+        return { ...node, children: node.children.map(stitch) };
+      }
+      const row = decksById.get(node.id);
+      return { ...node, cards: row ? row.cards : [], sessions: row ? row.sessions : [] };
+    }
+    // root is `const` — mutate its properties in place rather than
+    // reassigning the binding (matches applyPersistedPayload()'s existing
+    // pattern elsewhere in the file).
+    const stitchedRoot = stitch(treeRows[0].skeleton);
+    root.name = stitchedRoot.name;
+    root.children = stitchedRoot.children;
+    root.collapsed = stitchedRoot.collapsed;
+    root.id = stitchedRoot.id;
+
+    reviewLog = logRows.map(r => ({
+      cardId: r.card_id, good: r.good, ts: r.ts,
+      questionSeconds: r.question_seconds != null ? r.question_seconds : undefined,
+      answerSeconds: r.answer_seconds != null ? r.answer_seconds : undefined,
+    }));
+    reviewLogSyncedCount = reviewLog.length;
+    try { localStorage.setItem('kardex_reviewlog_synced_count', String(reviewLogSyncedCount)); } catch(e){}
+
+    imageUrlMap = {};
+    urlsRows.forEach(r => { imageUrlMap[r.hash] = r.url; });
+
+    srsMapCache = null;
+    rebuildIndex();
+    return true;
+  } catch (err) {
+    console.warn('Could not load from cloud (v2 schema)', err);
+    return false;
+  }
+}
+
+/* One-time: if this user has old-format data (the original single-blob
+   kardex_state table) but nothing yet in the new tables, split it into
+   the new tables once. Existing users don't lose anything when this
+   update ships — their data just gets reorganized on first load. */
+let migrationAttempted = false;
+async function migrateOldBlobToV2IfNeeded(){
+  if (migrationAttempted || !currentUser || !accessToken) return;
+  migrationAttempted = true;
+  try {
+    const treeCheck = await fetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=user_id&limit=1`, { headers: sbHeaders() });
+    if (!treeCheck.ok) return; // new tables not set up yet (schema not run) — nothing to do
+    const existing = await treeCheck.json();
+    if (existing.length) return; // already migrated
+
+    const oldRes = await fetch(`${SUPABASE_URL}/rest/v1/kardex_state?id=eq.${currentUser.id}&select=payload`, { headers: sbHeaders() });
+    if (!oldRes.ok) return;
+    const oldRows = await oldRes.json();
+    if (!oldRows.length || !oldRows[0].payload) return; // nothing old to migrate either — fresh user
+
+    const old = oldRows[0].payload;
+    const oldRoot = old.tree;
+    if (!oldRoot) return;
+
+    console.info('Migrating existing Kardex data to the new per-deck storage format…');
+
+    // Push the tree skeleton once, and every deck's cards once, using the
+    // OLD data directly. root is `const`, so its properties are swapped
+    // in place (not the binding itself) — and the node index has to be
+    // rebuilt around the swapped-in data too, since queueDeckSave() below
+    // looks decks up via nodeById(), which reads from that index.
+    const savedRootSnapshot = { name: root.name, children: root.children, collapsed: root.collapsed, id: root.id };
+    root.name = oldRoot.name;
+    root.children = oldRoot.children;
+    root.collapsed = oldRoot.collapsed;
+    root.id = oldRoot.id;
+    rebuildIndex();
+    await queueTreeSkeletonSave();
+    const deckSaves = [];
+    (function walk(n){
+      n.children.forEach(c => {
+        if (c.type === 'folder') walk(c);
+        else deckSaves.push(queueDeckSave(c.id));
+      });
+    })(root);
+    await Promise.all(deckSaves);
+    root.name = savedRootSnapshot.name;
+    root.children = savedRootSnapshot.children;
+    root.collapsed = savedRootSnapshot.collapsed;
+    root.id = savedRootSnapshot.id;
+    rebuildIndex();
+
+    if (Array.isArray(old.reviewLog) && old.reviewLog.length){
+      const rows = old.reviewLog.map(r => ({
+        user_id: currentUser.id, card_id: r.cardId, good: r.good, ts: r.ts,
+        question_seconds: r.questionSeconds != null ? r.questionSeconds : null,
+        answer_seconds: r.answerSeconds != null ? r.answerSeconds : null,
+      }));
+      await fetch(`${SUPABASE_URL}/rest/v1/kardex_review_log`, { method: 'POST', headers: sbHeaders(), body: JSON.stringify(rows) });
+    }
+    if (old.imageUrls && typeof old.imageUrls === 'object'){
+      const rows = Object.entries(old.imageUrls).map(([hash, url]) => ({ hash, user_id: currentUser.id, url }));
+      if (rows.length){
+        await fetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls`, { method: 'POST', headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates' }), body: JSON.stringify(rows) });
+      }
+    }
+    console.info('Migration to per-deck storage complete.');
+  } catch (err) {
+    console.warn('Migration to v2 storage skipped/failed — will retry next load', err);
+    migrationAttempted = false;
+  }
+}
+
 async function syncToSupabase(payload){
   if (!currentUser || !accessToken) return false; // not signed in — local backup only
   try {
@@ -2564,7 +2869,7 @@ function queueSyncToSupabase(payload){
 let hasUnsyncedChanges = false;
 function retryUnsyncedChangesIfAny(){
   if (!hasUnsyncedChanges || !SUPABASE_CONFIGURED || !currentUser || !accessToken) return;
-  queueSyncToSupabase(persistLocalState()).then(success => {
+  pushAllPendingChanges().then(success => {
     if (success) hasUnsyncedChanges = false;
   });
 }
@@ -2572,40 +2877,44 @@ function retryUnsyncedChangesIfAny(){
 // (e.g. a tab that's never refocused) within half a minute either way.
 setInterval(retryUnsyncedChangesIfAny, 30000);
 
-function persistTextState(){
+function persistTextState(deckId){
   // Save to localStorage immediately (synchronous) — this is critical for data safety
   const payload = persistLocalState();
   hasUnsyncedChanges = true;
-
-  // Push to the cloud right away instead of debouncing (see
-  // queueSyncToSupabase's comment for why this is safe against
-  // out-of-order completion, which naive "just remove the debounce"
-  // is not). Every call site of this function is a discrete, deliberate
-  // action (create a deck, save a card, grade a card, toggle starred,
-  // ...) — never continuous typing — so there was never a real
-  // rapid-fire scenario the old 500ms debounce was protecting against.
-  // It was pure delay with no upside, and that delay is exactly what
-  // caused a real gap: create something on one device, immediately open
-  // a *different* device fresh, and the new thing might not have
-  // reached the cloud yet.
-  //
-  // Deferring via setTimeout was also unreliable here on its own terms:
-  // browsers throttle timers in backgrounded tabs, which is exactly what
-  // happens the instant you switch away to another device — so even a
-  // short debounce window could silently stretch far longer than
-  // intended. And the beforeunload handler meant to flush it doesn't
-  // reliably fire on mobile when you just switch apps rather than
-  // closing the tab. Firing the push synchronously, in the same call as
-  // the edit, sidesteps both problems — it's already in flight by the
-  // time this function returns, regardless of what happens a moment later.
   clearTimeout(persistTimeoutId);
-  queueSyncToSupabase(payload).then(success => {
-    if (success) hasUnsyncedChanges = false;
-    // If it failed (offline, token not ready yet, transient server error),
+
+  // Per-record saves (see the "CLOUD SYNC — per-record storage" block
+  // above): the tree skeleton is small and always safe to resave; the
+  // specific deck (if the caller knows which one changed — pass its id)
+  // gets its own independent save; the review log is append-only and
+  // flushed alongside. None of these can collide with a different
+  // device's save to an UNRELATED deck, which is the entire point of
+  // this redesign — that used to be possible with the old single-blob
+  // storage and caused real, reported data loss.
+  const jobs = [queueTreeSkeletonSave(), queueReviewLogFlush()];
+  if (deckId) jobs.push(queueDeckSave(deckId));
+  Promise.all(jobs).then(results => {
+    if (results.every(r => r !== false)) hasUnsyncedChanges = false;
+    // If anything failed (offline, token not ready yet, transient error),
     // hasUnsyncedChanges stays true — retryUnsyncedChangesIfAny() picks
     // it up the moment auth is confirmed ready, on the next focus/visibility
-    // return, or within 30s regardless via the interval above.
+    // return, or within 30s regardless via the interval below.
   });
+}
+/* Re-pushes everything that might still be unsynced: the tree skeleton,
+   the review log, and every deck currently in the tree. Wasteful
+   compared to knowing exactly which one thing failed, but this only
+   runs on retry (not the normal path), and "safe and simple" matters
+   more here than "maximally efficient" — this is the safety net. */
+function pushAllPendingChanges(){
+  const jobs = [queueTreeSkeletonSave(), queueReviewLogFlush()];
+  (function walk(n){
+    n.children.forEach(c => {
+      if (c.type === 'folder') walk(c);
+      else jobs.push(queueDeckSave(c.id));
+    });
+  })(root);
+  return Promise.all(jobs).then(results => results.every(r => r !== false));
 }
 function applyPersistedPayload(parsed){
   if (!parsed || !parsed.tree) return;
@@ -2624,6 +2933,15 @@ async function restorePersistedState(){
   // source of truth across devices.
   if (currentUser && accessToken){
     try {
+      // New per-record schema first (see kardex_schema_v2.sql). One-time
+      // migration runs automatically if this user still only has old-
+      // format data — see migrateOldBlobToV2IfNeeded().
+      await migrateOldBlobToV2IfNeeded();
+      const loadedV2 = await loadEverythingFromCloud();
+      if (loadedV2) return;
+
+      // Fall back to the old single-blob table — covers a project that
+      // hasn't run the new schema yet, so it isn't left broken mid-upgrade.
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/kardex_state?id=eq.${currentUser.id}&select=payload`,
         { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${accessToken}` } }
@@ -2686,10 +3004,35 @@ async function doSync(opts){
   const btn = document.getElementById('syncBtn');
   if (btn) btn.classList.add('syncing');
   try {
-    const payload = persistLocalState();
-    const pushed = await queueSyncToSupabase(payload);
-    if (pushed) hasUnsyncedChanges = false;
-    await restorePersistedState();
+    // Which order is safe depends on whether THIS device actually has an
+    // unconfirmed local edit right now:
+    //
+    // - If it does, push first — so that edit isn't destroyed by the pull
+    //   below, which replaces the affected decks' in-memory state with
+    //   whatever the cloud returns for them (still no merge at the
+    //   per-deck level — an unsaved edit to a specific deck can still be
+    //   overwritten by an older cloud copy of that same deck if the pull
+    //   runs first).
+    // - If it doesn't, pull first. This is the case that was silently
+    //   causing deck-loss reports: a device with nothing new of its own
+    //   (you just opened it and hit "sync" to check for updates) would
+    //   still push its current snapshot BEFORE looking at the cloud —
+    //   and if that snapshot was stale (missing something another device
+    //   had already pushed), it would silently overwrite the newer cloud
+    //   state with the older one. Pulling first means this device is
+    //   guaranteed current before it ever pushes anything back. With the
+    //   new per-deck storage, this only ever risks the ONE deck actually
+    //   involved, never an unrelated one.
+    let pushed;
+    if (hasUnsyncedChanges){
+      pushed = await pushAllPendingChanges();
+      if (pushed) hasUnsyncedChanges = false;
+      await restorePersistedState();
+    } else {
+      await restorePersistedState();
+      pushed = await pushAllPendingChanges(); // re-confirms cloud/local are in lockstep
+      if (pushed) hasUnsyncedChanges = false;
+    }
     srsMapCache = null;
     updateStarredCount();
     updateToughCount();
@@ -2954,7 +3297,16 @@ async function importBackup(file){
     uid = Math.max(uid, (snapshot.uid || uid) + 1);
     rebuildIndex();
     closeModal('deckOverlay');
-    persistTextState();
+    persistTextState(); // tree skeleton + review log
+    // A backup import can bring in many decks at once (a whole folder
+    // tree) — persistTextState() alone only saves the skeleton, so every
+    // newly-imported deck needs its own explicit save too.
+    (function walkAndSaveDecks(n){
+      n.children.forEach(c => {
+        if (c.type === 'folder') walkAndSaveDecks(c);
+        else queueDeckSave(c.id);
+      });
+    })(importedFolder);
     render();
     showToast('Backup imported');
   } catch (err) {
@@ -3797,7 +4149,7 @@ function toughItemRow(i){
       <div class="si-front">${escapeHtml(cd.f)}</div>
       <div class="si-path mono">${escapeHtml(pathLabel)} / ${escapeHtml(dk.name)}</div>
     </div>`;
-  row.querySelector('.untough-btn').onclick = ()=>{ cd.tough = false; renderToughContent(); updateToughCount(); persistTextState(); };
+  row.querySelector('.untough-btn').onclick = ()=>{ cd.tough = false; renderToughContent(); updateToughCount(); persistTextState(dk.id); };
   return row;
 }
 
@@ -3908,7 +4260,7 @@ function doDeleteCard(){
     cardIndexList.forEach(({card:cd})=>{ if (cd.links) cd.links = cd.links.filter(l=>l!==removedId); });
     deck.cards = deck.cards.filter(c=>c.id!==removedId);
     rebuildIndex();
-    persistTextState();
+    persistTextState(deckId);
     showToast('Card deleted');
   }
   closeModal('cardDeleteOverlay');
@@ -4276,7 +4628,7 @@ function saveCardEditorCore(){
 
   updateStarredCount();
   updateToughCount();
-  persistTextState();
+  persistTextState(s.deckId);
   if (state.managingDeckId) renderManageCards();
 
   return s.deckId;
@@ -4418,7 +4770,7 @@ function confirmLinkPickerNewCard(){
   const newCard = card(f, b);
   deck.cards.push(newCard);
   rebuildIndex();
-  persistTextState();
+  persistTextState(deckId);
   updateStarredCount();
   updateToughCount();
   if (state.managingDeckId) renderManageCards();
@@ -5764,17 +6116,18 @@ function confirmDeck(){
         }
       });
     });
-    parent.children.push(deck(name, newCards));
+    const newDeck = deck(name, newCards);
+    parent.children.push(newDeck);
     rebuildIndex();
     closeModal('deckOverlay');
-    persistTextState();
+    persistTextState(newDeck.id);
     render();
   } else {
     const newDeck = deck(name, []);
     parent.children.push(newDeck);
     rebuildIndex();
     closeModal('deckOverlay');
-    persistTextState();
+    persistTextState(newDeck.id);
     openCardManager(newDeck.id);
     openCardEditor(newDeck.id, null);
   }
@@ -6044,7 +6397,7 @@ function confirmBulkAdd(){
   bulkParsedCards = null;
   bulkParsedCardsIsFromDocx = false;
   bulkDuplicateInfo = null;
-  persistTextState();
+  persistTextState(deck.id);
   updateStarredCount();
   showToast(`${newCards.length} card${newCards.length!==1?'s':''} added`);
   if (state.managingDeckId) renderManageCards();
@@ -6150,10 +6503,14 @@ function confirmRename(){
   const name = document.getElementById('renameNameInput').value.trim();
   if (!name || !renameTargetId) return;
   const node = nodeById(renameTargetId);
+  const renamedId = renameTargetId;
   if (node){ node.name = name; showToast(`Renamed to "${name}"`); }
   closeModal('renameOverlay');
   renameTargetId = null;
-  persistTextState();
+  // Only matters if a deck was renamed (queueDeckSave() no-ops harmlessly
+  // for a folder id) — keeps that deck's own row's name in sync too,
+  // not just the tree skeleton's copy of it.
+  persistTextState(renamedId);
   render();
 }
 
@@ -6181,10 +6538,11 @@ function doDelete(){
   if (parent){
     // collect ids of every card about to be removed, so we can strip dangling "see also" links to them
     const removedCardIds = [];
+    const removedDeckIds = [];
     if (node){
       (function collect(n){
         if (n.type==='folder') n.children.forEach(collect);
-        else n.cards.forEach(c=>removedCardIds.push(c.id));
+        else { n.cards.forEach(c=>removedCardIds.push(c.id)); removedDeckIds.push(n.id); }
       })(node);
     }
     parent.children = parent.children.filter(c=>c.id!==deleteTargetId);
@@ -6200,6 +6558,11 @@ function doDelete(){
     if (state.managingDeckId === deleteTargetId) state.managingDeckId = null;
     if (state.clipboard && state.clipboard.id === deleteTargetId) state.clipboard = null;
     if (node) showToast(`Deleted "${node.name}"`);
+    // A deleted deck (or every deck inside a deleted folder) needs its
+    // own row actually removed from the cloud too — the tree skeleton
+    // save below only updates the hierarchy, it doesn't know to delete
+    // rows that are no longer referenced.
+    removedDeckIds.forEach(id => queueDeckDelete(id));
   }
   closeModal('deleteOverlay');
   deleteTargetId = null;
@@ -6323,7 +6686,14 @@ function pasteInto(targetFolderId){
     if (sourceParent && sourceParent.id === target.id) clone.name = source.name + ' (copy)';
     target.children.push(clone);
     rebuildIndex();
-    persistTextState();
+    persistTextState(); // tree skeleton
+    // deepCloneNode() generates brand-new ids for every deck it copies —
+    // those are new rows the cloud has never seen, same situation as a
+    // backup import.
+    (function walkAndSaveDecks(n){
+      n.children ? n.children.forEach(walkAndSaveDecks) : null;
+      if (n.type === 'deck') queueDeckSave(n.id);
+    })(clone);
     render();
     showToast(`Copied "${source.name}" into "${target.name}"`);
     return;
@@ -6744,7 +7114,11 @@ function toggleStar(e){
   c.starredAt = c.starred ? Date.now() : c.starredAt;
   renderStarToggle();
   updateStarredCount();
-  persistTextState();
+  // s.deck can be a synthetic session (starred/tough/daily/search-peek
+  // review), not a real deck in the tree — look up the card's actual
+  // owning deck via the index rather than assuming s.deck.id is real.
+  const owningEntry = cardIndex.get(c.id);
+  persistTextState(owningEntry ? owningEntry.deck.id : undefined);
 }
 function renderStarToggle(){
   const s = state.studying;
@@ -7091,7 +7465,7 @@ function toggleNotebookStar(e, deckId, cardId){
   btn.classList.toggle('active', c.starred);
   btn.textContent = c.starred ? '★' : '☆';
   updateStarredCount();
-  persistTextState();
+  persistTextState(deckId);
 }
 
 let _notebookSwipeState = null;
@@ -7278,7 +7652,11 @@ function gradeCard(good){
   }
   reviewLog.push({ cardId: c.id, good, ts: Date.now(), questionSeconds, answerSeconds });
   srsMapCache = null;
-  persistTextState();
+  // Same reasoning as toggleStar(): s.deck may be a synthetic session
+  // (starred/tough/daily/search-peek), not a real deck in the tree —
+  // resolve the card's actual owning deck via the index instead.
+  const owningEntry = cardIndex.get(c.id);
+  persistTextState(owningEntry ? owningEntry.deck.id : undefined);
   updateToughCount();
   if (s.pos < s.order.length-1){
     s.pos++;
@@ -7468,7 +7846,8 @@ function goToSignIn(reason){
 
 async function signOut(){
   try {
-    persistTextState(); // synchronous
+    persistLocalState(); // synchronous local backup first
+    await pushAllPendingChanges(); // best-effort final flush of everything, not just the tree
     const { error } = await supabaseClient.auth.signOut();
     if (error) {
       showAuthDiagnostic('Sign-out failed: ' + error.message);
