@@ -1841,6 +1841,15 @@ button{font-family:inherit;cursor:pointer;}
     </div>
 
     <div class="settings-section">
+      <p class="settings-label">Image sync</p>
+      <p class="settings-hint">Images only start syncing to the cloud from the moment they're added. Anything added before cloud image sync was set up stays local-only to this device until you migrate it once.</p>
+      <div class="settings-btn-row">
+        <button class="action-btn" id="migrateImagesBtn" onclick="migrateLocalImagesToCloud()">Sync existing images to cloud</button>
+      </div>
+      <p class="settings-hint" id="migrateImagesStatus" style="margin-top:8px;"></p>
+    </div>
+
+    <div class="settings-section">
       <p class="settings-label">Deck import formats</p>
       <p class="settings-hint">Paste either of these into the "Paste / upload" tab when creating a deck.</p>
 
@@ -2083,21 +2092,21 @@ let currentUser = null;   // set once signed in
 let accessToken = null;   // the user's Supabase access token, sent so RLS can see auth.uid()
 let imageDbPromise = null;
 
-/* ---------------- Image cloud storage (Imgur, via a server relay) ----------------
+/* ---------------- Image cloud storage (ImgBB, via a server relay) ----------------
    Images are compressed client-side, cached locally in IndexedDB for
-   instant redraws, and mirrored to Imgur (anonymous upload, no account
-   needed) so any signed-in device can pull them down via the plain URL
-   Imgur returns — that URL is synced alongside the rest of the card data
-   in imageUrlMap (see persistLocalState), so no separate storage bucket
-   or per-user folder setup is needed at all.
+   instant redraws, and mirrored to ImgBB (free image host, no per-user
+   account needed on Kardex's side) so any signed-in device can pull
+   them down via the plain URL ImgBB returns — that URL is synced
+   alongside the rest of the card data in imageUrlMap (see
+   persistLocalState), so no separate storage bucket or per-user folder
+   setup is needed at all.
 
-   The actual Imgur call happens server-side, in /api/upload-image.js (a
+   The actual ImgBB call happens server-side, in /api/upload-image.js (a
    Vercel serverless function) — not directly from this page. Two reasons:
    1. Every upload then goes out from Vercel's IP, not the visitor's,
       which sidesteps residential-ISP shared-IP rate-limit exhaustion
-      (many customers behind one NAT'd IP competing for the same
-      anonymous per-IP Imgur quota).
-   2. The Imgur Client-ID stays a server-side secret (a Vercel
+      (many customers behind one NAT'd IP competing for the same quota).
+   2. The ImgBB API key stays a server-side secret (a Vercel
       environment variable) instead of sitting in this page's source,
       where anyone could read it out and use it themselves.
    See the comment at the top of api/upload-image.js for setup. */
@@ -2141,13 +2150,13 @@ async function compressImageForUpload(file){
   }
 }
 
-// Fire-and-forget: uploads a locally-cached image to Imgur so other
+// Fire-and-forget: uploads a locally-cached image to ImgBB so other
 // devices can find it, and records the resulting URL in imageUrlMap
 // (synced via the normal text-state payload) once it succeeds. Safe to
 // call repeatedly — if a hash already has a URL recorded, this is a
 // no-op rather than a duplicate upload.
 /* Image cloud sync can fail for an entire session at once — a bad or
-   missing Client-ID, Imgur rate-limiting, or just being offline. Every
+   missing API key, ImgBB rate-limiting, or just being offline. Every
    image saved after that would otherwise dump its own fetch/network
    error to the console, which reads exactly like "your image didn't
    save" even though each one is already safely written to local
@@ -2162,7 +2171,7 @@ function warnImageCloudSyncFailed(err){
   cloudImageSyncWarnedOnce = true;
   console.warn(
     'Image cloud sync failed — images are still saved locally on this device. ' +
-    '(If this persists, check that IMGUR_CLIENT_ID is set as an environment variable ' +
+    '(If this persists, check that IMGBB_API_KEY is set as an environment variable ' +
     'on the Vercel project and that api/upload-image.js deployed correctly.)',
     err
   );
@@ -2192,7 +2201,7 @@ async function uploadImageToCloud(hash, mimeType, blob){
 }
 
 // Used when an image hash is referenced (e.g. a card synced from another
-// device) but isn't in this browser's local IndexedDB cache yet. Imgur
+// device) but isn't in this browser's local IndexedDB cache yet. ImgBB
 // URLs are stored directly in imageUrlMap (synced with the rest of the
 // card data), so this is just a plain fetch — no per-user path/auth
 // needed the way Storage-bucket lookups required.
@@ -2295,6 +2304,62 @@ async function listImageRecords(){
   const store = tx.objectStore(IMAGE_STORE_NAME);
   return requestToPromise(store.getAll());
 }
+/* One-time backfill for images that were added before cloud image sync
+   was ever configured (or added while it happened to be down) — new
+   images upload automatically the moment they're added, but nothing
+   retroactively re-scans local IndexedDB for older ones, so without
+   this they'd stay stuck local-only to whichever device created them
+   forever. Safe to run repeatedly: anything already in imageUrlMap is
+   skipped, so a partial/failed run just picks up where it left off. */
+async function migrateLocalImagesToCloud(){
+  if (!SUPABASE_CONFIGURED){
+    showToast('Sign in first — cloud sync needs an account to sync to.');
+    return;
+  }
+  const btn = document.getElementById('migrateImagesBtn');
+  const statusEl = document.getElementById('migrateImagesStatus');
+
+  let records;
+  try {
+    records = await listImageRecords();
+  } catch (err) {
+    if (statusEl) statusEl.textContent = 'Could not read local images.';
+    return;
+  }
+  const pending = records.filter(r => !imageUrlMap[r.hash]);
+  if (!pending.length){
+    if (statusEl) statusEl.textContent = 'Nothing to migrate — every local image is already synced.';
+    return;
+  }
+
+  const total = pending.length;
+  if (btn) btn.disabled = true;
+
+  for (let i = 0; i < pending.length; i++){
+    const record = pending[i];
+    if (statusEl) statusEl.textContent = `Uploading ${i + 1} of ${total}…`;
+    try {
+      const match = (record.dataUrl || '').match(/^data:(.+);base64,(.*)$/);
+      if (match){
+        const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: record.mimeType || match[1] });
+        await uploadImageToCloud(record.hash, record.mimeType, blob);
+      }
+    } catch (err) { /* uploadImageToCloud already handles/warns on its own failures */ }
+    // Brief pause between uploads — polite to the free API's rate limits
+    // rather than firing a burst of dozens of requests at once.
+    await new Promise(r => setTimeout(r, 250));
+  }
+
+  const succeeded = pending.filter(r => imageUrlMap[r.hash]).length;
+  if (btn) btn.disabled = false;
+  if (statusEl){
+    statusEl.textContent = succeeded === total
+      ? `All ${total} image${total !== 1 ? 's' : ''} synced.`
+      : `${succeeded} of ${total} synced — the rest will retry automatically next time they're touched.`;
+  }
+  showToast(succeeded === total ? 'All local images synced to the cloud' : `${succeeded}/${total} images synced`);
+}
 async function resolveImageRef(ref){
   if (!ref) return null;
   if (typeof ref === 'string' && ref.startsWith('data:')) return ref;
@@ -2302,7 +2367,7 @@ async function resolveImageRef(ref){
     const record = await getImageRecord(ref);
     if (record) return record.dataUrl;
     // Not cached in this browser — likely a card synced in from another
-    // device. Pull the image down once from Imgur, then cache it locally
+    // device. Pull the image down once from ImgBB, then cache it locally
     // so every future render is instant again.
     const cloud = await downloadImageFromCloud(ref);
     if (!cloud) return null;
@@ -2407,7 +2472,7 @@ function playHmmSoundFallback(){
     setTimeout(()=>ctx.close(), 900);
   } catch(e){ /* audio not available — the modal still gets the point across */ }
 }
-// hash -> Imgur URL, for images that have finished uploading. Rides along
+// hash -> ImgBB URL, for images that have finished uploading. Rides along
 // in the same synced JSON payload as the tree/reviewLog — no separate
 // storage bucket needed, and it means another device can resolve an
 // image purely from data it already pulled down, without any extra
@@ -2533,6 +2598,14 @@ async function manualSync(){
     renderResumeButtons();
     if (!state.studying) render();
     showToast(pushed ? 'Synced with the cloud' : 'Synced from the cloud (local changes will retry automatically)');
+    // Also catch up any images added before cloud image sync existed (or
+    // added while it happened to be briefly misconfigured) — runs in the
+    // background rather than being awaited here, so the sync button
+    // doesn't sit spinning through however many images that turns out to
+    // be; it reports its own toast once it's done. Safe to call every
+    // time this button is pressed — anything already synced is skipped
+    // immediately, so repeated syncs cost nothing extra.
+    migrateLocalImagesToCloud();
   } catch (err) {
     console.error('Manual sync failed', err);
     showToast('Sync failed — check your connection and try again');
@@ -7516,10 +7589,26 @@ async function initAuthAndApp(){
   // real Google sign-in succeeded. That second event is what was bouncing
   // people back to sign-in right after they'd correctly signed in.
   // INITIAL_SESSION is documented to fire once per subscription, so a
-  // second, contradicting firing is trusted less than the session we
-  // already confirmed — it's logged (in case this theory is ever wrong)
-  // but not acted on.
-  let sessionEstablishedThisLoad = false;
+  // second, contradicting firing shortly after is trusted less than the
+  // session we already confirmed — it's logged (in case this theory is
+  // ever wrong) but not acted on.
+  //
+  // Important: this grace period is intentionally SHORT (a few seconds),
+  // not "for the rest of the page's lifetime". An earlier version of this
+  // used a permanent boolean instead of a time window, which meant a
+  // genuine SIGNED_OUT hours into a real session (refresh token actually
+  // expiring or getting revoked) was ALSO silently swallowed — the
+  // session would quietly die with the app never noticing, so things
+  // like the sync button would just fail with no explanation, and the
+  // only way back in was a full page reload. A time-limited grace period
+  // still catches the real spurious-duplicate-event bug (which happens
+  // within ~1 second) without permanently blinding the app to a real
+  // sign-out later on.
+  let sessionEstablishedAt = null; // Date.now() of last confirmed real session, or null
+  const SPURIOUS_EVENT_GRACE_MS = 4000; // generous margin above the ~260-620ms gap seen in practice
+  function withinAuthGracePeriod(){
+    return sessionEstablishedAt !== null && (Date.now() - sessionEstablishedAt) < SPURIOUS_EVENT_GRACE_MS;
+  }
 
   // This is the officially recommended v2 pattern: don't call getSession()
   // yourself and race it against the SDK's own URL-detection. Instead,
@@ -7533,8 +7622,8 @@ async function initAuthAndApp(){
 
     if (event === 'INITIAL_SESSION'){
       if (!session){
-        if (sessionEstablishedThisLoad){
-          logAuthEvent('ignored-stale-initial-session', 'already had a real session this load — not bouncing');
+        if (withinAuthGracePeriod()){
+          logAuthEvent('ignored-stale-initial-session', 'already had a real session moments ago — not bouncing');
           return;
         }
         settled = true;
@@ -7554,7 +7643,7 @@ async function initAuthAndApp(){
           }
           if (setData.session){
             logAuthEvent('manual-fallback-success', 'user ' + setData.session.user.id.slice(0,8));
-            sessionEstablishedThisLoad = true;
+            sessionEstablishedAt = Date.now();
             currentUser = setData.session.user;
             accessToken = setData.session.access_token;
             try { history.replaceState(null, '', window.location.pathname); } catch(e){}
@@ -7571,7 +7660,7 @@ async function initAuthAndApp(){
         return;
       }
       settled = true;
-      sessionEstablishedThisLoad = true;
+      sessionEstablishedAt = Date.now();
       currentUser = session.user;
       accessToken = session.access_token;
       // Clean any leftover OAuth params from the address bar now that
@@ -7583,13 +7672,13 @@ async function initAuthAndApp(){
       await restorePersistedState();
       render();
     } else if (event === 'SIGNED_OUT'){
-      if (sessionEstablishedThisLoad){
-        logAuthEvent('ignored-early-signed-out', 'right after establishing a session this load — not bouncing');
+      if (withinAuthGracePeriod()){
+        logAuthEvent('ignored-early-signed-out', 'moments after establishing a session — not bouncing');
         return;
       }
       goToSignIn('SIGNED_OUT fired after sign-in succeeded — usually a refresh-token failure. Event log: ' + formatAuthLog());
     } else if (session){
-      sessionEstablishedThisLoad = true;
+      sessionEstablishedAt = Date.now();
       accessToken = session.access_token;
       currentUser = session.user;
     }
