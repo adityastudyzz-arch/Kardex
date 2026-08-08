@@ -2104,6 +2104,10 @@ const SUPABASE_CONFIGURED = !SUPABASE_URL.includes('YOUR-PROJECT-REF') && !SUPAB
 
 let currentUser = null;   // set once signed in
 let accessToken = null;   // the user's Supabase access token, sent so RLS can see auth.uid()
+// Set true right before a deliberate, user-initiated sign-out, so the
+// SIGNED_OUT event that fires as a result doesn't get treated as an
+// unexpected session failure (see the onAuthStateChange handler below).
+let deliberateSignOutInProgress = false;
 let imageDbPromise = null;
 
 /* ---------------- Image cloud storage (ImgBB, via a server relay) ----------------
@@ -8190,14 +8194,17 @@ async function signOut(){
   try {
     persistLocalState(); // synchronous local backup first
     await pushAllPendingChanges(); // best-effort final flush of everything, not just the tree
+    deliberateSignOutInProgress = true;
     const { error } = await supabaseClient.auth.signOut();
     if (error) {
+      deliberateSignOutInProgress = false;
       showAuthDiagnostic('Sign-out failed: ' + error.message);
       console.error('Sign-out error:', error);
       return;
     }
     window.location.href = kardexSignInUrl();
   } catch (err) {
+    deliberateSignOutInProgress = false;
     showAuthDiagnostic('Sign-out error: ' + (err && err.message ? err.message : String(err)));
     console.error('Sign-out exception:', err);
   }
@@ -8519,6 +8526,17 @@ async function initAuthAndApp(){
       render();
       retryUnsyncedChangesIfAny();
     } else if (event === 'SIGNED_OUT'){
+      if (deliberateSignOutInProgress){
+        // The person just clicked "Sign out" themselves — signOut() below
+        // already handles redirecting to the sign-in page cleanly. This
+        // SIGNED_OUT event firing is completely expected here, not a
+        // failure — without this check, it fell through to the same
+        // "usually a refresh-token failure" diagnostic built for a real,
+        // involuntary session loss, which is a confusing, wrong-sounding
+        // message for something the person did on purpose.
+        logAuthEvent('deliberate-sign-out', 'expected — signOut() already handling the redirect');
+        return;
+      }
       if (withinAuthGracePeriod()){
         logAuthEvent('ignored-early-signed-out', 'moments after establishing a session — not bouncing');
         return;
