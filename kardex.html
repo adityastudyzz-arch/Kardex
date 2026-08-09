@@ -856,6 +856,7 @@ button{font-family:inherit;cursor:pointer;}
   width:100%;
   min-height:0;
 }
+.face-img-badge-slot{ height:0; overflow:visible; flex-shrink:0; }
 .face .face-text-inner{
   text-align:center;
   font-family:'Fraunces', serif;
@@ -1438,6 +1439,36 @@ button{font-family:inherit;cursor:pointer;}
 .card-img-row .card-img{ max-height:100%; max-width:100%; }
 .card-img-row.multi{ max-height:38%; } /* several images share the space rather than each claiming the single-image height */
 .card-img-row.multi .card-img{ max-height:100%; max-width:calc(50% - 4px); }
+/* The "+N images" tab — first image stays inline as the primary content
+   (unchanged from before), extras tuck behind this instead of piling up
+   and pushing the actual text around. Positioned like the star/edit
+   badges (hanging off the face's own top edge) but top-center, between
+   them, since it's scoped to one specific face rather than the whole
+   card. */
+.face-img-badge{
+  position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+  z-index:4;
+  display:flex; align-items:center; gap:4px;
+  padding:5px 10px 5px 8px;
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:var(--kraft);
+  color:#fff;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:10.5px; font-weight:600;
+  box-shadow:var(--shadow);
+  cursor:pointer;
+  transition:transform .12s;
+}
+.face-img-badge:hover{ transform:translateX(-50%) scale(1.06); }
+.face-img-gallery-grid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(90px,1fr)); gap:8px;
+  padding:14px;
+}
+.face-img-gallery-grid img{
+  width:100%; height:90px; object-fit:cover; border-radius:8px;
+  border:1px solid var(--line); cursor:zoom-in;
+}
 .card-img:hover{ filter:brightness(.96); }
 
 .img-lightbox-overlay{
@@ -1721,10 +1752,12 @@ button{font-family:inherit;cursor:pointer;}
             <div class="flash-card" id="flashCard" onclick="flipCard()">
               <div class="face front">
                 <div class="holes"><span></span><span></span><span></span></div>
+                <div class="face-img-badge-slot" id="frontImgBadgeSlot"></div>
                 <div class="face-text" id="frontText"></div>
               </div>
               <div class="face back">
                 <div class="holes"><span></span><span></span><span></span></div>
+                <div class="face-img-badge-slot" id="backImgBadgeSlot"></div>
                 <div class="face-text" id="backText"></div>
               </div>
             </div>
@@ -2131,6 +2164,16 @@ button{font-family:inherit;cursor:pointer;}
   <div class="lightbox-hint" id="lightboxHint">tap image to zoom</div>
   <div class="lightbox-scroll" id="lightboxScroll">
     <img id="lightboxImg" class="lightbox-img" onclick="toggleLightboxZoom(event)" alt="">
+  </div>
+</div>
+
+<div class="overlay" id="faceImgGalleryOverlay" onclick="if(event.target===this) closeFaceImgGallery()">
+  <div class="modal">
+    <h3>More images</h3>
+    <div class="face-img-gallery-grid" id="faceImgGalleryGrid"></div>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeFaceImgGallery()">Close</button>
+    </div>
   </div>
 </div>
 
@@ -4664,10 +4707,43 @@ function imgList(val){
 function buildFaceImagesHtml(imgVal){
   const list = imgList(imgVal);
   if (!list.length) return '';
-  const imgs = list.map(hash =>
-    `<img class="card-img" src="about:blank" data-image-ref="${hash}" alt="" onclick="event.stopPropagation(); openImgLightbox('${hash}')">`
-  ).join('');
-  return `<div class="card-img-row${list.length > 1 ? ' multi' : ''}">${imgs}</div>`;
+  // Only the primary (first) image goes inline in the text flow now —
+  // the badge for anything beyond that is rendered separately, into its
+  // own dedicated slot (see renderFaceImgBadge below), specifically
+  // because .face-text scrolls (overflow-y:auto) and would clip an
+  // absolutely-positioned badge meant to hang off the outer card edge.
+  return `<div class="card-img-row"><img class="card-img" src="about:blank" data-image-ref="${list[0]}" alt="" onclick="event.stopPropagation(); openImgLightbox('${list[0]}')"></div>`;
+}
+/* Renders the "+N images" tab into its own slot (a sibling of .face-text,
+   not a child of it) for whichever face has more than one image. First
+   image stays inline as the primary, immediately-visible content —
+   unchanged from before. Anything beyond that tucks behind this instead
+   of piling up and crowding out the actual text: an image that IS the
+   question (a scan to identify, say) still shows right away with zero
+   extra taps, while reference/supporting images stay one tap away. */
+function renderFaceImgBadge(slotId, imgVal){
+  const slot = document.getElementById(slotId);
+  if (!slot) return;
+  const list = imgList(imgVal);
+  if (list.length <= 1){ slot.innerHTML = ''; return; }
+  const extrasJson = escapeHtml(JSON.stringify(list.slice(1)));
+  slot.innerHTML = `<div class="face-img-badge" data-extra-hashes="${extrasJson}" onclick="event.stopPropagation(); openFaceImgGallery(this)">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+      +${list.length - 1}
+    </div>`;
+}
+async function openFaceImgGallery(el){
+  let hashes = [];
+  try { hashes = JSON.parse(el.dataset.extraHashes || '[]'); } catch(e){}
+  const grid = document.getElementById('faceImgGalleryGrid');
+  grid.innerHTML = hashes.map(h => `<img data-image-ref="${h}" alt="" onclick="openImgLightbox('${h}')">`).join('');
+  document.getElementById('faceImgGalleryOverlay').classList.add('active');
+  await Promise.all(Array.from(grid.querySelectorAll('img')).map(async img => {
+    img.src = await resolveImageRef(img.dataset.imageRef) || '';
+  }));
+}
+function closeFaceImgGallery(){
+  document.getElementById('faceImgGalleryOverlay').classList.remove('active');
 }
 async function resolveFaceImages(containerEl){
   if (!containerEl) return;
@@ -4811,22 +4887,28 @@ async function onEditImageChosen(e, face){
 async function onEditPaste(e, face){
   const items = e.clipboardData && e.clipboardData.items;
   if (!items) return;
-  for (const it of items){
-    if (it.type && it.type.startsWith('image/')){
-      const file = it.getAsFile();
-      if (!file) continue;
-      try {
-        const hash = await storeImageFromFile(file);
-        if (face==='cloze'){ cardEditorState.imgFront.push(hash); cardEditorState.imgBack.push(hash); }
-        else if (face==='front') cardEditorState.imgFront.push(hash);
-        else cardEditorState.imgBack.push(hash);
-        await renderCardEditorImages();
-      } catch (err) {
-        showToast('Could not load that image');
-      }
-      e.preventDefault();
-      return;
-    }
+  const imageItem = Array.from(items).find(it => it.type && it.type.startsWith('image/'));
+  if (!imageItem) return; // no image in this paste — let normal text/URL pasting happen exactly as before
+  // preventDefault() MUST be called synchronously, in the same tick as
+  // the event itself, to actually suppress the browser's native default
+  // paste action — calling it after an await (as this used to) is too
+  // late: by the time an async function resumes post-await, the browser
+  // has already gone ahead and inserted the clipboard's text/URL into
+  // the field on its own. This is exactly why copying an image from a
+  // webpage — which commonly puts both the image AND its source URL on
+  // the clipboard at once — was leaving that URL behind as text even
+  // though the image itself came through correctly.
+  e.preventDefault();
+  const file = imageItem.getAsFile();
+  if (!file) return;
+  try {
+    const hash = await storeImageFromFile(file);
+    if (face==='cloze'){ cardEditorState.imgFront.push(hash); cardEditorState.imgBack.push(hash); }
+    else if (face==='front') cardEditorState.imgFront.push(hash);
+    else cardEditorState.imgBack.push(hash);
+    await renderCardEditorImages();
+  } catch (err) {
+    showToast('Could not load that image');
   }
 }
 function removeEditImage(face, index){
@@ -7506,6 +7588,8 @@ async function renderStudyCard(opts={}){
   const backImg = buildFaceImagesHtml(c.img && c.img.back);
   document.getElementById('frontText').innerHTML = frontImg + '<div class="face-text-inner">' + formatInlineMarkdown(c.f) + '</div>';
   document.getElementById('backText').innerHTML = backImg + '<div class="face-text-inner">' + formatInlineMarkdown(c.b) + '</div>';
+  renderFaceImgBadge('frontImgBadgeSlot', c.img && c.img.front);
+  renderFaceImgBadge('backImgBadgeSlot', c.img && c.img.back);
   await resolveFaceImages(document.getElementById('frontText'));
   await resolveFaceImages(document.getElementById('backText'));
   if (!opts.keepTimer){
