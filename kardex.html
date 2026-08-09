@@ -44,6 +44,7 @@
   --kraft-dark:#B08A54;
   --kraft-shadow:#8f7040;
   --line:#DAD0B4;
+  --table-line:rgba(35,35,35,0.22);
   --hole:#00000014;
   --shadow: 0 1px 2px rgba(35,35,35,.06), 0 6px 16px rgba(35,35,35,.08);
   --shadow-lg: 0 10px 30px rgba(35,35,35,.16), 0 2px 6px rgba(35,35,35,.08);
@@ -75,6 +76,7 @@ body.tough-mode{
   --kraft-dark:#9C4C3D;
   --kraft-shadow:#7A3A2E;
   --line:#DFA895;
+  --table-line:rgba(58,33,29,0.28);
   --ink:#3A211D;
   --ink-soft:#8A5B50;
   background:
@@ -772,6 +774,17 @@ button{font-family:inherit;cursor:pointer;}
   perspective:1600px;
   margin-bottom:26px;
 }
+/* Bigger card on screens that can actually afford it (iPad/laptop and up)
+   — mobile keeps the original size untouched. The height-derived term
+   (52vh converted to an equivalent width via the 3:2 aspect ratio) is
+   what actually prevents this from ever forcing a page-level vertical
+   scrollbar: whichever of the three limits is tightest wins, so on a
+   short/wide window the card is capped by available height, not just width. */
+@media (min-width:820px){
+  .card-stage{
+    max-width:min(640px, 60vw, calc(52vh * 1.5));
+  }
+}
 .star-toggle{
   position:absolute; top:-13px; right:-10px;
   z-index:5;
@@ -846,7 +859,7 @@ button{font-family:inherit;cursor:pointer;}
 .face .face-text-inner{
   text-align:center;
   font-family:'Fraunces', serif;
-  font-size:clamp(16px, 3vw, 21px);
+  font-size:calc(clamp(16px, 3vw, 21px) * var(--study-font-scale, 1));
   line-height:1.42;
   overflow-wrap:break-word;
   word-break:break-word;
@@ -855,6 +868,24 @@ button{font-family:inherit;cursor:pointer;}
   max-height:100%;
   margin:auto;
 }
+.font-size-controls{
+  display:inline-flex; gap:2px; margin-left:auto;
+  opacity:.55;
+}
+.font-size-controls button{
+  width:22px; height:22px;
+  border:1px solid var(--line);
+  background:transparent;
+  border-radius:5px;
+  color:var(--ink-soft);
+  font-family:'IBM Plex Mono', monospace;
+  font-size:10px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:opacity .15s, background .15s;
+}
+.font-size-controls:hover{ opacity:1; }
+.font-size-controls button:hover{ background:var(--paper-dark); }
 .flip-hint{
   margin-top:14px;
   text-align:center;
@@ -1297,6 +1328,10 @@ button{font-family:inherit;cursor:pointer;}
 .editor-label{ display:block; font-size:11px; font-weight:500; color:var(--ink-soft); margin-bottom:5px; text-transform:uppercase; letter-spacing:.04em; }
 #basicPane{ display:flex; flex-direction:column; gap:14px; }
 .editor-face-block textarea{ min-height:56px; }
+#editBack{ min-height:140px; } /* taller by default — dragging the resize handle to make it bigger is a real hassle on mobile specifically */
+@media (max-width:900px){
+  #editBack{ min-height:180px; }
+}
 .card-table-wrap{ width:100%; overflow-x:auto; margin:10px 0; text-align:left; }
 
 /* LaTeX (KaTeX-rendered) */
@@ -1307,10 +1342,10 @@ button{font-family:inherit;cursor:pointer;}
   background:var(--paper-dark); padding:1px 5px; border-radius:4px;
   color:var(--maroon);
 }
-.card-table{ width:100%; min-width:280px; border-collapse:collapse; font-size:13px; line-height:1.45; border:1px solid var(--line); background:var(--surface); }
+.card-table{ width:100%; min-width:280px; border-collapse:collapse; font-size:13px; line-height:1.45; border:1px solid var(--table-line); background:var(--surface); }
 .card-table th,
-.card-table td{ border:1px solid var(--line); padding:6px 10px; vertical-align:top; text-align:left; }
-.card-table th{ background:var(--paper-dark); color:var(--ink); text-align:center; font-weight:600; }
+.card-table td{ border:1px solid var(--table-line); padding:6px 10px; vertical-align:top; text-align:left; }
+.card-table th{ background:var(--paper-dark); color:var(--ink); text-align:center; font-weight:600; border-bottom-width:2px; }
 .card-table td{ background:transparent; }
 .card-table-wrap .highlight{ padding:0 3px; }
 /* ---------- List styling for study/notebook ---------- */
@@ -1330,6 +1365,16 @@ button{font-family:inherit;cursor:pointer;}
 .notebook-entry .nb-front .card-table,
 .notebook-entry .nb-back .card-table{ font-size:13px; }
 .img-slot{ display:flex; align-items:center; gap:10px; margin-top:6px; }
+.img-thumb-row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.img-thumb-wrap{ position:relative; flex-shrink:0; }
+.img-thumb-wrap .img-thumb{ display:block; }
+.img-thumb-remove{
+  position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%;
+  border:1px solid var(--line); background:var(--surface); color:var(--maroon);
+  font-size:10px; line-height:1; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; box-shadow:var(--shadow);
+}
+.img-thumb-remove:hover{ background:var(--maroon); color:#fff; border-color:var(--maroon); }
 .img-add-btn{
   border:1px dashed var(--line); background:transparent; padding:6px 13px;
   border-radius:14px; font-size:12px; color:var(--ink-soft);
@@ -1354,7 +1399,8 @@ button{font-family:inherit;cursor:pointer;}
 .link-chip button:hover{ color:var(--maroon); }
 
 /* ---------- Format toolbar (bold/italic/underline/highlight) ---------- */
-.fmt-toolbar{ display:flex; gap:4px; margin-bottom:5px; flex-wrap:wrap; }
+.fmt-toolbar{ display:flex; gap:4px; margin-bottom:5px; flex-wrap:wrap; align-items:center; }
+.fmt-toolbar-hint{ font-size:11px; color:var(--ink-soft); margin-left:6px; font-family:'IBM Plex Mono', monospace; }
 .fmt-btn{
   width:26px; height:24px;
   display:flex; align-items:center; justify-content:center;
@@ -1388,6 +1434,10 @@ button{font-family:inherit;cursor:pointer;}
 /* ---------- Study mode: card images + see-also links ---------- */
 .face .face-text{ flex-direction:column; gap:10px; }
 .card-img{ max-width:100%; max-height:52%; object-fit:contain; border-radius:8px; flex-shrink:0; cursor:zoom-in; transition:filter .12s; }
+.card-img-row{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center; flex-shrink:0; max-height:52%; }
+.card-img-row .card-img{ max-height:100%; max-width:100%; }
+.card-img-row.multi{ max-height:38%; } /* several images share the space rather than each claiming the single-image height */
+.card-img-row.multi .card-img{ max-height:100%; max-width:calc(50% - 4px); }
 .card-img:hover{ filter:brightness(.96); }
 
 .img-lightbox-overlay{
@@ -1656,6 +1706,10 @@ button{font-family:inherit;cursor:pointer;}
         <span id="studyTitle">—</span>
         <span id="cardTimerQ" class="mono timer-chip face-timer-chip active" title="Time spent on the question face">❓ 0s</span>
         <span id="cardTimerA" class="mono timer-chip face-timer-chip" title="Time spent on the answer face">💡 0s</span>
+        <span class="font-size-controls" title="Card text size">
+          <button type="button" onclick="adjustStudyFontSize(-1)" aria-label="Smaller text">A−</button>
+          <button type="button" onclick="adjustStudyFontSize(1)" aria-label="Bigger text">A+</button>
+        </span>
       </div>
       <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
 
@@ -1941,33 +1995,32 @@ button{font-family:inherit;cursor:pointer;}
     </div>
 
     <div class="editor-pane" id="basicPane">
+      <div class="fmt-toolbar" id="sharedFmtToolbar">
+        <button type="button" class="fmt-btn fmt-b" title="Bold (Ctrl+B)" onmousedown="event.preventDefault()" onclick="wrapSelection(lastFocusedEditorField,'**','**')">B</button>
+        <button type="button" class="fmt-btn fmt-i" title="Italic (Ctrl+I)" onmousedown="event.preventDefault()" onclick="wrapSelection(lastFocusedEditorField,'*','*')">I</button>
+        <button type="button" class="fmt-btn fmt-u" title="Underline (Ctrl+U)" onmousedown="event.preventDefault()" onclick="wrapSelection(lastFocusedEditorField,'__','__')">U</button>
+        <button type="button" class="fmt-btn fmt-h" title="Highlight (Ctrl+Q)" onmousedown="event.preventDefault()" onclick="wrapSelection(lastFocusedEditorField,'==','==')">H</button>
+        <button type="button" class="fmt-btn fmt-list" title="Bulleted list" onmousedown="event.preventDefault()" onclick="toggleBulletedList(lastFocusedEditorField)">•</button>
+        <button type="button" class="fmt-btn fmt-list" title="Numbered list" onmousedown="event.preventDefault()" onclick="toggleNumberedList(lastFocusedEditorField)">1.</button>
+        <button type="button" class="fmt-btn fmt-table" title="Insert table" onmousedown="event.preventDefault()" onclick="insertTableTemplate(lastFocusedEditorField)">▦</button>
+        <span class="fmt-toolbar-hint" id="fmtToolbarHint">applies to: Front</span>
+      </div>
       <div class="editor-face-block">
         <label class="editor-label">Front</label>
-        <div class="fmt-toolbar">
-          <button type="button" class="fmt-btn fmt-b" title="Bold" onmousedown="event.preventDefault()" onclick="wrapSelection('editFront','**','**')">B</button>
-          <button type="button" class="fmt-btn fmt-i" title="Italic" onmousedown="event.preventDefault()" onclick="wrapSelection('editFront','*','*')">I</button>
-          <button type="button" class="fmt-btn fmt-u" title="Underline" onmousedown="event.preventDefault()" onclick="wrapSelection('editFront','__','__')">U</button>
-          <button type="button" class="fmt-btn fmt-h" title="Highlight" onmousedown="event.preventDefault()" onclick="wrapSelection('editFront','==','==')">H</button>
-          <button type="button" class="fmt-btn fmt-list" title="Bulleted list" onmousedown="event.preventDefault()" onclick="toggleBulletedList('editFront')">•</button>
-          <button type="button" class="fmt-btn fmt-list" title="Numbered list" onmousedown="event.preventDefault()" onclick="toggleNumberedList('editFront')">1.</button>
-          <button type="button" class="fmt-btn fmt-table" title="Insert table" onmousedown="event.preventDefault()" onclick="insertTableTemplate('editFront')">▦</button>
-        </div>
-        <textarea id="editFront" rows="2" placeholder="Question or term…" onpaste="onEditPaste(event,'front')"></textarea>
+        <textarea id="editFront" rows="2" placeholder="Question or term…" onpaste="onEditPaste(event,'front')" onkeydown="return handleFormatShortcut(event,'editFront')" onfocus="setLastFocusedEditorField('editFront')" oninput="updateCardPreview()"></textarea>
         <div class="img-slot" id="frontImgSlot"></div>
       </div>
       <div class="editor-face-block">
         <label class="editor-label">Back</label>
-        <div class="fmt-toolbar">
-          <button type="button" class="fmt-btn fmt-b" title="Bold" onmousedown="event.preventDefault()" onclick="wrapSelection('editBack','**','**')">B</button>
-          <button type="button" class="fmt-btn fmt-i" title="Italic" onmousedown="event.preventDefault()" onclick="wrapSelection('editBack','*','*')">I</button>
-          <button type="button" class="fmt-btn fmt-u" title="Underline" onmousedown="event.preventDefault()" onclick="wrapSelection('editBack','__','__')">U</button>
-          <button type="button" class="fmt-btn fmt-h" title="Highlight" onmousedown="event.preventDefault()" onclick="wrapSelection('editBack','==','==')">H</button>
-          <button type="button" class="fmt-btn fmt-list" title="Bulleted list" onmousedown="event.preventDefault()" onclick="toggleBulletedList('editBack')">•</button>
-          <button type="button" class="fmt-btn fmt-list" title="Numbered list" onmousedown="event.preventDefault()" onclick="toggleNumberedList('editBack')">1.</button>
-          <button type="button" class="fmt-btn fmt-table" title="Insert table" onmousedown="event.preventDefault()" onclick="insertTableTemplate('editBack')">▦</button>
-        </div>
-        <textarea id="editBack" rows="2" placeholder="Answer…" onpaste="onEditPaste(event,'back')"></textarea>
+        <textarea id="editBack" rows="6" placeholder="Answer…" onpaste="onEditPaste(event,'back')" onkeydown="return handleFormatShortcut(event,'editBack')" onfocus="setLastFocusedEditorField('editBack')" oninput="updateCardPreview()"></textarea>
         <div class="img-slot" id="backImgSlot"></div>
+      </div>
+      <div style="margin-top:2px;">
+        <button class="mini-btn" id="previewToggleBasic" onclick="toggleCardPreview('basic')">👁️ Preview</button>
+        <div id="cardPreviewAreaBasic" style="display:none; margin-top:10px; padding:12px; background:var(--paper-dark); border-radius:8px; border:1px solid var(--line);">
+          <div class="section-label" style="margin:0 0 6px;">Live Preview</div>
+          <div id="cardPreviewContentBasic" style="font-family:'Fraunces',serif; font-size:17px; line-height:1.5;"></div>
+        </div>
       </div>
     </div>
 
@@ -1982,14 +2035,14 @@ button{font-family:inherit;cursor:pointer;}
         <button type="button" class="fmt-btn fmt-list" title="Numbered list" onmousedown="event.preventDefault()" onclick="toggleNumberedList('editCloze')">1.</button>
         <button type="button" class="fmt-btn fmt-table" title="Insert table" onmousedown="event.preventDefault()" onclick="insertTableTemplate('editCloze')">▦</button>
       </div>
-      <textarea id="editCloze" rows="3" placeholder="The [[median]] nerve is compressed in carpal tunnel syndrome" oninput="onClozeInput()" onpaste="onEditPaste(event,'cloze')"></textarea>
+      <textarea id="editCloze" rows="3" placeholder="The [[median]] nerve is compressed in carpal tunnel syndrome" oninput="onClozeInput()" onpaste="onEditPaste(event,'cloze')" onkeydown="return handleFormatShortcut(event,'editCloze')"></textarea>
       <div class="img-slot" id="clozeImgSlot"></div>
       <div class="cloze-preview">
         <div><span class="cloze-preview-label">Front</span><div id="clozePreviewFront" class="cloze-preview-text"></div></div>
         <div><span class="cloze-preview-label">Back</span><div id="clozePreviewBack" class="cloze-preview-text"></div></div>
       </div>
       <div style="margin-top:12px;">
-        <button class="mini-btn" id="previewToggle" onclick="toggleCardPreview()">👁️ Preview</button>
+        <button class="mini-btn" id="previewToggle" onclick="toggleCardPreview('cloze')">👁️ Preview</button>
         <div id="cardPreviewArea" style="display:none; margin-top:10px; padding:12px; background:var(--paper-dark); border-radius:8px; border:1px solid var(--line);">
           <div class="section-label" style="margin:0 0 6px;">Live Preview</div>
           <div id="cardPreviewContent" style="font-family:'Fraunces',serif; font-size:17px; line-height:1.5;"></div>
@@ -2103,6 +2156,20 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 const SUPABASE_CONFIGURED = !SUPABASE_URL.includes('YOUR-PROJECT-REF') && !SUPABASE_ANON_KEY.includes('YOUR-ANON-PUBLIC-KEY');
 
 let currentUser = null;   // set once signed in
+// Card text size on the study screen — persisted, applied as a CSS
+// variable so it's a pure multiplier on the existing clamp() rather than
+// a separate font-size system to keep in sync.
+let studyFontScale = parseFloat(localStorage.getItem('kardex_study_font_scale')) || 1;
+function applyStudyFontScale(){
+  document.documentElement.style.setProperty('--study-font-scale', studyFontScale);
+}
+function adjustStudyFontSize(direction){
+  const STEP = 0.1, MIN = 0.75, MAX = 1.6;
+  studyFontScale = Math.max(MIN, Math.min(MAX, Math.round((studyFontScale + direction * STEP) * 100) / 100));
+  applyStudyFontScale();
+  try { localStorage.setItem('kardex_study_font_scale', String(studyFontScale)); } catch(e){}
+}
+applyStudyFontScale(); // apply the persisted value immediately, before first render
 let accessToken = null;   // the user's Supabase access token, sent so RLS can see auth.uid()
 // Set true right before a deliberate, user-initiated sign-out, so the
 // SIGNED_OUT event that fires as a result doesn't get treated as an
@@ -2910,6 +2977,17 @@ function queueSyncToSupabase(payload){
    yet) just sat there forever with nothing to ever retry it, unless you
    happened to trigger another sync later. */
 let hasUnsyncedChanges = false;
+// Tracks exactly WHICH decks have an unconfirmed local edit, not just
+// whether any exist. This is what the retry/reconnect path actually
+// needs: pushAllPendingChanges() used to push every deck as a blanket
+// safety net — proven, via a real reproduced test, to cause data loss:
+// a device that was offline for a while has a stale local copy of any
+// deck it didn't personally touch, and a blanket push on reconnect
+// would silently overwrite whatever another device had already pushed
+// to those decks in the meantime with that stale copy. With specific
+// ids tracked, reconnecting only ever re-pushes what THIS device
+// actually changed, never anything it merely still remembers.
+let unsyncedDeckIds = new Set();
 function retryUnsyncedChangesIfAny(){
   if (!hasUnsyncedChanges || !SUPABASE_CONFIGURED || !currentUser || !accessToken) return;
   pushAllPendingChanges().then(success => {
@@ -2924,6 +3002,7 @@ function persistTextState(deckId){
   // Save to localStorage immediately (synchronous) — this is critical for data safety
   const payload = persistLocalState();
   hasUnsyncedChanges = true;
+  if (deckId) unsyncedDeckIds.add(deckId);
   clearTimeout(persistTimeoutId);
 
   // Per-record saves (see the "CLOUD SYNC — per-record storage" block
@@ -2937,26 +3016,27 @@ function persistTextState(deckId){
   const jobs = [queueTreeSkeletonSave(), queueReviewLogFlush()];
   if (deckId) jobs.push(queueDeckSave(deckId));
   Promise.all(jobs).then(results => {
-    if (results.every(r => r !== false)) hasUnsyncedChanges = false;
+    if (results.every(r => r !== false)) {
+      if (deckId) unsyncedDeckIds.delete(deckId);
+      hasUnsyncedChanges = unsyncedDeckIds.size > 0;
+    }
     // If anything failed (offline, token not ready yet, transient error),
-    // hasUnsyncedChanges stays true — retryUnsyncedChangesIfAny() picks
-    // it up the moment auth is confirmed ready, on the next focus/visibility
+    // hasUnsyncedChanges stays true and deckId (if any) stays in
+    // unsyncedDeckIds — retryUnsyncedChangesIfAny() picks it up the
+    // moment auth is confirmed ready, on the next focus/visibility
     // return, or within 30s regardless via the interval below.
   });
 }
-/* Re-pushes everything that might still be unsynced: the tree skeleton,
-   the review log, and every deck currently in the tree. Wasteful
-   compared to knowing exactly which one thing failed, but this only
-   runs on retry (not the normal path), and "safe and simple" matters
-   more here than "maximally efficient" — this is the safety net. */
+/* Re-pushes the tree skeleton and review log (both small, whole-object
+   saves — always safe to resend regardless of what specifically
+   changed) plus ONLY the decks actually tracked as having an
+   unconfirmed edit — never every deck in the tree. That blanket-push
+   version was the bug: safe and simple sounds right for a safety net,
+   until "safe" turns out to mean "will confidently overwrite a deck
+   this device never even touched." */
 function pushAllPendingChanges(){
   const jobs = [queueTreeSkeletonSave(), queueReviewLogFlush()];
-  (function walk(n){
-    n.children.forEach(c => {
-      if (c.type === 'folder') walk(c);
-      else jobs.push(queueDeckSave(c.id));
-    });
-  })(root);
+  unsyncedDeckIds.forEach(id => jobs.push(queueDeckSave(id)));
   return Promise.all(jobs).then(results => results.every(r => r !== false));
 }
 function applyPersistedPayload(parsed){
@@ -3177,8 +3257,8 @@ function collectCardIdsAndImageHashes(node, cardIds, hashes){
     node.cards.forEach(c => {
       cardIds.add(c.id);
       if (c.img){
-        if (c.img.front) hashes.add(c.img.front);
-        if (c.img.back) hashes.add(c.img.back);
+        imgList(c.img.front).forEach(h => hashes.add(h));
+        imgList(c.img.back).forEach(h => hashes.add(h));
       }
     });
   }
@@ -4400,20 +4480,23 @@ function openCardEditor(deckId, cardId){
   if (!deck) return;
   closeCtxMenu();
 
-  let type=lastCardType, front='', back='', clozeSource='', imgFront=null, imgBack=null, links=[], tags=[];
+  let type=lastCardType, front='', back='', clozeSource='', imgFront=[], imgBack=[], links=[], tags=[];
   if (cardId){
     const c = deck.cards.find(cc=>cc.id===cardId);
     if (c){
       type = c.type || 'basic';
       front = c.f; back = c.b;
       clozeSource = c.clozeSource || '';
-      imgFront = c.img ? c.img.front : null;
-      imgBack = c.img ? c.img.back : null;
+      imgFront = imgList(c.img ? c.img.front : null); // handles both old (single hash) and new (array) cards transparently
+      imgBack = imgList(c.img ? c.img.back : null);
       links = c.links ? [...c.links] : [];
       tags = c.tags ? [...c.tags] : [];
     }
   }
   cardEditorState = { deckId, cardId, type, imgFront, imgBack, links, prevLinks:[...links] };
+  lastFocusedEditorField = 'editFront';
+  const hint = document.getElementById('fmtToolbarHint');
+  if (hint) hint.textContent = 'applies to: Front';
 
   document.getElementById('cardEditorTitle').textContent = cardId ? 'Edit card' : 'Add card';
   document.getElementById('deleteFromEditorBtn').style.display = cardId ? 'inline-flex' : 'none';
@@ -4462,6 +4545,12 @@ function deleteFromEditor(){
 }
 
 /* --- cloze live preview --- */
+let lastFocusedEditorField = 'editFront';
+function setLastFocusedEditorField(id){
+  lastFocusedEditorField = id;
+  const hint = document.getElementById('fmtToolbarHint');
+  if (hint) hint.textContent = 'applies to: ' + (id === 'editFront' ? 'Front' : 'Back');
+}
 function onClozeInput(){
   const source = document.getElementById('editCloze').value;
   const { f, b } = clozeToFB(source || '');
@@ -4477,6 +4566,59 @@ function onClozeInput(){
    handles/copy-paste menu instead of fighting them. If nothing is selected,
    it drops an empty pair of markers and places the cursor between them so
    you can just start typing. --- */
+/* Ctrl/Cmd+B/I/U/Q in any of the three editor textareas — same wrap
+   logic the toolbar buttons already use, just reachable without taking
+   a hand off the keyboard. Q for highlight (not H) because Ctrl+H is
+   already "find & replace" in most browsers and can't be reliably
+   intercepted; Q was free and sits right next to the other three. Ctrl+B
+   and Ctrl+U in particular have their own native browser behavior
+   (bookmark dialog, view-source) that has to be explicitly suppressed
+   here, not just the wrap skipped. */
+function handleFormatShortcut(e, textareaId){
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return true;
+  const key = e.key.toLowerCase();
+  const marker = { b: ['**','**'], i: ['*','*'], u: ['__','__'], q: ['==','=='] }[key];
+  if (!marker) return true;
+  e.preventDefault();
+  wrapSelection(textareaId, marker[0], marker[1]);
+  return false;
+}
+/* Normalizes any card image field into an array, regardless of which
+   shape it's actually stored in — a card saved before this feature
+   existed has img.front/back as a single hash string (or null); a card
+   saved after it can have an array of hashes. Every display and cleanup
+   site reads through this instead of assuming one shape, so old cards
+   keep working exactly as before with zero migration needed. */
+function imgList(val){
+  if (!val) return [];
+  return Array.isArray(val) ? val.filter(Boolean) : [val];
+}
+/* Builds the HTML for however many images a face actually has (0, 1, or
+   many) — src starts as about:blank and gets resolved separately by
+   resolveFaceImages() below, so the card renders instantly instead of
+   waiting on IndexedDB/network lookups before showing any text at all. */
+function buildFaceImagesHtml(imgVal){
+  const list = imgList(imgVal);
+  if (!list.length) return '';
+  const imgs = list.map(hash =>
+    `<img class="card-img" src="about:blank" data-image-ref="${hash}" alt="" onclick="event.stopPropagation(); openImgLightbox('${hash}')">`
+  ).join('');
+  return `<div class="card-img-row${list.length > 1 ? ' multi' : ''}">${imgs}</div>`;
+}
+async function resolveFaceImages(containerEl){
+  if (!containerEl) return;
+  const imgs = containerEl.querySelectorAll('.card-img');
+  await Promise.all(Array.from(imgs).map(async img => {
+    img.src = await resolveImageRef(img.dataset.imageRef) || '';
+  }));
+}
+/* Same idea as buildFaceImagesHtml() above, for the simpler .nb-img
+   markup used in notebook view / search results / PDF export — no
+   lightbox click, no wrapping row, just however many <img> tags the
+   face actually has. */
+function buildFaceNbImagesHtml(imgVal){
+  return imgList(imgVal).map(hash => `<img class="nb-img" data-image-ref="${hash}" alt="">`).join('');
+}
 function wrapSelection(textareaId, prefix, suffix){
   const el = document.getElementById(textareaId);
   if (!el) return;
@@ -4552,8 +4694,9 @@ function toggleListMarker(el, marker) {
   updateCardPreview();
 }
 
-function toggleCardPreview() {
-  const area = document.getElementById('cardPreviewArea');
+function toggleCardPreview(pane) {
+  pane = pane || (cardEditorState && cardEditorState.type === 'cloze' ? 'cloze' : 'basic');
+  const area = document.getElementById(pane === 'cloze' ? 'cardPreviewArea' : 'cardPreviewAreaBasic');
   if (!area) return;
   if (area.style.display === 'none') {
     area.style.display = 'block';
@@ -4565,18 +4708,21 @@ function toggleCardPreview() {
 
 function updateCardPreview() {
   const mode = cardEditorState ? cardEditorState.type : 'basic';
-  let content = '';
   if (mode === 'cloze') {
+    const area = document.getElementById('cardPreviewArea');
+    if (!area || area.style.display === 'none') return;
     const source = document.getElementById('editCloze').value;
     const { f, b } = clozeToFB(source);
-    content = `<div style="margin-bottom:8px;"><strong>Front:</strong> ${formatInlineMarkdown(f)}</div><div><strong>Back:</strong> ${formatInlineMarkdown(b)}</div>`;
+    const preview = document.getElementById('cardPreviewContent');
+    if (preview) preview.innerHTML = `<div style="margin-bottom:8px;"><strong>Front:</strong> ${formatInlineMarkdown(f)}</div><div><strong>Back:</strong> ${formatInlineMarkdown(b)}</div>`;
   } else {
+    const area = document.getElementById('cardPreviewAreaBasic');
+    if (!area || area.style.display === 'none') return;
     const front = document.getElementById('editFront').value;
     const back = document.getElementById('editBack').value;
-    content = `<div style="margin-bottom:8px;"><strong>Front:</strong> ${formatInlineMarkdown(front)}</div><div><strong>Back:</strong> ${formatInlineMarkdown(back)}</div>`;
+    const preview = document.getElementById('cardPreviewContentBasic');
+    if (preview) preview.innerHTML = `<div style="margin-bottom:8px;"><strong>Front:</strong> ${formatInlineMarkdown(front)}</div><div><strong>Back:</strong> ${formatInlineMarkdown(back)}</div>`;
   }
-  const preview = document.getElementById('cardPreviewContent');
-  if (preview) preview.innerHTML = content;
 }
 
 /* --- images: file picker or paste, per face --- */
@@ -4589,13 +4735,14 @@ async function onEditImageChosen(e, face){
   if (!file || !file.type || !file.type.startsWith('image/')) return;
   try {
     const hash = await storeImageFromFile(file);
-    if (face==='cloze'){ cardEditorState.imgFront = hash; cardEditorState.imgBack = hash; }
-    else if (face==='front') cardEditorState.imgFront = hash;
-    else cardEditorState.imgBack = hash;
+    if (face==='cloze'){ cardEditorState.imgFront.push(hash); cardEditorState.imgBack.push(hash); }
+    else if (face==='front') cardEditorState.imgFront.push(hash);
+    else cardEditorState.imgBack.push(hash);
     await renderCardEditorImages();
   } catch (err) {
     showToast('Could not load that image');
   }
+  e.target.value = ''; // allow picking the SAME file again right after (e.g. re-adding after removing it)
 }
 async function onEditPaste(e, face){
   const items = e.clipboardData && e.clipboardData.items;
@@ -4606,9 +4753,9 @@ async function onEditPaste(e, face){
       if (!file) continue;
       try {
         const hash = await storeImageFromFile(file);
-        if (face==='cloze'){ cardEditorState.imgFront = hash; cardEditorState.imgBack = hash; }
-        else if (face==='front') cardEditorState.imgFront = hash;
-        else cardEditorState.imgBack = hash;
+        if (face==='cloze'){ cardEditorState.imgFront.push(hash); cardEditorState.imgBack.push(hash); }
+        else if (face==='front') cardEditorState.imgFront.push(hash);
+        else cardEditorState.imgBack.push(hash);
         await renderCardEditorImages();
       } catch (err) {
         showToast('Could not load that image');
@@ -4618,10 +4765,10 @@ async function onEditPaste(e, face){
     }
   }
 }
-function removeEditImage(face){
-  if (face==='cloze'){ cardEditorState.imgFront = null; cardEditorState.imgBack = null; }
-  else if (face==='front') cardEditorState.imgFront = null;
-  else cardEditorState.imgBack = null;
+function removeEditImage(face, index){
+  if (face==='cloze'){ cardEditorState.imgFront.splice(index,1); cardEditorState.imgBack.splice(index,1); }
+  else if (face==='front') cardEditorState.imgFront.splice(index,1);
+  else cardEditorState.imgBack.splice(index,1);
   renderCardEditorImages();
 }
 async function renderCardEditorImages(){
@@ -4629,16 +4776,22 @@ async function renderCardEditorImages(){
   await renderImgSlot('backImgSlot', cardEditorState.imgBack, 'back');
   await renderImgSlot('clozeImgSlot', cardEditorState.imgFront, 'cloze');
 }
-async function renderImgSlot(slotId, imageRef, face){
+async function renderImgSlot(slotId, imageRefs, face){
   const slot = document.getElementById(slotId);
-  const resolved = await resolveImageRef(imageRef);
-  if (resolved){
-    slot.innerHTML = `<img src="${resolved}" class="img-thumb" alt="">
-      <button type="button" class="img-remove-btn" onclick="removeEditImage('${face}')">✕ Remove image</button>`;
-  } else {
-    slot.innerHTML = `<button type="button" class="img-add-btn" onclick="triggerImgPick('${face}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2.5px; margin-right:2px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> Add image</button>
-      <input type="file" accept="image/*" style="display:none" id="fileInput_${face}" onchange="onEditImageChosen(event,'${face}')">`;
-  }
+  const resolved = await Promise.all(imageRefs.map(ref => resolveImageRef(ref)));
+  const thumbs = resolved.map((src, i) => src ? `<div class="img-thumb-wrap">
+      <img src="${src}" class="img-thumb" alt="">
+      <button type="button" class="img-thumb-remove" title="Remove image" onclick="removeEditImage('${face}',${i})">✕</button>
+    </div>` : '').join('');
+  // The add button is always present now, not swapped out once one image
+  // exists — this is the actual change that removes the old one-image
+  // cap (previously only local IndexedDB storage, replaced by ImgBB
+  // cloud sync a while back, which was the original reason for capping
+  // it at one image per side in the first place).
+  slot.innerHTML = `<div class="img-thumb-row">${thumbs}
+      <button type="button" class="img-add-btn" onclick="triggerImgPick('${face}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2.5px; margin-right:2px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> Add image</button>
+    </div>
+    <input type="file" accept="image/*" style="display:none" id="fileInput_${face}" onchange="onEditImageChosen(event,'${face}')">`;
 }
 
 /* --- see-also links --- */
@@ -4711,7 +4864,7 @@ function saveCardEditorCore(){
   targetCard.b = b;
   targetCard.type = s.type;
   targetCard.clozeSource = clozeSource;
-  targetCard.img = { front: s.imgFront || null, back: s.imgBack || null };
+  targetCard.img = { front: s.imgFront.length ? (s.imgFront.length === 1 ? s.imgFront[0] : s.imgFront) : null, back: s.imgBack.length ? (s.imgBack.length === 1 ? s.imgBack[0] : s.imgBack) : null };
   targetCard.links = [...s.links];
   targetCard.tags = document.getElementById('editTags').value
     .split(',')
@@ -5233,8 +5386,8 @@ function toggleSearchSection(key){
    editing and this is a result list, not a browsing surface. */
 function searchCardRow(i){
   const { card: cd, deck: dk, pathLabel } = i;
-  const frontImg = cd.img && cd.img.front ? `<img class="nb-img" data-image-ref="${cd.img.front}" alt="">` : '';
-  const backImg = cd.img && cd.img.back ? `<img class="nb-img" data-image-ref="${cd.img.back}" alt="">` : '';
+  const frontImg = buildFaceNbImagesHtml(cd.img && cd.img.front);
+  const backImg = buildFaceNbImagesHtml(cd.img && cd.img.back);
   const row = document.createElement('div');
   row.className = 'notebook-entry search-notebook-card';
   row.innerHTML = `
@@ -7081,8 +7234,8 @@ function deepCloneNode(node){
     nc.type = c.type || 'basic';
     nc.clozeSource = c.clozeSource || null;
     nc.img = {
-      front: c.img ? c.img.front : null,
-      back: c.img ? c.img.back : null
+      front: Array.isArray(c.img && c.img.front) ? [...c.img.front] : (c.img ? c.img.front : null),
+      back: Array.isArray(c.img && c.img.back) ? [...c.img.back] : (c.img ? c.img.back : null)
     };
     // links deliberately not carried over — a copy shouldn't silently
     // point at "see also" cards elsewhere that don't point back at it
@@ -7285,14 +7438,12 @@ async function renderStudyCard(opts={}){
   fc.classList.remove('no-anim');
 
   const c = s.deck.cards[s.order[s.pos]];
-  const frontImg = c.img && c.img.front ? `<img class="card-img" src="about:blank" data-image-ref="${c.img.front}" alt="" onclick="event.stopPropagation(); openImgLightbox('${c.img.front}')">` : '';
-  const backImg = c.img && c.img.back ? `<img class="card-img" src="about:blank" data-image-ref="${c.img.back}" alt="" onclick="event.stopPropagation(); openImgLightbox('${c.img.back}')">` : '';
+  const frontImg = buildFaceImagesHtml(c.img && c.img.front);
+  const backImg = buildFaceImagesHtml(c.img && c.img.back);
   document.getElementById('frontText').innerHTML = frontImg + '<div class="face-text-inner">' + formatInlineMarkdown(c.f) + '</div>';
   document.getElementById('backText').innerHTML = backImg + '<div class="face-text-inner">' + formatInlineMarkdown(c.b) + '</div>';
-  const frontEl = document.getElementById('frontText').querySelector('.card-img');
-  const backEl = document.getElementById('backText').querySelector('.card-img');
-  if (frontEl){ frontEl.src = await resolveImageRef(c.img && c.img.front) || ''; }
-  if (backEl){ backEl.src = await resolveImageRef(c.img && c.img.back) || ''; }
+  await resolveFaceImages(document.getElementById('frontText'));
+  await resolveFaceImages(document.getElementById('backText'));
   if (!opts.keepTimer){
     s.cardStartTs = Date.now();
     s.questionElapsed = 0;
@@ -7525,8 +7676,8 @@ async function renderNotebookPages(){
   }
 
   pages.innerHTML = deck.cards.map((c, i) => {
-    const frontImg = c.img && c.img.front ? `<img class="nb-img" data-image-ref="${c.img.front}" alt="">` : '';
-    const backImg = c.img && c.img.back ? `<img class="nb-img" data-image-ref="${c.img.back}" alt="">` : '';
+    const frontImg = buildFaceNbImagesHtml(c.img && c.img.front);
+    const backImg = buildFaceNbImagesHtml(c.img && c.img.back);
     return `
       <div class="notebook-entry-wrapper" data-card-id="${c.id}">
         <div class="notebook-entry-actions">
@@ -7657,16 +7808,18 @@ async function exportNotebookAs(format){
     // A single card's image failing to resolve (bad cloud reference, a
     // network hiccup, etc.) shouldn't take down the whole export — fall
     // back to rendering that card without the image.
-    let frontImgSrc = null, backImgSrc = null;
-    try{ frontImgSrc = c.img && c.img.front ? await resolveImageRef(c.img.front) : null; }
-    catch(e){ console.warn('Notebook export: could not resolve front image for card', c.id, e); }
-    try{ backImgSrc = c.img && c.img.back ? await resolveImageRef(c.img.back) : null; }
-    catch(e){ console.warn('Notebook export: could not resolve back image for card', c.id, e); }
+    let frontImgSrcs = [], backImgSrcs = [];
+    try{ frontImgSrcs = (await Promise.all(imgList(c.img && c.img.front).map(resolveImageRef))).filter(Boolean); }
+    catch(e){ console.warn('Notebook export: could not resolve front image(s) for card', c.id, e); }
+    try{ backImgSrcs = (await Promise.all(imgList(c.img && c.img.back).map(resolveImageRef))).filter(Boolean); }
+    catch(e){ console.warn('Notebook export: could not resolve back image(s) for card', c.id, e); }
+    const frontImgsHtml = frontImgSrcs.map(src => `<img class="nb-img" src="${src}">`).join('');
+    const backImgsHtml = backImgSrcs.map(src => `<img class="nb-img" src="${src}">`).join('');
     scratch.innerHTML = `
       <div class="notebook-entry" style="width:${CONTENT_W}px; box-sizing:border-box; position:static; box-shadow:none;">
         <div class="nb-index">Card ${i+1}</div>
-        <div class="nb-front">${formatInlineMarkdown(c.f)}${frontImgSrc ? `<img class="nb-img" src="${frontImgSrc}">` : ''}</div>
-        <div class="nb-back">${formatInlineMarkdown(c.b)}${backImgSrc ? `<img class="nb-img" src="${backImgSrc}">` : ''}</div>
+        <div class="nb-front">${formatInlineMarkdown(c.f)}${frontImgsHtml}</div>
+        <div class="nb-back">${formatInlineMarkdown(c.b)}${backImgsHtml}</div>
       </div>`;
     const entryEl = scratch.firstElementChild;
     const canvas = await html2canvas(entryEl, { scale: RENDER_SCALE, backgroundColor: '#FCFAF3', useCORS: true });
