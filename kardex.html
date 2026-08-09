@@ -1759,7 +1759,7 @@ button{font-family:inherit;cursor:pointer;}
       <input type="file" id="deckFileInput" accept=".md,.markdown,.json,.txt,.docx,.doc" style="display:none" onchange="onDeckFileChosen(event)">
       <textarea id="importText" placeholder="…or paste your Markdown / JSON cards here" oninput="onImportTextChange()"></textarea>
       <div class="import-status" id="importStatus"></div>
-      <div class="import-hint">Markdown blocks separated by <code>---</code>, each with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:** The [[answer]] is hidden</code>), plus optional <code>**Tags:**</code> and <code>**Links:** 2, 5</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links}</code>. Word <code>.docx</code> files are also supported and previewed as cards before the deck is created.</div>
+      <div class="import-hint">Markdown blocks separated by a line containing <strong>exactly three hyphens and nothing else</strong> (<code>---</code> — not <code>--</code>, not <code>----</code>, on its own line by itself), each block starting with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:** The [[answer]] is hidden</code>), plus optional <code>**Tags:**</code> and <code>**Links:** 2, 5</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links}</code>. Word <code>.docx</code> files are also supported and previewed as cards before the deck is created.</div>
     </div>
     <div class="modal-row">
       <button class="cancel" onclick="closeModal('deckOverlay')">Cancel</button>
@@ -1793,7 +1793,7 @@ button{font-family:inherit;cursor:pointer;}
       <input type="file" id="bulkDeckFileInput" accept=".md,.markdown,.json,.txt,.docx,.doc" style="display:none" onchange="onBulkDeckFileChosen(event)">
       <textarea id="bulkImportText" placeholder="…or paste your Markdown / JSON cards here" oninput="onBulkImportTextChange()"></textarea>
       <div class="import-status" id="bulkImportStatus"></div>
-      <div class="import-hint">Same format as new-deck import — Markdown blocks separated by <code>---</code>, each with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:**</code>), plus optional <code>**Tags:**</code>/<code>**Links:**</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links, id}</code>. Word <code>.docx</code> files also preview into the same card model, and any embedded images are mapped into the front or back of the generated cards.</div>
+      <div class="import-hint">Same format as new-deck import — Markdown blocks separated by a line containing <strong>exactly three hyphens and nothing else</strong> (<code>---</code> — not <code>--</code>, not <code>----</code>, on its own line by itself), each starting with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:**</code>), plus optional <code>**Tags:**</code>/<code>**Links:**</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links, id}</code>. Word <code>.docx</code> files also preview into the same card model, and any embedded images are mapped into the front or back of the generated cards.</div>
     </div>
     <div class="modal-row">
       <button class="cancel" onclick="closeModal('bulkAddOverlay')">Cancel</button>
@@ -8258,7 +8258,10 @@ function avatarColor(seed){
 }
 
 /* ---------------- Settings modal ---------------- */
-const CARD_FORMAT_MD = `— BASIC CARD —
+const CARD_FORMAT_MD = `— HOW TO SEPARATE CARDS —
+Put a line with EXACTLY three hyphens (---) and nothing else between each card — not two (--), not four (----), not three plus spaces or any other character on that line. Exactly "---", completely alone on its own line.
+
+— BASIC CARD —
 ### Card 1
 **Q:** What nerve is compressed in carpal tunnel syndrome?
 **A:** The median nerve

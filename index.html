@@ -43,7 +43,9 @@ body{
   margin:0;
   min-height:100%;
   background:
+    radial-gradient(circle, rgba(35,35,35,.045) 1px, transparent 1.3px),
     radial-gradient(ellipse at top left, #fbf8ef 0%, var(--paper) 55%);
+  background-size: 22px 22px, 100% 100%;
   color:var(--ink);
   font-family:'IBM Plex Sans', sans-serif;
   display:flex;
@@ -57,6 +59,7 @@ body{
 
 /* ---------------- Layout ---------------- */
 .wrap{
+  position:relative;
   width:100%;
   max-width:920px;
   display:grid;
@@ -72,6 +75,29 @@ body{
 @media (max-width:760px){
   .wrap{ grid-template-columns:1fr; gap:0; }
 }
+/* Punched-card binder holes down the left edge — a small, specific,
+   physical detail that does more for "this feels like the real app"
+   than any amount of color tuning; nothing here uses an image file. */
+.wrap::before{
+  content:"";
+  position:absolute; left:0; top:0; bottom:0; width:26px;
+  background-image:radial-gradient(circle, var(--paper) 0 4px, transparent 4.5px);
+  background-size:100% 46px;
+  background-position:13px 30px;
+  background-repeat:repeat-y;
+  box-shadow:inset -1px 0 0 var(--line);
+  z-index:6;
+}
+.wrap::after{
+  content:"";
+  position:absolute; left:1px; top:0; bottom:0; width:26px;
+  background-image:radial-gradient(circle, rgba(35,35,35,.08) 0 4px, transparent 5px);
+  background-size:100% 46px;
+  background-position:13px 30px;
+  background-repeat:repeat-y;
+  z-index:6; pointer-events:none;
+}
+@media (max-width:760px){ .wrap::before, .wrap::after{ display:none; } }
 
 /* ---------------- Left: illustration ---------------- */
 .art-side{
@@ -83,7 +109,7 @@ body{
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:clamp(20px, 6vw, 30px);
+  padding:clamp(20px, 6vw, 30px) clamp(20px, 6vw, 30px) clamp(20px, 6vw, 30px) calc(clamp(20px, 6vw, 30px) + 22px);
 }
 @media (max-width:760px){ .art-side{ min-height:0; padding:clamp(24px, 9vw, 34px) clamp(20px, 6vw, 30px); } }
 
@@ -91,6 +117,37 @@ body{
   position:relative;
   width:min(260px, 62vw);
   aspect-ratio:1 / 1;
+}
+/* A small library-catalog divider tab — the kind of thing that used to
+   sit at the top of a drawer of index cards to mark where "A" ends and
+   "B" begins. Purely decorative, but it's exactly the kind of specific,
+   physical detail that makes the illustration feel considered instead
+   of just "a stack of cards floating in a gradient". */
+.art-tab{
+  position:absolute;
+  left:50%; top:clamp(14px, 5vw, 22px);
+  transform:translateX(-50%);
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-radius:5px;
+  padding:4px 12px;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.1em;
+  color:var(--ink-soft);
+  box-shadow:var(--shadow);
+}
+.art-tab::before{
+  content:"";
+  position:absolute; left:50%; bottom:-5px; transform:translateX(-50%);
+  width:8px; height:8px;
+  background:var(--paper-raised);
+  border-right:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  border-radius:0 0 2px 0;
+  transform-origin:center;
+  rotate:45deg;
 }
 
 /* folder peeking out behind the card stack — sized/positioned in %
@@ -297,16 +354,20 @@ body{
 .howto-step:last-child{ margin-bottom:0; }
 .howto-num{
   flex-shrink:0;
-  width:22px; height:22px;
+  width:23px; height:23px;
   border-radius:50%;
   background:var(--paper-dark);
   border:1px solid var(--line);
   display:flex; align-items:center; justify-content:center;
   font-family:'IBM Plex Mono', monospace;
   font-size:11px;
-  font-weight:500;
+  font-weight:600;
   color:var(--teal-dark);
+  box-shadow:inset 0 1px 2px rgba(35,35,35,.05);
 }
+.step-maroon .howto-num{ color:var(--maroon); background:rgba(155,59,52,.09); border-color:rgba(155,59,52,.28); }
+.step-kraft .howto-num{ color:var(--kraft-dark); background:rgba(178,138,84,.14); border-color:rgba(178,138,84,.35); }
+.howto-step:not(.step-maroon):not(.step-kraft) .howto-num{ background:rgba(47,111,98,.08); border-color:rgba(47,111,98,.25); }
 .howto-text{
   font-size:13px;
   line-height:1.5;
@@ -322,6 +383,7 @@ body{
 <div class="wrap">
 
   <div class="art-side">
+    <div class="art-tab">A–Z</div>
     <div class="art-stage">
       <div class="art-folder"></div>
       <div class="art-card card-a">
@@ -372,11 +434,11 @@ body{
         <div class="howto-num">1</div>
         <div class="howto-text"><b>Organize</b> <span>— sort cards into drawers and decks, just like a card catalog.</span></div>
       </div>
-      <div class="howto-step">
+      <div class="howto-step step-maroon">
         <div class="howto-num">2</div>
         <div class="howto-text"><b>Study</b> <span>— flip through a deck, grading each card "Got it" or "Review again."</span></div>
       </div>
-      <div class="howto-step">
+      <div class="howto-step step-kraft">
         <div class="howto-num">3</div>
         <div class="howto-text"><b>Star & track</b> <span>— pin the cards that trip you up and watch your review times improve.</span></div>
       </div>
