@@ -1290,6 +1290,18 @@ button{font-family:inherit;cursor:pointer;}
   border-radius:14px; font-size:11px; color:var(--ink); flex-shrink:0;
 }
 .mini-btn:hover{ border-color:var(--teal); color:var(--teal-dark); }
+.mini-btn.danger{ color:var(--maroon); border-color:rgba(155,59,52,.35); }
+.mini-btn.danger:hover{ background:var(--maroon); color:#fff; border-color:var(--maroon); }
+
+.trash-row .trash-ico{ font-size:13px; opacity:.8; }
+.trash-item{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:10px 4px; border-bottom:1px solid var(--line);
+}
+.trash-item:last-child{ border-bottom:none; }
+.trash-item-name{ font-weight:600; font-size:13.5px; color:var(--ink); }
+.trash-item-meta{ font-size:10.5px; color:var(--ink-soft); margin-top:2px; }
+.trash-item-actions{ display:flex; gap:6px; flex-shrink:0; }
 
 /* ---------- Settings modal ---------- */
 .settings-section{ margin-bottom:20px; }
@@ -1681,6 +1693,11 @@ button{font-family:inherit;cursor:pointer;}
       <span class="tname">Tough cards</span>
       <span class="tcount" id="toughCount">0</span>
     </div>
+    <div class="starred-row trash-row" id="trashRow" onclick="viewTrash()">
+      <span class="trash-ico">🗑</span>
+      <span class="tname">Trash</span>
+      <span class="tcount" id="trashCount"></span>
+    </div>
     <div class="tough-mode-row" id="toughModeRow">
       <span class="tmode-label">Tough mode</span>
       <button type="button" class="toggle-switch" id="toughModeToggle" onclick="toggleToughMode()" role="switch" aria-checked="false" title="Only show tough cards when studying a deck, with a red theme to match">
@@ -1902,11 +1919,11 @@ button{font-family:inherit;cursor:pointer;}
 
 <div class="overlay" id="deleteOverlay">
   <div class="modal">
-    <h3>Delete this?</h3>
+    <h3>Move to Trash?</h3>
     <p id="deleteMsg" style="font-size:13px; color:var(--ink-soft); margin:0 0 16px; line-height:1.5;"></p>
     <div class="modal-row">
       <button class="cancel" onclick="closeModal('deleteOverlay')">Cancel</button>
-      <button class="confirm confirm-danger" onclick="doDelete()">Delete</button>
+      <button class="confirm confirm-danger" onclick="doDelete()">Move to Trash</button>
     </div>
   </div>
 </div>
@@ -1920,6 +1937,32 @@ button{font-family:inherit;cursor:pointer;}
     </div>
   </div>
 </div>
+
+<div class="overlay" id="trashOverlay">
+  <div class="modal wide" style="max-height:82vh; overflow-y:auto;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+      <h3 style="margin:0;">Trash</h3>
+      <button class="mini-btn danger" id="emptyTrashBtn" onclick="confirmEmptyTrash()" style="display:none;">Empty trash</button>
+    </div>
+    <p class="mono" style="font-size:11.5px; color:var(--ink-soft); margin:0 0 12px;">Deleted decks, drawers, and cards stay here for 30 days before being cleaned up automatically.</p>
+    <div id="trashList"></div>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeTrashView()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="trashConfirmOverlay">
+  <div class="modal">
+    <h3>Are you sure?</h3>
+    <p id="trashConfirmMsg" style="font-size:13px; color:var(--ink-soft); margin:0 0 16px; line-height:1.5;"></p>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal('trashConfirmOverlay')">Cancel</button>
+      <button class="confirm confirm-danger" onclick="runTrashConfirmAction()">Delete forever</button>
+    </div>
+  </div>
+</div>
+
 
 <div class="overlay" id="settingsOverlay">
   <div class="modal wide" style="max-height:86vh; overflow-y:auto;">
@@ -2739,6 +2782,7 @@ function queueTreeSkeletonSave(){
       body: JSON.stringify({
         user_id: currentUser.id, skeleton, pending_session: pendingSession,
         daily_deck_state: loadDailyDeckState(), tough_mode: toughMode, tough_mode_changed_at: toughModeChangedAt,
+        trash,
         updated_at: new Date().toISOString()
       })
     });
@@ -2824,7 +2868,7 @@ async function loadEverythingFromCloud(){
   if (!currentUser || !accessToken) return false;
   try {
     const [treeRes, decksRes, logRes, urlsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=skeleton,pending_session,daily_deck_state,tough_mode,tough_mode_changed_at`, { headers: sbHeaders() }),
+      fetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=skeleton,pending_session,daily_deck_state,tough_mode,tough_mode_changed_at,trash`, { headers: sbHeaders() }),
       fetch(`${SUPABASE_URL}/rest/v1/kardex_decks?user_id=eq.${currentUser.id}&select=deck_id,name,cards,sessions`, { headers: sbHeaders() }),
       fetch(`${SUPABASE_URL}/rest/v1/kardex_review_log?user_id=eq.${currentUser.id}&select=card_id,good,ts,question_seconds,answer_seconds&order=id.asc`, { headers: sbHeaders() }),
       fetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls?user_id=eq.${currentUser.id}&select=hash,url`, { headers: sbHeaders() }),
@@ -2906,6 +2950,21 @@ async function loadEverythingFromCloud(){
       } catch(e){}
       applyToughModeClass();
     }
+
+    // Trash: unlike the scalar fields above, this is a growable LIST
+    // that different devices can independently add to — so a "most
+    // recent wins" overwrite is wrong here, it would silently lose
+    // whichever device's deletion didn't happen to win. Each entry has
+    // a unique trashId generated at delete time, so a straightforward
+    // union merge (keep anything present in either side, deduplicated
+    // by id) is always safe: two devices trashing different things at
+    // the same time both survive, and nothing genuinely conflicts since
+    // no two entries ever share an id.
+    const cloudTrash = Array.isArray(treeRows[0].trash) ? treeRows[0].trash : [];
+    const localTrashIds = new Set(trash.map(t => t.trashId));
+    trash = trash.concat(cloudTrash.filter(t => !localTrashIds.has(t.trashId)));
+    saveTrashLocal();
+    renderTrashBadgeCount();
 
     reviewLog = logRows.map(r => ({
       cardId: r.card_id, good: r.good, ts: r.ts,
@@ -3687,6 +3746,168 @@ const PENDING_SESSION_KEY = 'kardex_pending_session';
 let pendingSession = null;
 let pendingPromptCtx = null; // { newDeck, opts } while the "unfinished deck" modal is open
 
+/* ---------------------------------------------------------
+   TRASH — deleted decks, drawers, and cards land here first
+   instead of being gone immediately. Two entry shapes:
+   - type:'node'  — a deleted deck or drawer. Holds only the SKELETON
+     (via buildTreeSkeleton — same helper the tree sync already uses),
+     never the cards themselves: a trashed deck's actual row in
+     kardex_decks is deliberately left untouched until it's permanently
+     deleted, so restoring it just means re-attaching the same id back
+     into the tree — its cards were never gone.
+   - type:'card'  — a single deleted card. Cards aren't independently
+     stored rows, so this entry embeds the full card object directly.
+--------------------------------------------------------- */
+const TRASH_KEY = 'kardex_trash';
+const TRASH_RETENTION_DAYS = 30;
+let trash = (function(){
+  try { return JSON.parse(localStorage.getItem(TRASH_KEY) || '[]'); }
+  catch(e){ return []; }
+})();
+function saveTrashLocal(){
+  try { localStorage.setItem(TRASH_KEY, JSON.stringify(trash)); } catch(e){}
+}
+/* ---------------------------------------------------------
+   TRASH — core operations
+--------------------------------------------------------- */
+function trashNode(node, originalParentId){
+  // The skeleton alone (id/name/structure) isn't enough to actually
+  // restore anything — it deliberately excludes cards, since normally
+  // those live in kardex_decks and don't need duplicating. But trash
+  // has to work correctly OFFLINE too, and restoring shouldn't depend
+  // on the cloud still having the right data by the time it happens
+  // (the whole point of a local-first app) — so a full snapshot of
+  // every contained deck's cards/sessions travels with the trash entry
+  // itself, keyed by deck id.
+  const deckSnapshots = {};
+  (function walk(n){
+    if (n.type === 'folder') n.children.forEach(walk);
+    else deckSnapshots[n.id] = { cards: n.cards, sessions: n.sessions };
+  })(node);
+  trash.push({
+    trashId: 'trash-' + nextId(),
+    type: 'node',
+    deletedAt: Date.now(),
+    name: node.name,
+    nodeType: node.type,
+    originalParentId,
+    node: buildTreeSkeleton(node), // structure only
+    deckSnapshots: JSON.parse(JSON.stringify(deckSnapshots)) // deep copy — must not share references with the live tree
+  });
+  saveTrashLocal();
+}
+function trashCard(deckId, deckName, cardObj){
+  trash.push({
+    trashId: 'trash-' + nextId(),
+    type: 'card',
+    deletedAt: Date.now(),
+    name: truncate(cardObj.f, 60),
+    deckId,
+    deckName,
+    card: JSON.parse(JSON.stringify(cardObj)) // deep copy — must not share references with anything still live
+  });
+  saveTrashLocal();
+}
+function renderTrashBadgeCount(){
+  const el = document.getElementById('trashCount');
+  if (el) el.textContent = trash.length ? String(trash.length) : '';
+}
+function restoreFromTrash(trashId){
+  const idx = trash.findIndex(t => t.trashId === trashId);
+  if (idx === -1) return;
+  const entry = trash[idx];
+  if (entry.type === 'node'){
+    let parent = nodeById(entry.originalParentId);
+    let restoredToTopLevel = false;
+    if (!parent || parent.type !== 'folder'){
+      parent = root; // original drawer is gone too — fall back to the top level rather than losing the restore entirely
+      restoredToTopLevel = true;
+    }
+    // Rebuild the LIVE node from the stored skeleton, filling each
+    // deck back in from the snapshot captured at delete time — not an
+    // empty placeholder, and not dependent on a cloud round-trip.
+    function reliveFromSkeleton(skel){
+      if (skel.type === 'folder'){
+        return { id: skel.id, type: 'folder', name: skel.name, collapsed: !!skel.collapsed, createdAt: skel.createdAt || Date.now(), children: skel.children.map(reliveFromSkeleton) };
+      }
+      const existingDeck = nodeById(skel.id); // shouldn't normally exist, but guards against double-restore
+      if (existingDeck) return existingDeck;
+      const snap = (entry.deckSnapshots && entry.deckSnapshots[skel.id]) || { cards: [], sessions: [] };
+      return { id: skel.id, type: 'deck', name: skel.name, lastStudied: skel.lastStudied, createdAt: skel.createdAt || Date.now(), cards: snap.cards, sessions: snap.sessions };
+    }
+    const revived = reliveFromSkeleton(entry.node);
+    parent.children.push(revived);
+    trash.splice(idx, 1);
+    saveTrashLocal();
+    rebuildIndex();
+    // Re-push every deck under the restored node — their rows were
+    // never deleted, but this both confirms they're still there and
+    // brings the tree skeleton back in sync immediately rather than
+    // waiting for the next unrelated edit.
+    (function walk(n){
+      if (n.type === 'folder') n.children.forEach(walk);
+      else queueDeckSave(n.id);
+    })(revived);
+    persistTextState();
+    showToast(restoredToTopLevel ? `Restored "${entry.name}" to the top level (its original drawer is gone)` : `Restored "${entry.name}"`);
+  } else if (entry.type === 'card'){
+    const deck = nodeById(entry.deckId);
+    if (!deck || deck.type !== 'deck'){
+      showToast(`Can't restore — "${entry.deckName}" no longer exists`);
+      return;
+    }
+    deck.cards.push(entry.card);
+    trash.splice(idx, 1);
+    saveTrashLocal();
+    rebuildIndex();
+    persistTextState(deck.id);
+    showToast(`Restored to "${deck.name}"`);
+  }
+  render();
+}
+async function permanentlyDeleteTrashEntry(entry){
+  if (entry.type === 'node'){
+    const deckIds = [];
+    (function walk(n){ if (n.type === 'folder') n.children.forEach(walk); else deckIds.push(n.id); })(entry.node);
+    await Promise.all(deckIds.map(id => queueDeckDelete(id)));
+  }
+  // type:'card' entries need no extra cloud cleanup — the card was
+  // already removed from its deck's row (and that row re-saved) back
+  // when it was first trashed.
+}
+async function permanentlyDeleteFromTrash(trashId){
+  const idx = trash.findIndex(t => t.trashId === trashId);
+  if (idx === -1) return;
+  const entry = trash[idx];
+  await permanentlyDeleteTrashEntry(entry);
+  trash.splice(idx, 1);
+  saveTrashLocal();
+  persistTextState();
+  showToast(`Deleted "${entry.name}" forever`);
+  renderTrashView();
+}
+async function emptyTrash(){
+  if (!trash.length) return;
+  await Promise.all(trash.map(permanentlyDeleteTrashEntry));
+  trash = [];
+  saveTrashLocal();
+  persistTextState();
+  showToast('Trash emptied');
+  renderTrashView();
+}
+/* Runs once per load — anything older than the retention window gets
+   permanently cleaned up automatically, same as most apps' trash/recycle
+   bin behavior, so it doesn't just grow forever. */
+async function purgeExpiredTrash(){
+  const cutoff = Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  const expired = trash.filter(t => t.deletedAt < cutoff);
+  if (!expired.length) return;
+  await Promise.all(expired.map(permanentlyDeleteTrashEntry));
+  trash = trash.filter(t => t.deletedAt >= cutoff);
+  saveTrashLocal();
+  persistTextState();
+}
+
 const state = {
   currentPath: [root.id],   // array of folder ids from root
   search: '',
@@ -4158,6 +4379,63 @@ function viewTough(){
   render();
 }
 
+function viewTrash(){
+  closeSidebar();
+  purgeExpiredTrash();
+  renderTrashView();
+  document.getElementById('trashOverlay').classList.add('active');
+}
+function closeTrashView(){
+  document.getElementById('trashOverlay').classList.remove('active');
+}
+function renderTrashView(){
+  const el = document.getElementById('trashList');
+  if (!el) return;
+  if (!trash.length){
+    el.innerHTML = `<div class="empty" style="margin-top:10px;">
+      <div class="stamp">trash is empty</div>
+      <p class="mono" style="margin-top:16px; font-size:12.5px;">Deleted decks, drawers, and cards land here for ${TRASH_RETENTION_DAYS} days before being cleaned up automatically.</p>
+    </div>`;
+    document.getElementById('emptyTrashBtn').style.display = 'none';
+    return;
+  }
+  document.getElementById('emptyTrashBtn').style.display = 'inline-flex';
+  const sorted = [...trash].sort((a,b) => b.deletedAt - a.deletedAt);
+  el.innerHTML = sorted.map(t => {
+    const daysLeft = Math.max(0, TRASH_RETENTION_DAYS - Math.floor((Date.now() - t.deletedAt) / 86400000));
+    const kindLabel = t.type === 'card' ? `Card from "${escapeHtml(t.deckName || '')}"` : (t.nodeType === 'folder' ? 'Drawer' : 'Deck');
+    return `<div class="trash-item">
+      <div class="trash-item-info">
+        <div class="trash-item-name">${escapeHtml(t.name || 'Untitled')}</div>
+        <div class="trash-item-meta mono">${kindLabel} · ${daysLeft} day${daysLeft!==1?'s':''} left</div>
+      </div>
+      <div class="trash-item-actions">
+        <button class="mini-btn" onclick="restoreFromTrash('${t.trashId}')">Restore</button>
+        <button class="mini-btn danger" onclick="confirmPermanentDelete('${t.trashId}')">Delete forever</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+let trashConfirmAction = null; // () => void, set right before opening the confirm modal
+function confirmPermanentDelete(trashId){
+  const entry = trash.find(t => t.trashId === trashId);
+  if (!entry) return;
+  document.getElementById('trashConfirmMsg').textContent = `Permanently delete "${entry.name}"? This can't be undone.`;
+  trashConfirmAction = () => permanentlyDeleteFromTrash(trashId);
+  document.getElementById('trashConfirmOverlay').classList.add('active');
+}
+function confirmEmptyTrash(){
+  if (!trash.length) return;
+  document.getElementById('trashConfirmMsg').textContent = `Permanently delete all ${trash.length} item${trash.length!==1?'s':''} in Trash? This can't be undone.`;
+  trashConfirmAction = emptyTrash;
+  document.getElementById('trashConfirmOverlay').classList.add('active');
+}
+function runTrashConfirmAction(){
+  closeModal('trashConfirmOverlay');
+  if (trashConfirmAction) trashConfirmAction();
+  trashConfirmAction = null;
+}
+
 function toggleSidebar(){
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('sidebarBackdrop').classList.toggle('active');
@@ -4539,12 +4817,15 @@ function doDeleteCard(){
   const { deckId, cardId: removedId } = cardDeleteTarget;
   const deck = nodeById(deckId);
   if (deck){
+    const removedCard = deck.cards.find(c=>c.id===removedId);
     // strip this card from any other card's "see also" links before removing it
     cardIndexList.forEach(({card:cd})=>{ if (cd.links) cd.links = cd.links.filter(l=>l!==removedId); });
     deck.cards = deck.cards.filter(c=>c.id!==removedId);
+    if (removedCard) trashCard(deckId, deck.name, removedCard);
     rebuildIndex();
     persistTextState(deckId);
-    showToast('Card deleted');
+    showToast('Card moved to Trash');
+    renderTrashBadgeCount();
   }
   closeModal('cardDeleteOverlay');
   cardDeleteTarget = null;
@@ -7183,13 +7464,17 @@ function doDelete(){
   if (parent){
     // collect ids of every card about to be removed, so we can strip dangling "see also" links to them
     const removedCardIds = [];
-    const removedDeckIds = [];
     if (node){
       (function collect(n){
         if (n.type==='folder') n.children.forEach(collect);
-        else { n.cards.forEach(c=>removedCardIds.push(c.id)); removedDeckIds.push(n.id); }
+        else n.cards.forEach(c=>removedCardIds.push(c.id));
       })(node);
     }
+    // Moves to trash instead of deleting outright — the deck row(s)
+    // underneath are deliberately left alone in the cloud until this is
+    // either restored or permanently removed (emptied from trash, or
+    // auto-purged after 30 days).
+    if (node) trashNode(node, parent.id);
     parent.children = parent.children.filter(c=>c.id!==deleteTargetId);
     if (removedCardIds.length){
       cardIndexList.forEach(({card:cd})=>{ if (cd.links) cd.links = cd.links.filter(l=>!removedCardIds.includes(l)); });
@@ -7202,12 +7487,8 @@ function doDelete(){
     }
     if (state.managingDeckId === deleteTargetId) state.managingDeckId = null;
     if (state.clipboard && state.clipboard.id === deleteTargetId) state.clipboard = null;
-    if (node) showToast(`Deleted "${node.name}"`);
-    // A deleted deck (or every deck inside a deleted folder) needs its
-    // own row actually removed from the cloud too — the tree skeleton
-    // save below only updates the hierarchy, it doesn't know to delete
-    // rows that are no longer referenced.
-    removedDeckIds.forEach(id => queueDeckDelete(id));
+    if (node) showToast(`Moved "${node.name}" to Trash`);
+    renderTrashBadgeCount();
   }
   closeModal('deleteOverlay');
   deleteTargetId = null;
@@ -8414,6 +8695,7 @@ function render(){
   renderTree();
   updateStarredCount();
   updateToughCount();
+  renderTrashBadgeCount();
   updatePasteBtn();
   renderResumeButtons();
   document.getElementById('starredRow').classList.toggle('active', state.viewingStarred);
