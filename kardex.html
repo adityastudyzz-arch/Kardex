@@ -2682,11 +2682,22 @@ function queueTreeSkeletonSave(){
   // gives an easy visual proof sync is actually working: pause a study
   // session on one device, and the "Resume: X" button should appear on
   // another without touching anything else.
+  // pendingSession/dailyDeckState/toughMode all ride along here too —
+  // each is small, global (one per user, not per-deck), and changes
+  // infrequently, so none need their own table. Syncing them also
+  // doubles as an easy visual proof sync is actually working: pause a
+  // study session, toggle Tough mode, or finish a daily set on one
+  // device, and it should show up on another without touching anything
+  // else.
   return queueSyncJob('tree', async () => {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_tree`, {
       method: 'POST',
       headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates' }),
-      body: JSON.stringify({ user_id: currentUser.id, skeleton, pending_session: pendingSession, updated_at: new Date().toISOString() })
+      body: JSON.stringify({
+        user_id: currentUser.id, skeleton, pending_session: pendingSession,
+        daily_deck_state: loadDailyDeckState(), tough_mode: toughMode, tough_mode_changed_at: toughModeChangedAt,
+        updated_at: new Date().toISOString()
+      })
     });
     return res.ok;
   });
@@ -2770,7 +2781,7 @@ async function loadEverythingFromCloud(){
   if (!currentUser || !accessToken) return false;
   try {
     const [treeRes, decksRes, logRes, urlsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=skeleton,pending_session`, { headers: sbHeaders() }),
+      fetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=skeleton,pending_session,daily_deck_state,tough_mode,tough_mode_changed_at`, { headers: sbHeaders() }),
       fetch(`${SUPABASE_URL}/rest/v1/kardex_decks?user_id=eq.${currentUser.id}&select=deck_id,name,cards,sessions`, { headers: sbHeaders() }),
       fetch(`${SUPABASE_URL}/rest/v1/kardex_review_log?user_id=eq.${currentUser.id}&select=card_id,good,ts,question_seconds,answer_seconds&order=id.asc`, { headers: sbHeaders() }),
       fetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls?user_id=eq.${currentUser.id}&select=hash,url`, { headers: sbHeaders() }),
@@ -2816,6 +2827,42 @@ async function loadEverythingFromCloud(){
       try { localStorage.removeItem(PENDING_SESSION_KEY); } catch(e){}
     }
     renderResumeButtons();
+
+    // Daily deck: adopt the cloud's version if it's for today AND either
+    // this device has nothing for today yet, or the cloud is further
+    // along (a higher set number) — "furthest along wins" is what
+    // actually matches the expectation here: finish set 2 on your
+    // laptop, then open your phone, and it should say "2nd today" too,
+    // not silently reset to "1st". Equal set numbers (both devices
+    // independently started today's first set before ever syncing) fall
+    // back to whichever was changed more recently, same tie-break as
+    // pendingSession above.
+    const cloudDaily = treeRows[0].daily_deck_state || null;
+    const localDaily = loadDailyDeckState();
+    const today = todayDateKey();
+    if (cloudDaily && cloudDaily.date === today){
+      const localHasNothingForToday = !localDaily || localDaily.date !== today;
+      const cloudIsFurtherAlong = localHasNothingForToday || (cloudDaily.seq || 0) > (localDaily.seq || 0);
+      const tiedButNewer = !localHasNothingForToday && (cloudDaily.seq || 0) === (localDaily.seq || 0) && (cloudDaily.changedAt || 0) > (localDaily.changedAt || 0);
+      if (cloudIsFurtherAlong || tiedButNewer){
+        try { localStorage.setItem(DAILY_DECK_KEY, JSON.stringify(cloudDaily)); } catch(e){}
+      }
+    }
+
+    // Tough mode: same "most recently changed wins" rule as pendingSession
+    // — this used to not sync at all, so turning it on while drilling
+    // hard cards on one device meant every other device silently stayed
+    // on "off".
+    const cloudToughChangedAt = treeRows[0].tough_mode_changed_at || 0;
+    if (cloudToughChangedAt > toughModeChangedAt){
+      toughMode = !!treeRows[0].tough_mode;
+      toughModeChangedAt = cloudToughChangedAt;
+      try {
+        localStorage.setItem('kardex_tough_mode', toughMode ? '1' : '0');
+        localStorage.setItem('kardex_tough_mode_changed_at', String(toughModeChangedAt));
+      } catch(e){}
+      applyToughModeClass();
+    }
 
     reviewLog = logRows.map(r => ({
       cardId: r.card_id, good: r.good, ts: r.ts,
@@ -3698,13 +3745,24 @@ function applyToughModeClass(){
     toggle.setAttribute('aria-checked', toughMode ? 'true' : 'false');
   }
 }
+let toughModeChangedAt = parseInt(localStorage.getItem('kardex_tough_mode_changed_at') || '0', 10) || 0;
 function toggleToughMode(){
   toughMode = !toughMode;
-  try { localStorage.setItem('kardex_tough_mode', toughMode ? '1' : '0'); } catch(e){}
+  toughModeChangedAt = Date.now();
+  try {
+    localStorage.setItem('kardex_tough_mode', toughMode ? '1' : '0');
+    localStorage.setItem('kardex_tough_mode_changed_at', String(toughModeChangedAt));
+  } catch(e){}
   applyToughModeClass();
   showToast(toughMode
     ? 'Tough mode on — opening a deck now studies only its tough cards'
     : 'Tough mode off');
+  // Wasn't syncing at all before — a real behavioral setting (it changes
+  // WHICH cards you study, not just how they look) that stayed stuck to
+  // whichever single device last toggled it. persistTextState() with no
+  // deckId is a tree-level save, which is exactly the right scope for
+  // this — global per-user, not tied to any one deck.
+  persistTextState();
   // Deck tiles show a different number depending on tough mode — refresh
   // whatever's currently on screen so that's immediate, not stale until
   // the next navigation.
@@ -3738,7 +3796,13 @@ function loadDailyDeckState(){
   catch(e){ return null; }
 }
 function saveDailyDeckState(st){
+  st.changedAt = Date.now();
   try { localStorage.setItem(DAILY_DECK_KEY, JSON.stringify(st)); } catch(e){}
+  // Wasn't syncing at all before — completing today's set on one device
+  // and opening another later would just show "1st today" there too,
+  // even after finishing a 2nd or 3rd set elsewhere. Tree-level push,
+  // same reasoning as tough mode above: global per-user, not deck-specific.
+  persistTextState();
 }
 /* Picks up to 20 cards: every currently-due card first (shuffled), then
    filled out with a random shuffle of everything else, so a nearly-empty
