@@ -1863,7 +1863,7 @@ button{font-family:inherit;cursor:pointer;}
       <input type="file" id="deckFileInput" accept=".md,.markdown,.json,.txt,.docx,.doc" style="display:none" onchange="onDeckFileChosen(event)">
       <textarea id="importText" placeholder="…or paste your Markdown / JSON cards here" oninput="onImportTextChange()"></textarea>
       <div class="import-status" id="importStatus"></div>
-      <div class="import-hint">Markdown blocks separated by a line containing <strong>exactly three hyphens and nothing else</strong> (<code>---</code> — not <code>--</code>, not <code>----</code>, on its own line by itself), each block starting with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:** The [[answer]] is hidden</code>), plus optional <code>**Tags:**</code> and <code>**Links:** 2, 5</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links}</code>. Word <code>.docx</code> files are also supported and previewed as cards before the deck is created.</div>
+      <div class="import-hint">Markdown blocks separated by a line containing <strong>exactly three hyphens and nothing else</strong> (<code>---</code> — not <code>--</code>, not <code>----</code>, on its own line by itself), each block starting with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:** The [[answer]] is hidden</code>), plus optional <code>**Tags:**</code> and <code>**Links:** 2, 5</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links}</code>. An image link in a Q or A block (<code>![](url.png)</code>, or just the bare link) is fetched and attached automatically. Word <code>.docx</code> files are also supported and previewed as cards before the deck is created.</div>
     </div>
     <div class="modal-row">
       <button class="cancel" onclick="closeModal('deckOverlay')">Cancel</button>
@@ -1897,7 +1897,7 @@ button{font-family:inherit;cursor:pointer;}
       <input type="file" id="bulkDeckFileInput" accept=".md,.markdown,.json,.txt,.docx,.doc" style="display:none" onchange="onBulkDeckFileChosen(event)">
       <textarea id="bulkImportText" placeholder="…or paste your Markdown / JSON cards here" oninput="onBulkImportTextChange()"></textarea>
       <div class="import-status" id="bulkImportStatus"></div>
-      <div class="import-hint">Same format as new-deck import — Markdown blocks separated by a line containing <strong>exactly three hyphens and nothing else</strong> (<code>---</code> — not <code>--</code>, not <code>----</code>, on its own line by itself), each starting with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:**</code>), plus optional <code>**Tags:**</code>/<code>**Links:**</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links, id}</code>. Word <code>.docx</code> files also preview into the same card model, and any embedded images are mapped into the front or back of the generated cards.</div>
+      <div class="import-hint">Same format as new-deck import — Markdown blocks separated by a line containing <strong>exactly three hyphens and nothing else</strong> (<code>---</code> — not <code>--</code>, not <code>----</code>, on its own line by itself), each starting with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:**</code>), plus optional <code>**Tags:**</code>/<code>**Links:**</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links, id}</code>. An image link in a Q or A block is fetched and attached automatically, same as new-deck import. Word <code>.docx</code> files also preview into the same card model, and any embedded images are mapped into the front or back of the generated cards.</div>
     </div>
     <div class="modal-row">
       <button class="cancel" onclick="closeModal('bulkAddOverlay')">Cancel</button>
@@ -6297,6 +6297,75 @@ function setDeckMode(mode){
 
 function clozeIsValid(source){ return !!source && /\[\[.+?\]\]/.test(source); }
 
+/* Pulls image references out of markdown/JSON-imported text — both the
+   standard markdown image syntax (![alt](url)) and a bare URL ending in
+   a common image extension typed directly — and returns the text with
+   those references stripped out, plus the list of URLs found. The
+   actual fetching/uploading happens later, at deck-creation time (see
+   resolvePendingImageUrls below): this stays synchronous and network-
+   free specifically because it also runs on every keystroke of the live
+   import preview, and firing network requests on every keystroke would
+   be both slow and wasteful. */
+const MD_IMAGE_URL_RE = /!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g;
+const BARE_IMAGE_URL_RE = /(https?:\/\/[^\s]+\.(?:png|jpe?g|gif|webp|bmp)(?:\?[^\s]*)?)/gi;
+function extractImageUrlsFromText(text){
+  if (!text) return { cleanText: text, urls: [] };
+  const urls = [];
+  let cleaned = text.replace(MD_IMAGE_URL_RE, (m, url) => { urls.push(url); return ''; });
+  cleaned = cleaned.replace(BARE_IMAGE_URL_RE, (m, url) => { urls.push(url); return ''; });
+  cleaned = cleaned.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').replace(/^[ \t]+|[ \t]+$/gm, '').trim();
+  return { cleanText: cleaned, urls };
+}
+/* Fetches each pending image URL and stores it through the exact same
+   pipeline as a pasted/uploaded image — local cache first, then ImgBB
+   in the background — so imported image links end up exactly as
+   "real" as any other image in the app. A URL that can't be fetched
+   (blocked by the source site's CORS policy, gone, whatever) fails
+   gracefully: it's put back as plain text rather than silently
+   vanishing, so nothing is lost even when the fetch itself can't
+   succeed. */
+async function fetchAndStoreImageUrl(url){
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const blob = await res.blob();
+    if (!blob.type || !blob.type.startsWith('image/')) throw new Error('not an image');
+    return await storeImageFromFile(blob);
+  } catch (err) {
+    console.warn('Could not fetch image URL for import:', url, err);
+    return null;
+  }
+}
+/* Walks a batch of parsed import cards, resolving every pendingImageUrls
+   entry into real stored image hashes (appended into the same img
+   array multiple images already use), run once at deck-creation time —
+   not during live preview — so this is the only place import ever
+   touches the network. */
+async function resolvePendingImageUrls(cards){
+  for (const c of cards){
+    if (!c.pendingImageUrls) continue;
+    for (const side of ['front', 'back']){
+      const urls = c.pendingImageUrls[side];
+      if (!urls || !urls.length) continue;
+      for (const url of urls){
+        const hash = await fetchAndStoreImageUrl(url);
+        if (hash){
+          const key = side === 'front' ? 'question' : 'answer';
+          if (!c.img) c.img = { front: null, back: null };
+          const existing = imgList(c.img[side]);
+          existing.push(hash);
+          c.img[side] = existing.length === 1 ? existing[0] : existing;
+        } else {
+          // Couldn't fetch it — put the original link back as visible
+          // text rather than losing the reference entirely.
+          const field = side === 'front' ? 'question' : 'answer';
+          c[field] = (c[field] ? c[field] + '\n' : '') + url;
+        }
+      }
+    }
+  }
+  return cards;
+}
 function parseMarkdownCards(markdown){
   const blocks = markdown.split(/^---\s*$/m).map(b=>b.trim()).filter(b=>b);
   const cards = [];
@@ -6312,10 +6381,17 @@ function parseMarkdownCards(markdown){
 
     if (type === 'cloze'){
       const clozeMatch = block.match(/\*\*Cloze:\*\*\s*([\s\S]*?)\s*(?:\*\*(?:Tags|Links):\*\*|$)/);
-      const clozeSource = clozeMatch ? clozeMatch[1].trim() : '';
+      let clozeSource = clozeMatch ? clozeMatch[1].trim() : '';
+      const clozeImgExtract = extractImageUrlsFromText(clozeSource);
+      clozeSource = clozeImgExtract.cleanText;
       if (!clozeIsValid(clozeSource)) continue; // skip malformed cloze blocks (no [[...]])
       const { f, b } = clozeToFB(clozeSource);
-      cards.push({ refId, type:'cloze', question:f, answer:b, clozeSource, tags, links });
+      const parsedCard = { refId, type:'cloze', question:f, answer:b, clozeSource, tags, links };
+      // A cloze card only has one face's worth of source text, so any
+      // image found applies to both sides — same as how a manually
+      // uploaded cloze image already works elsewhere in the app.
+      if (clozeImgExtract.urls.length) parsedCard.pendingImageUrls = { front: clozeImgExtract.urls, back: clozeImgExtract.urls };
+      cards.push(parsedCard);
       continue;
     }
 
@@ -6323,10 +6399,21 @@ function parseMarkdownCards(markdown){
     const qMatch = block.match(/\*\*Q:\*\*\s*([\s\S]*?)\s*\*\*A:\*\*/);
     const aMatch = block.match(/\*\*A:\*\*\s*([\s\S]*?)\s*\*\*(?:Tags|Links):\*\*/);
     const aNoTagsMatch = !aMatch ? block.match(/\*\*A:\*\*\s*([\s\S]*)/) : null;
-    const question = qMatch ? qMatch[1].trim() : '';
-    const answer = (aMatch ? aMatch[1] : (aNoTagsMatch ? aNoTagsMatch[1] : '')).trim();
-    if (!question || !answer) continue;
-    cards.push({ refId, type:'basic', question, answer, clozeSource:null, tags, links });
+    const qExtract = extractImageUrlsFromText(qMatch ? qMatch[1].trim() : '');
+    const aExtract = extractImageUrlsFromText((aMatch ? aMatch[1] : (aNoTagsMatch ? aNoTagsMatch[1] : '')).trim());
+    const question = qExtract.cleanText;
+    const answer = aExtract.cleanText;
+    // A side can be valid with an image and NO text — this used to
+    // silently drop the whole card (both "text OR image" sides check
+    // against an empty string once the image link is stripped out for
+    // fetching, and an empty answer failed the old "must have text"
+    // check even though the actual answer was "the image", not nothing).
+    const questionOk = question || qExtract.urls.length;
+    const answerOk = answer || aExtract.urls.length;
+    if (!questionOk || !answerOk) continue;
+    const parsedCard = { refId, type:'basic', question, answer, clozeSource:null, tags, links };
+    if (qExtract.urls.length || aExtract.urls.length) parsedCard.pendingImageUrls = { front: qExtract.urls, back: aExtract.urls };
+    cards.push(parsedCard);
   }
   return cards;
 }
@@ -6992,7 +7079,7 @@ function confirmFolder(){
   persistTextState();
   render();
 }
-function confirmDeck(){
+async function confirmDeck(){
   const nameInput = document.getElementById('deckNameInput');
   const name = nameInput.value.trim();
   if (!name){ flagEmptyName(nameInput, 'Name your deck first'); return; }
@@ -7020,6 +7107,16 @@ function confirmDeck(){
       statusEl.textContent = '✗ Nothing to import yet — paste or upload a file first.';
       statusEl.className = 'import-status err';
       return;
+    }
+    // Image URLs found in the pasted text (![alt](url.png), or a bare
+    // link ending in a common image extension) get fetched and stored
+    // through the normal image pipeline here — this is the only point
+    // import ever touches the network for this, not on every keystroke
+    // of the live preview.
+    const pendingUrlCount = importedCards.reduce((n, c) => n + (c.pendingImageUrls ? (c.pendingImageUrls.front.length + c.pendingImageUrls.back.length) : 0), 0);
+    if (pendingUrlCount){
+      showToast(`Fetching ${pendingUrlCount} image${pendingUrlCount!==1?'s':''}…`);
+      await resolvePendingImageUrls(importedCards);
     }
     const refMap = new Map();
     const newCards = importedCards.map((c, idx)=>{
@@ -7255,7 +7352,7 @@ document.addEventListener('drop', async e=>{
   }
 });
 
-function confirmBulkAdd(){
+async function confirmBulkAdd(){
   const deckId = bulkAddDeckId;
   const deck = nodeById(deckId);
   if (!deck){ closeModal('bulkAddOverlay'); return; }
@@ -7281,6 +7378,11 @@ function confirmBulkAdd(){
     statusEl.textContent = '✗ Nothing to add yet — paste or upload a file first.';
     statusEl.className = 'import-status err';
     return;
+  }
+  const pendingUrlCount = cards.reduce((n, c) => n + (c.pendingImageUrls ? (c.pendingImageUrls.front.length + c.pendingImageUrls.back.length) : 0), 0);
+  if (pendingUrlCount){
+    showToast(`Fetching ${pendingUrlCount} image${pendingUrlCount!==1?'s':''}…`);
+    await resolvePendingImageUrls(cards);
   }
 
   const dupInfo = analyzeBulkDuplicates(deckId, cards);
@@ -8892,7 +8994,23 @@ Example card with a table:
 | Nerve | Root | Function |
 |-------|------|----------|
 | Median | C5-T1 | Flexion |
-| Ulnar | C8-T1 | Hand muscles |`;
+| Ulnar | C8-T1 | Hand muscles |
+
+— IMAGES —
+A link to an image is fetched and attached to that card automatically —
+no need to add it manually afterward. Two ways to write one:
+- Markdown image syntax: ![alt text](https://example.com/scan.png)
+- Or just the bare link on its own, as long as it ends in .png/.jpg/
+  .jpeg/.gif/.webp/.bmp: https://example.com/scan.png
+Put it in the Q block for the front, the A block for the back — same
+place the text for that side already goes. A link that can't be fetched
+(taken down, blocked by the source site) is left as plain text instead
+of silently disappearing.
+
+Example:
+**Q:** Identify this structure:
+![](https://example.com/median-nerve.png)
+**A:** The median nerve`;
 
 const CARD_FORMAT_JSON = `[
   {
