@@ -814,6 +814,21 @@ button{font-family:inherit;cursor:pointer;}
   transition: color .15s, transform .15s, border-color .15s;
 }
 .edit-toggle:hover{ transform:scale(1.08); color:var(--teal-dark); border-color:var(--teal); }
+.hint-toggle{
+  position:absolute; bottom:-13px; left:-10px;
+  z-index:5;
+  width:34px; height:34px;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background:var(--paper-raised);
+  box-shadow:var(--shadow);
+  font-size:14px;
+  display:flex; align-items:center; justify-content:center;
+  opacity:.55; filter:grayscale(1);
+  transition: opacity .15s, transform .15s, filter .15s;
+}
+.hint-toggle:hover{ transform:scale(1.08); opacity:.85; }
+.hint-toggle.has-hint{ opacity:1; filter:grayscale(0); border-color:#D6A72E; }
 .flash-card{
   width:100%; height:100%;
   position:relative;
@@ -1245,6 +1260,12 @@ button{font-family:inherit;cursor:pointer;}
 
 /* ---------- Deck creation: blank / import tabs ---------- */
 .modal.wide{ width:420px; }
+/* Shared by the "extra images" gallery and the hint notepad — both are
+   study-screen popups showing a modest amount of content, and the
+   generic 320px form-modal (sized for a name field and two buttons)
+   left them looking mostly like empty padding around a small amount of
+   content. Wider, tighter padding relative to width, fixes that. */
+.modal.study-popup{ width:420px; padding:20px 20px 18px; }
 .mode-tabs{ display:flex; gap:6px; margin-bottom:14px; background:var(--paper-dark); padding:3px; border-radius:9px; }
 .mode-tabs button{
   flex:1; padding:7px 0; border:none; background:transparent; border-radius:7px;
@@ -1474,11 +1495,11 @@ button{font-family:inherit;cursor:pointer;}
 }
 .face-img-badge:hover{ transform:translateX(-50%) scale(1.06); }
 .face-img-gallery-grid{
-  display:grid; grid-template-columns:repeat(auto-fill, minmax(90px,1fr)); gap:8px;
-  padding:14px;
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:10px;
+  margin-top:2px;
 }
 .face-img-gallery-grid img{
-  width:100%; height:90px; object-fit:cover; border-radius:8px;
+  width:100%; height:120px; object-fit:cover; border-radius:8px;
   border:1px solid var(--line); cursor:zoom-in;
 }
 .card-img:hover{ filter:brightness(.96); }
@@ -1766,6 +1787,7 @@ button{font-family:inherit;cursor:pointer;}
           <div class="card-stage">
             <button class="edit-toggle" id="editToggle" onclick="editCurrentStudyCard(event)" title="Edit this card">✎</button>
             <button class="star-toggle" id="starToggle" onclick="toggleStar(event)" title="Star this card">☆</button>
+            <button class="hint-toggle" id="hintToggle" onclick="event.stopPropagation(); openHintModal();" title="Hint / notes">💡</button>
             <div class="flash-card" id="flashCard" onclick="flipCard()">
               <div class="face front">
                 <div class="holes"><span></span><span></span><span></span></div>
@@ -2211,11 +2233,23 @@ button{font-family:inherit;cursor:pointer;}
 </div>
 
 <div class="overlay" id="faceImgGalleryOverlay" onclick="if(event.target===this) closeFaceImgGallery()">
-  <div class="modal">
-    <h3>More images</h3>
+  <div class="modal study-popup">
+    <h3 style="margin-bottom:14px;">More images</h3>
     <div class="face-img-gallery-grid" id="faceImgGalleryGrid"></div>
     <div class="modal-row">
       <button class="cancel" onclick="closeFaceImgGallery()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="hintOverlay" onclick="if(event.target===this) closeHintModal()">
+  <div class="modal study-popup">
+    <h3 style="margin-bottom:6px;">Hint / notes</h3>
+    <p class="mono" style="font-size:11px; color:var(--ink-soft); margin:0 0 12px;">A mnemonic, a partial answer, whatever jogs your memory — only visible while you're the one reviewing.</p>
+    <textarea id="hintTextarea" rows="6" placeholder="e.g. Think 'MUD PILES' for the anion gap acidosis causes…" style="width:100%; box-sizing:border-box; resize:vertical; font-family:inherit; font-size:13.5px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink);"></textarea>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeHintModal()">Close</button>
+      <button class="confirm" onclick="closeHintModal()">Save</button>
     </div>
   </div>
 </div>
@@ -4818,6 +4852,7 @@ function doDeleteCard(){
   const deck = nodeById(deckId);
   if (deck){
     const removedCard = deck.cards.find(c=>c.id===removedId);
+    const removedOriginalIdx = deck.cards.findIndex(c=>c.id===removedId);
     // strip this card from any other card's "see also" links before removing it
     cardIndexList.forEach(({card:cd})=>{ if (cd.links) cd.links = cd.links.filter(l=>l!==removedId); });
     deck.cards = deck.cards.filter(c=>c.id!==removedId);
@@ -4826,6 +4861,30 @@ function doDeleteCard(){
     persistTextState(deckId);
     showToast('Card moved to Trash');
     renderTrashBadgeCount();
+    // If an active study session on THIS deck has an order array
+    // referencing indices into deck.cards, deleting a card just shifted
+    // everything after it down by one — remap s.order to match, rather
+    // than leaving it stale (which is what forced exiting the session
+    // entirely before, even for a deck with plenty of cards left).
+    if (state.studying && state.studying.deck.id === deckId && removedOriginalIdx !== -1){
+      const s = state.studying;
+      const orderIdxOfRemoved = s.order.indexOf(removedOriginalIdx);
+      s.order = s.order.filter(i => i !== removedOriginalIdx).map(i => i > removedOriginalIdx ? i - 1 : i);
+      if (!s.order.length){
+        exitStudy();
+        showToast('No cards left in this deck');
+      } else {
+        if (orderIdxOfRemoved !== -1 && orderIdxOfRemoved < s.pos){
+          s.pos--; // a card studied BEFORE the current one was removed — shift back to keep pointing at the same card
+        }
+        // If the removed card WAS the one currently on screen
+        // (orderIdxOfRemoved === s.pos), s.pos is deliberately left
+        // untouched: removing that one entry from the array naturally
+        // slides the next card into this same position, which is
+        // exactly the auto-advance behavior wanted here.
+        if (s.pos >= s.order.length) s.pos = s.order.length - 1; // was on the last card and it's the one just deleted — clamp to the new last card
+      }
+    }
   }
   closeModal('cardDeleteOverlay');
   cardDeleteTarget = null;
@@ -4833,17 +4892,7 @@ function doDeleteCard(){
   updateToughCount();
   if (state.managingDeckId) renderManageCards();
   if (state.notebookDeckId) renderNotebookPages();
-  if (state.studying){
-    if (state.studying.deck.id === deckId){
-      // the deck actively being reviewed just lost a card — s.order's
-      // indices no longer line up with s.deck.cards, so back out to the
-      // deck list instead of risking a stale/undefined card on screen
-      showToast('Exiting study since the deck just changed');
-      exitStudy();
-    } else {
-      renderStudyCard({ keepTimer: true }); // synthetic session (starred/tough/peek) holding its own copy — safe to just refresh
-    }
-  }
+  if (state.studying) renderStudyCard({ keepTimer: true }); // real session: order/pos already remapped above; synthetic session: holds its own copy, safe to just refresh
 }
 
 /* ---------------------------------------------------------
@@ -7863,6 +7912,7 @@ function resumeStudy(){
     tickHandle: null,
     isRealDeck: pendingSession.isRealDeck !== false,
     logSession: true,
+    hintOpenedThisAttempt: false,
   };
   document.getElementById('topbar').style.display='none';
   document.getElementById('study').classList.add('active');
@@ -7918,6 +7968,7 @@ function _startStudyCore(d, opts={}){
     isRealDeck,
     logSession: isRealDeck,
     isDaily: !!opts.isDaily,
+    hintOpenedThisAttempt: false, // reset each time a new card is shown — see renderStudyCard()
   };
   if (isRealDeck) d.lastStudied = 'today';
   document.getElementById('topbar').style.display='none';
@@ -7986,6 +8037,8 @@ async function renderStudyCard(opts={}){
   s.faceStartTs = Date.now();
   updateTicker();
   renderStarToggle();
+  s.hintOpenedThisAttempt = false; // fresh card — whether hint gets opened THIS time is what gradeCard() below cares about
+  renderHintToggle(c);
   renderSeeAlso(c);
   savePendingSession();
 
@@ -8154,6 +8207,36 @@ function renderStarToggle(){
   const btn = document.getElementById('starToggle');
   btn.textContent = c.starred ? '★' : '☆';
   btn.classList.toggle('active', c.starred);
+}
+
+function renderHintToggle(c){
+  const btn = document.getElementById('hintToggle');
+  if (btn) btn.classList.toggle('has-hint', !!(c && c.hint && c.hint.trim()));
+}
+function openHintModal(){
+  const s = state.studying;
+  if (!s) return;
+  const c = s.deck.cards[s.order[s.pos]];
+  // Opening the hint counts as "needed help" for this attempt, whether
+  // or not anything gets typed — the struggle itself is the signal
+  // gradeCard() below cares about, same idea as clicking "Review again".
+  s.hintOpenedThisAttempt = true;
+  document.getElementById('hintTextarea').value = c.hint || '';
+  document.getElementById('hintOverlay').classList.add('active');
+  setTimeout(() => document.getElementById('hintTextarea').focus(), 50);
+}
+function closeHintModal(){
+  const s = state.studying;
+  document.getElementById('hintOverlay').classList.remove('active');
+  if (!s) return;
+  const c = s.deck.cards[s.order[s.pos]];
+  const text = document.getElementById('hintTextarea').value.trim();
+  if ((c.hint || '') !== text){
+    c.hint = text || null;
+    renderHintToggle(c);
+    const owningEntry = cardIndex.get(c.id);
+    persistTextState(owningEntry ? owningEntry.deck.id : undefined);
+  }
 }
 
 /* --- edit button on the currently shown study card ---
@@ -8673,14 +8756,21 @@ function gradeCard(good){
   // on to prioritize cards that take longer.
   c.avgQuestionSeconds = c.avgQuestionSeconds == null ? questionSeconds : (c.avgQuestionSeconds * 0.7 + questionSeconds * 0.3);
   c.avgAnswerSeconds = c.avgAnswerSeconds == null ? answerSeconds : (c.avgAnswerSeconds * 0.7 + answerSeconds * 0.3);
-  if (!good){
+  const usedHint = !!s.hintOpenedThisAttempt;
+  // Needing the hint counts as a struggle signal even if the grade
+  // ultimately given is "Got it" — recall that only worked because of
+  // the extra help, so it's flagged the same way a "Review again" is:
+  // reusing the existing tough mechanism rather than a separate one,
+  // so it automatically benefits from everything already built around
+  // tough cards (Tough mode filtering, the sidebar count, etc.).
+  if (!good || usedHint){
     s.toughIds.add(c.id);
     c.tough = true;
     c.toughAt = Date.now();
   } else {
     c.tough = false;
   }
-  reviewLog.push({ cardId: c.id, good, ts: Date.now(), questionSeconds, answerSeconds });
+  reviewLog.push({ cardId: c.id, good, ts: Date.now(), questionSeconds, answerSeconds, usedHint });
   srsMapCache = null;
   // Same reasoning as toggleStar(): s.deck may be a synthetic session
   // (starred/tough/daily/search-peek), not a real deck in the tree —
