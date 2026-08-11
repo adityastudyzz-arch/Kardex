@@ -2264,6 +2264,21 @@ const nextId = () => 'n' + (uid++);
 const IMAGE_DB_NAME = 'kardex-images';
 const IMAGE_STORE_NAME = 'images';
 const BACKUP_STORAGE_KEY = 'kardex-local-backup-v1';
+// Restores this device's own last-known uid immediately, synchronously,
+// before any network round-trip — closes the narrow window right after
+// a fresh page load, before the cloud pull below finishes, where
+// creating something would otherwise still risk generating a
+// low/stale id. The cloud pull's own uid check (see loadEverythingFromCloud)
+// is the authoritative one across devices; this is just the local floor
+// while waiting for that to complete.
+(function restoreUidBaselineFromLocalBackup(){
+  try {
+    const raw = localStorage.getItem(BACKUP_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.uid === 'number' && parsed.uid > uid) uid = parsed.uid;
+  } catch(e){}
+})();
 
 /* ---------------- Supabase config ----------------
   Configured to match the project's values so auth/UI work.
@@ -2816,7 +2831,7 @@ function queueTreeSkeletonSave(){
       body: JSON.stringify({
         user_id: currentUser.id, skeleton, pending_session: pendingSession,
         daily_deck_state: loadDailyDeckState(), tough_mode: toughMode, tough_mode_changed_at: toughModeChangedAt,
-        trash,
+        trash, next_uid: uid,
         updated_at: new Date().toISOString()
       })
     });
@@ -2902,7 +2917,7 @@ async function loadEverythingFromCloud(){
   if (!currentUser || !accessToken) return false;
   try {
     const [treeRes, decksRes, logRes, urlsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=skeleton,pending_session,daily_deck_state,tough_mode,tough_mode_changed_at,trash`, { headers: sbHeaders() }),
+      fetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=skeleton,pending_session,daily_deck_state,tough_mode,tough_mode_changed_at,trash,next_uid`, { headers: sbHeaders() }),
       fetch(`${SUPABASE_URL}/rest/v1/kardex_decks?user_id=eq.${currentUser.id}&select=deck_id,name,cards,sessions`, { headers: sbHeaders() }),
       fetch(`${SUPABASE_URL}/rest/v1/kardex_review_log?user_id=eq.${currentUser.id}&select=card_id,good,ts,question_seconds,answer_seconds&order=id.asc`, { headers: sbHeaders() }),
       fetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls?user_id=eq.${currentUser.id}&select=hash,url`, { headers: sbHeaders() }),
@@ -2999,6 +3014,18 @@ async function loadEverythingFromCloud(){
     trash = trash.concat(cloudTrash.filter(t => !localTrashIds.has(t.trashId)));
     saveTrashLocal();
     renderTrashBadgeCount();
+
+    // uid: the counter that generates every new folder/deck/card id.
+    // MUST only ever increase, never reset — this used to start fresh at
+    // 1000 on every single page load with no restoration at all, meaning
+    // two different sessions (or two different devices) could easily
+    // generate the exact same id for two completely unrelated items.
+    // Once both synced, Supabase treated them as the same row — one
+    // could silently overwrite the other's actual card data. Always
+    // taking the higher of local vs cloud here is what actually
+    // prevents that going forward.
+    const cloudNextUid = typeof treeRows[0].next_uid === 'number' ? treeRows[0].next_uid : 0;
+    if (cloudNextUid > uid) uid = cloudNextUid;
 
     reviewLog = logRows.map(r => ({
       cardId: r.card_id, good: r.good, ts: r.ts,
