@@ -3293,7 +3293,7 @@ async function restorePersistedState(){
       // format data — see migrateOldBlobToV2IfNeeded().
       await migrateOldBlobToV2IfNeeded();
       const loadedV2 = await loadEverythingFromCloud();
-      if (loadedV2) return;
+      if (loadedV2) return true;
 
       // Fall back to the old single-blob table — covers a project that
       // hasn't run the new schema yet, so it isn't left broken mid-upgrade.
@@ -3305,7 +3305,7 @@ async function restorePersistedState(){
         const rows = await res.json();
         if (rows.length && rows[0].payload){
           applyPersistedPayload(rows[0].payload);
-          return;
+          return true;
         }
       } else {
         console.warn('Supabase load failed', res.status, await res.text());
@@ -3314,15 +3314,27 @@ async function restorePersistedState(){
       console.warn('Could not reach Supabase, falling back to local backup', err);
     }
   }
-  // Fallback (offline, first run, or Supabase unreachable): local backup.
+  // Fallback (offline, first run, expired session, or Supabase
+  // unreachable): local backup. Returns false here deliberately — this
+  // is the actual fix for a real bug found live: doSync()'s "pull
+  // first, then push" safety only works if the caller actually knows
+  // whether the pull succeeded. Silently falling back to a local copy
+  // and returning nothing meant a failed pull (an expired login, say)
+  // looked identical to a successful one from the outside — so the push
+  // that follows went ahead anyway, on a device that was NOT actually
+  // confirmed current, defeating the entire point of pulling first. A
+  // real device's session expiring mid-sync is exactly the kind of
+  // ordinary thing that happens; the pull failing should never have
+  // been able to look like success.
   try {
     const raw = localStorage.getItem(BACKUP_STORAGE_KEY);
-    if (!raw) return;
+    if (!raw) return false;
     const parsed = JSON.parse(raw);
     applyPersistedPayload(parsed);
   } catch (err) {
     console.warn('Could not restore local backup', err);
   }
+  return false; // local backup only — this device's freshness relative to the cloud is still unconfirmed
 }
 /* Push/pull with the cloud — pushes first so the cloud has this device's
    latest before pulling, so the pull can't clobber a change made a
@@ -3384,9 +3396,20 @@ async function doSync(opts){
       if (pushed) hasUnsyncedChanges = false;
       await restorePersistedState();
     } else {
-      await restorePersistedState();
-      pushed = await pushAllPendingChanges(); // re-confirms cloud/local are in lockstep
-      if (pushed) hasUnsyncedChanges = false;
+      const pullSucceeded = await restorePersistedState();
+      if (pullSucceeded){
+        pushed = await pushAllPendingChanges(); // re-confirms cloud/local are in lockstep
+        if (pushed) hasUnsyncedChanges = false;
+      } else {
+        // The pull itself failed (expired session, offline, unreachable)
+        // — this device's local state is NOT confirmed current, so
+        // pushing it now would risk overwriting newer data from
+        // elsewhere with a stale snapshot, exactly the failure this
+        // whole push-after-pull design exists to prevent. Skip the
+        // push entirely rather than proceed on an unverified assumption.
+        pushed = false;
+        if (!opts.silent) showToast('Could not sync — check your connection and try again.');
+      }
     }
     srsMapCache = null;
     updateStarredCount();
