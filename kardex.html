@@ -2259,7 +2259,29 @@ button{font-family:inherit;cursor:pointer;}
    DATA — mock file-system: folders contain subfolders + decks
 --------------------------------------------------------- */
 let uid = 1000;
-const nextId = () => 'n' + (uid++);
+/* Last line of defense, independent of whether uid itself is correctly
+   synced: even if some future bug causes the counter to be wrong again,
+   this makes an actual collision structurally impossible — it checks
+   the id it's about to hand out against every id currently anywhere in
+   the live tree, and keeps advancing until it finds one that's
+   genuinely free. Cheap (nodeIndex is already a hash lookup), and it
+   means the failure this whole conversation just went through — two
+   completely unrelated things silently sharing one id — cannot happen
+   again even from a cause nobody's found yet. */
+const nextId = () => {
+  let id = 'n' + (uid++);
+  // nodeIndex is declared further down the file with `let`, so
+  // referencing it here — even just to check if it exists — throws
+  // during the very first tree construction (the embedded demo content,
+  // built before that declaration has run), not something a truthiness
+  // check alone can guard against for a `let` binding. The try/catch is
+  // what actually handles that safely; after startup, nodeIndex is
+  // always defined and this check runs normally.
+  try {
+    while (nodeIndex && nodeIndex.has(id)) id = 'n' + (uid++);
+  } catch (e) { /* nodeIndex not initialized yet — nothing to collide with regardless */ }
+  return id;
+};
 
 const IMAGE_DB_NAME = 'kardex-images';
 const IMAGE_STORE_NAME = 'images';
@@ -3772,15 +3794,43 @@ function rebuildIndex(){
   parentIndex = new Map();
   cardIndex = new Map();
   nodeIndex.set(root.id, root);
-  (function walk(node, pathLabel){
+  const collisions = [];
+  (function walk(node, pathLabel, path){
     node.children.forEach(c=>{
+      // This is what would have caught the whole "two unrelated decks
+      // silently sharing one id" incident within seconds of it first
+      // happening, instead of it sitting undetected for weeks — every
+      // rebuild (which runs constantly: every edit, every load, every
+      // sync) checks whether an id is already claimed by something else
+      // before silently letting the newer one win in the index.
+      if (nodeIndex.has(c.id)){
+        collisions.push({ id: c.id, existing: nodeIndex.get(c.id), incoming: c, existingPath: nodeIndex.get(c.id)._collisionPath || '?', incomingPath: (path || '') + '/' + c.name });
+      }
+      c._collisionPath = (path || '') + '/' + c.name;
       nodeIndex.set(c.id, c);
       parentIndex.set(c.id, node);
-      if (c.type==='folder') walk(c, pathLabel ? pathLabel+' / '+c.name : c.name);
+      if (c.type==='folder') walk(c, pathLabel ? pathLabel+' / '+c.name : c.name, (path || '') + '/' + c.name);
       else c.cards.forEach(cd => cardIndex.set(cd.id, { card: cd, deck: c, pathLabel }));
     });
-  })(root, '');
+  })(root, '', '');
   cardIndexList = Array.from(cardIndex.values());
+  if (collisions.length) reportIdCollisions(collisions);
+}
+/* Surfaces an id collision immediately and impossible to miss, rather
+   than the only sign being something quietly looking wrong days later.
+   A toast alone isn't enough for something this serious — it disappears
+   in a few seconds and there's a real chance nobody's looking at the
+   screen at that exact moment. */
+let collisionWarningShown = false;
+function reportIdCollisions(collisions){
+  console.error('ID COLLISION DETECTED:', collisions.map(c => `${c.id}: "${c.existingPath}" <-> "${c.incomingPath}"`));
+  if (collisionWarningShown) return; // don't stack multiple banners if rebuildIndex fires again before this is dismissed
+  collisionWarningShown = true;
+  const bar = document.createElement('div');
+  bar.id = 'collisionWarningBar';
+  bar.style.cssText = 'position:fixed; top:0; left:0; right:0; z-index:99999; background:#9B3B34; color:#fff; padding:12px 16px; font-family:IBM Plex Mono,monospace; font-size:12.5px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,.3);';
+  bar.innerHTML = `⚠ Two items are sharing the same internal id (${collisions.map(c=>c.id).join(', ')}) — please stop editing and check the console (F12) for exact details, or contact support before making further changes. <button style="margin-left:12px; background:#fff; color:#9B3B34; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:600;" onclick="this.parentElement.remove(); collisionWarningShown=false;">Dismiss</button>`;
+  document.body.prepend(bar);
 }
 
 rebuildIndex(); // build the lookup indexes for the initial tree above
