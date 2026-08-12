@@ -949,6 +949,69 @@ button{font-family:inherit;cursor:pointer;}
 .grade-btn.again:hover{ background:var(--maroon); color:#fff; border-color:var(--maroon); }
 .grade-btn.good{ color:var(--teal-dark); }
 .grade-btn.good:hover{ background:var(--teal); color:#fff; border-color:var(--teal); }
+/* Cram mode's 4-way rating row reuses .grade-btn's exact shape/shadow —
+   only the accent colors differ, and those come from the SAME palette
+   tokens already used elsewhere (maroon for danger, kraft for a caution
+   middle-ground, teal for the two positive grades) rather than a new
+   dark theme. This is deliberate: Cram Mode should look like part of
+   Kardex, not a different app bolted on. */
+.grade-btn.hard{ color:var(--kraft-dark); }
+.grade-btn.hard:hover{ background:var(--kraft); color:#fff; border-color:var(--kraft); }
+.grade-btn.easy{ color:var(--teal-dark); }
+.grade-btn.easy:hover{ background:var(--teal-dark); color:#fff; border-color:var(--teal-dark); }
+
+/* ---------- Cram mode ---------- */
+#cramScreen{
+  display:none;
+  flex:1;
+  flex-direction:column;
+  align-items:center;
+  padding:30px 20px 40px;
+  overflow-y:auto;
+}
+#cramScreen.active{ display:flex; }
+.cram-head{
+  width:100%; max-width:560px;
+  display:flex; align-items:center; gap:12px;
+  margin-bottom:16px;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:12px;
+  color:var(--ink-soft);
+}
+.cram-head #cramTitle{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cram-exam-chip{
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--paper-dark); color:var(--maroon);
+  padding:3px 9px; border-radius:12px; font-size:11px; letter-spacing:.02em;
+  border:1px solid var(--line);
+}
+.cram-progress-row{
+  width:100%; max-width:560px; display:flex; align-items:center; gap:16px;
+  margin-bottom:22px;
+}
+.cram-ring-figure{ position:relative; flex-shrink:0; width:64px; height:64px; }
+.cram-ring-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.cram-ring-center .num{ font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; color:var(--ink); }
+.cram-progress-copy{ flex:1; min-width:0; }
+.cram-progress-copy .headline{ font-family:'Fraunces', serif; font-size:15px; color:var(--ink); }
+.cram-progress-copy .sub{ font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
+
+.cram-card-badges{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; justify-content:center; }
+.cram-badge{
+  font-family:'IBM Plex Mono', monospace; font-size:10px; padding:4px 9px;
+  border-radius:100px; border:1px solid var(--line); color:var(--ink-soft);
+  background:var(--paper-raised);
+}
+.cram-badge.safe{ color:var(--teal-dark); border-color:var(--teal); background:var(--em-1, var(--paper-raised)); }
+.cram-badge.risk{ color:var(--maroon); border-color:var(--maroon); }
+
+.cram-done{
+  text-align:center;
+  flex:1;
+  display:none;
+  flex-direction:column; align-items:center; justify-content:center;
+}
+.cram-done.active{ display:flex; }
 
 .study-done{
   text-align:center;
@@ -1842,6 +1905,75 @@ button{font-family:inherit;cursor:pointer;}
           <button class="action-btn" onclick="exitStudy()">Back to drawers</button>
         </div>
         <button class="action-btn tough-btn" id="toughRedoBtn" style="display:none;" onclick="redoTough()"></button>
+      </div>
+    </div>
+
+    <div id="cramScreen">
+      <div class="cram-head">
+        <button class="back-btn" onclick="exitCramSession()" aria-label="Back" title="Back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <span id="cramTitle">—</span>
+        <span class="cram-exam-chip" id="cramExamChip">—</span>
+      </div>
+
+      <div class="cram-progress-row">
+        <div class="cram-ring-figure" id="cramRing"></div>
+        <div class="cram-progress-copy">
+          <div class="headline" id="cramHeadline">—</div>
+          <div class="sub" id="cramSub">—</div>
+        </div>
+      </div>
+
+      <div id="cramBody" style="width:100%; flex:1; min-height:0; display:flex; flex-direction:column; align-items:center;">
+        <div class="study-center">
+          <div class="cram-card-badges" id="cramCardBadges"></div>
+          <div class="card-stage">
+            <div class="flash-card" id="cramFlashCard" onclick="flipCramCard()">
+              <div class="face front">
+                <div class="holes"><span></span><span></span><span></span></div>
+                <div class="face-text" id="cramFrontText"></div>
+              </div>
+              <div class="face back">
+                <div class="holes"><span></span><span></span><span></span></div>
+                <div class="face-text" id="cramBackText"></div>
+              </div>
+            </div>
+          </div>
+          <div class="flip-hint">tap card to flip</div>
+
+          <div class="grade-row" id="cramGradeRow" style="margin-top:20px;">
+            <button class="grade-btn again" onclick="rateCramCard(1)">Again</button>
+            <button class="grade-btn hard" onclick="rateCramCard(2)">Hard</button>
+            <button class="grade-btn good" onclick="rateCramCard(3)">Good</button>
+            <button class="grade-btn easy" onclick="rateCramCard(4)">Easy</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="cram-done" id="cramDone">
+        <div class="stamp">crammed ✓</div>
+        <div class="mono" style="font-size:12px; color:var(--ink-soft); margin:14px 0 20px;" id="cramDoneSummary"></div>
+        <div class="done-actions">
+          <button class="action-btn primary" onclick="exitCramSession()">Back to drawers</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="cramSetupOverlay">
+      <div class="modal">
+        <h3>Start a cram session</h3>
+        <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin-bottom:14px;">
+          Cram Mode lets a card resurface more than once in one sitting to drill it in. Only your first
+          rating of each card today updates its real schedule — extra reps just check whether you'll
+          still remember it by exam day.
+        </p>
+        <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:6px;">Exam date</label>
+        <input id="cramExamDateInput" type="date">
+        <div class="modal-row">
+          <button class="cancel" onclick="closeModal('cramSetupOverlay')">Cancel</button>
+          <button class="confirm" onclick="confirmCramSetup()">Start cramming</button>
+        </div>
       </div>
     </div>
 
@@ -2897,12 +3029,12 @@ function buildTreeSkeleton(node){
   if (node.type === 'folder'){
     return {
       id: node.id, type: 'folder', name: node.name,
-      collapsed: node.collapsed, createdAt: node.createdAt,
+      collapsed: node.collapsed, createdAt: node.createdAt, examDate: node.examDate || null,
       children: node.children.map(buildTreeSkeleton)
     };
   }
   // deck — cards/sessions live in kardex_decks, not here
-  return { id: node.id, type: 'deck', name: node.name, lastStudied: node.lastStudied, createdAt: node.createdAt };
+  return { id: node.id, type: 'deck', name: node.name, lastStudied: node.lastStudied, createdAt: node.createdAt, examDate: node.examDate || null };
 }
 
 /* Every deck needs its own row pushed to the cloud at LEAST once — a
@@ -4062,12 +4194,12 @@ function restoreFromTrash(trashId){
     // empty placeholder, and not dependent on a cloud round-trip.
     function reliveFromSkeleton(skel){
       if (skel.type === 'folder'){
-        return { id: skel.id, type: 'folder', name: skel.name, collapsed: !!skel.collapsed, createdAt: skel.createdAt || Date.now(), children: skel.children.map(reliveFromSkeleton) };
+        return { id: skel.id, type: 'folder', name: skel.name, collapsed: !!skel.collapsed, createdAt: skel.createdAt || Date.now(), examDate: skel.examDate || null, children: skel.children.map(reliveFromSkeleton) };
       }
       const existingDeck = nodeById(skel.id); // shouldn't normally exist, but guards against double-restore
       if (existingDeck) return existingDeck;
       const snap = (entry.deckSnapshots && entry.deckSnapshots[skel.id]) || { cards: [], sessions: [] };
-      return { id: skel.id, type: 'deck', name: skel.name, lastStudied: skel.lastStudied, createdAt: skel.createdAt || Date.now(), cards: snap.cards, sessions: snap.sessions };
+      return { id: skel.id, type: 'deck', name: skel.name, lastStudied: skel.lastStudied, createdAt: skel.createdAt || Date.now(), examDate: skel.examDate || null, cards: snap.cards, sessions: snap.sessions };
     }
     const revived = reliveFromSkeleton(entry.node);
     parent.children.push(revived);
@@ -4462,6 +4594,277 @@ function isCardDue(cardId, srsMap){
 function dueCount(){
   const srsMap = getSRSMap();
   return cardIndexList.filter(i => isCardDue(i.card.id, srsMap)).length;
+}
+
+/* ---------------------------------------------------------
+   FSRS (FSRS-4.5 default weights) — used ONLY by Cram Mode.
+   The main app's due-dates keep using the SM-2-style scheduler above
+   (computeAllSRS) — that stays untouched and everyone's existing
+   schedule keeps working exactly as it did. FSRS is layered in
+   specifically for Cram Mode's job: predicting whether you'll still
+   remember a card by a target exam date, which SM-2's flat
+   ease/interval model isn't built to answer.
+--------------------------------------------------------- */
+const FSRS_W = [0.4072,1.1829,3.1262,15.4722,7.2102,0.5316,1.0651,0.0234,1.616,0.1544,1.0824,1.9813,0.0953,0.2975,2.2042,0.2407,2.9466];
+const FSRS_DECAY = -0.5;
+const FSRS_FACTOR = 19/81;
+function fsrsRetrievability(elapsedDays, stability){
+  if (!stability || stability <= 0) return 0;
+  return Math.pow(1 + FSRS_FACTOR * Math.max(0,elapsedDays) / stability, FSRS_DECAY);
+}
+function fsrsInitialStability(rating){ return Math.max(0.1, FSRS_W[rating-1]); }
+function fsrsInitialDifficulty(rating){
+  return Math.min(10, Math.max(1, FSRS_W[4] - (rating-3)*FSRS_W[5]));
+}
+function fsrsNextDifficulty(prevD, rating){
+  const d = prevD - FSRS_W[6]*(rating-3);
+  return Math.min(10, Math.max(1, FSRS_W[7]*fsrsInitialDifficulty(4) + (1-FSRS_W[7])*d));
+}
+function fsrsNextStability(prevD, prevS, r, rating){
+  if (rating === 1){
+    return FSRS_W[11] * Math.pow(prevD, -FSRS_W[12]) * (Math.pow(prevS+1, FSRS_W[13]) - 1) * Math.exp((1-r)*FSRS_W[14]);
+  }
+  const hardPenalty = rating === 2 ? FSRS_W[15] : 1;
+  const easyBonus = rating === 4 ? FSRS_W[16] : 1;
+  return prevS * (1 + Math.exp(FSRS_W[8]) * (11-prevD) * Math.pow(prevS, -FSRS_W[9]) * (Math.exp((1-r)*FSRS_W[10]) - 1) * hardPenalty * easyBonus);
+}
+// Applies one FSRS review. prevState is {difficulty, stability, lastReviewTs} or null for a card FSRS hasn't seen yet.
+function fsrsReview(prevState, rating, now){
+  now = now || Date.now();
+  const DAY = 86400000;
+  if (!prevState || !prevState.stability){
+    return { difficulty: fsrsInitialDifficulty(rating), stability: fsrsInitialStability(rating), lastReviewTs: now };
+  }
+  const elapsedDays = (now - prevState.lastReviewTs) / DAY;
+  const r = fsrsRetrievability(elapsedDays, prevState.stability);
+  const nextD = fsrsNextDifficulty(prevState.difficulty, rating);
+  const nextS = Math.max(0.1, fsrsNextStability(prevState.difficulty, prevState.stability, r, rating));
+  return { difficulty: nextD, stability: nextS, lastReviewTs: now };
+}
+// Cram mode has no real FSRS review history to draw on (the main app
+// never ran FSRS), so a card entering a cram session gets a rough prior
+// built from its existing SM-2 state — its current interval stands in
+// for stability, difficulty starts at a neutral mid-point. A card with
+// no review history at all gets no prior; its first cram rating seeds
+// FSRS fresh, same as any brand-new card would.
+function fsrsPriorForCard(cardId){
+  const s = getSRSMap().get(cardId);
+  if (!s || !s.reps) return null;
+  const DAY = 86400000;
+  const approxLastReview = s.dueDate - Math.max(1, s.interval) * DAY;
+  return { difficulty: 5, stability: Math.max(0.5, s.interval || 1), lastReviewTs: approxLastReview };
+}
+
+/* ---------------------------------------------------------
+   CRAM MODE
+   A self-contained session, deliberately kept separate from the normal
+   study/resume/pending-session machinery: cram sessions are short,
+   live, same-sitting drills, not something meant to be paused and
+   picked up on another device the way a real study session is.
+   Only the FIRST rating of a card in a session touches the real
+   reviewLog (so the main SM-2 scheduler and cloud sync stay exactly as
+   they already work) — later same-day reps only update the in-memory
+   FSRS estimate and decide whether the card needs to resurface again
+   before this session ends.
+--------------------------------------------------------- */
+let cramState = null;
+let cramSetupTargetId = null;
+
+function collectDueCardsForNode(node){
+  const srsMap = getSRSMap();
+  const out = [];
+  (function walk(n){
+    if (n.type === 'folder'){ n.children.forEach(walk); return; }
+    n.cards.forEach(c => { if (isCardDue(c.id, srsMap)) out.push({ card:c, deck:n }); });
+  })(node);
+  return out;
+}
+
+function openCramSetup(id){
+  closeCtxMenu();
+  const node = nodeById(id);
+  if (!node) return;
+  const due = collectDueCardsForNode(node);
+  if (!due.length){ showToast(`Nothing due in "${node.name}" right now.`); return; }
+  cramSetupTargetId = id;
+  const input = document.getElementById('cramExamDateInput');
+  input.value = node.examDate || '';
+  input.min = new Date().toISOString().slice(0,10);
+  document.getElementById('cramSetupOverlay').classList.add('active');
+}
+function confirmCramSetup(){
+  const node = nodeById(cramSetupTargetId);
+  const dateStr = document.getElementById('cramExamDateInput').value;
+  if (!node || !dateStr) return;
+  node.examDate = dateStr;
+  persistTextState(node.type === 'deck' ? node.id : undefined);
+  closeModal('cramSetupOverlay');
+  startCramSession(node.id);
+}
+function daysUntil(dateStr){
+  const DAY = 86400000;
+  const target = new Date(dateStr + 'T23:59:59').getTime();
+  return Math.max(0, Math.ceil((target - Date.now()) / DAY));
+}
+
+function startCramSession(nodeId){
+  const node = nodeById(nodeId);
+  if (!node) return;
+  const due = collectDueCardsForNode(node);
+  if (!due.length){ showToast(`Nothing due in "${node.name}" right now.`); return; }
+
+  const order = due.map(x => x.card.id);
+  // Fisher-Yates shuffle so the drilling order isn't just deck order.
+  for (let i = order.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  const byId = new Map(due.map(x => [x.card.id, x]));
+
+  cramState = {
+    node,
+    examDate: node.examDate,
+    examDaysLeft: daysUntil(node.examDate),
+    byId,
+    queue: order,
+    pos: 0,
+    repsToday: new Map(),   // cardId -> reps this session
+    fsrsByCard: new Map(),  // cardId -> {difficulty, stability, lastReviewTs}
+    flipped: false,
+    totalStarting: order.length,
+    seenCount: 0,
+    safeCount: 0,
+  };
+
+  document.getElementById('topbar').style.display = 'none';
+  document.getElementById('content').style.display = 'none';
+  document.getElementById('study').classList.remove('active');
+  document.getElementById('cramScreen').classList.add('active');
+  document.getElementById('cramDone').classList.remove('active');
+  document.getElementById('cramBody').style.display = 'flex';
+  document.getElementById('cramExamChip').textContent =
+    cramState.examDaysLeft <= 0 ? 'Exam day' : `${cramState.examDaysLeft} day${cramState.examDaysLeft===1?'':'s'} to exam`;
+  renderCramCard();
+}
+
+// FSRS's retrievability prediction is what decides whether a card is
+// "safe" — instead of a blunt interval cap, we ask the more useful
+// question directly: if nothing else happens between now and the exam,
+// how likely are you to still recall this card? Below 85%, it goes
+// back into today's queue for another drill; at or above, it's left
+// alone rather than over-drilling something already solid.
+const CRAM_SAFE_THRESHOLD = 0.85;
+
+function renderCramCard(){
+  const s = cramState;
+  if (!s) return;
+  if (s.pos >= s.queue.length){ finishCramSession(); return; }
+  const cardId = s.queue[s.pos];
+  const entry = s.byId.get(cardId);
+  s.flipped = false;
+  const card = document.getElementById('cramFlashCard');
+  card.classList.add('no-anim');
+  card.classList.remove('flipped');
+  requestAnimationFrame(()=> card.classList.remove('no-anim'));
+
+  document.getElementById('cramTitle').textContent = s.node.name;
+  document.getElementById('cramFrontText').innerHTML = renderCardFace(entry.card, 'front');
+  document.getElementById('cramBackText').innerHTML = renderCardFace(entry.card, 'back');
+
+  const reps = s.repsToday.get(cardId) || 0;
+  const badges = [`<span class="cram-badge">Rep ${reps+1} today</span>`];
+  if (reps > 0){
+    const fsrs = s.fsrsByCard.get(cardId);
+    const r = fsrs ? Math.round(fsrsRetrievability(s.examDaysLeft, fsrs.stability)*100) : null;
+    badges.push(`<span class="cram-badge">Already rescheduled — this rep just drills it</span>`);
+    if (r != null) badges.push(`<span class="cram-badge ${r>=CRAM_SAFE_THRESHOLD*100?'safe':'risk'}">${r}% predicted recall by exam</span>`);
+  }
+  document.getElementById('cramCardBadges').innerHTML = badges.join('');
+
+  const remaining = s.queue.length - s.pos;
+  document.getElementById('cramHeadline').textContent = `${remaining} card${remaining===1?'':'s'} left this session`;
+  document.getElementById('cramSub').textContent = `${s.seenCount} rep${s.seenCount===1?'':'s'} so far · ${s.safeCount} of ${s.totalStarting} marked safe`;
+  renderCramRing((s.totalStarting - remaining) / Math.max(1,s.totalStarting));
+}
+// Reuses the same markdown formatter the normal study screen uses for
+// card text, so cram cards render identically rather than through a
+// second, likely-drifting copy of that logic. (Image badges are
+// intentionally skipped here — cram is a fast drilling pass, and the
+// normal study screen remains the place to review image-heavy cards.)
+function renderCardFace(card, face){
+  const raw = face === 'front' ? card.f : card.b;
+  return `<div class="face-text-inner">${formatInlineMarkdown(raw || '')}</div>`;
+}
+function flipCramCard(){
+  cramState.flipped = !cramState.flipped;
+  document.getElementById('cramFlashCard').classList.toggle('flipped', cramState.flipped);
+}
+function rateCramCard(rating){
+  const s = cramState;
+  if (!s) return;
+  const cardId = s.queue[s.pos];
+  const entry = s.byId.get(cardId);
+  const reps = s.repsToday.get(cardId) || 0;
+  const isFirstRepToday = reps === 0;
+  s.repsToday.set(cardId, reps + 1);
+  s.seenCount++;
+
+  const prior = s.fsrsByCard.get(cardId) || fsrsPriorForCard(cardId);
+  const updated = fsrsReview(prior, rating, Date.now());
+  s.fsrsByCard.set(cardId, updated);
+
+  // Only the first rating of the day for this card touches the real
+  // scheduler — later reps this session are drill-only, exactly what
+  // the Cram Mode setup screen promises.
+  if (isFirstRepToday){
+    const good = rating >= 3;
+    reviewLog.push({ cardId, good, ts: Date.now(), questionSeconds:0, answerSeconds:0, usedHint:false, cram:true });
+    srsMapCache = null;
+    persistTextState(entry.deck.id);
+  }
+
+  const retrAtExam = fsrsRetrievability(s.examDaysLeft, updated.stability);
+  const isSafe = retrAtExam >= CRAM_SAFE_THRESHOLD;
+
+  s.queue.splice(s.pos, 1);
+  if (isSafe){
+    s.safeCount++;
+  } else {
+    // Not confident it'll hold — push it back in a few cards later
+    // rather than immediately (immediate repeats just get memorized by
+    // position, not actually learned).
+    const reinsertAt = Math.min(s.queue.length, s.pos + 3 + Math.floor(Math.random()*3));
+    s.queue.splice(reinsertAt, 0, cardId);
+  }
+  renderCramCard();
+}
+function finishCramSession(){
+  const s = cramState;
+  document.getElementById('cramBody').style.display = 'none';
+  document.getElementById('cramDone').classList.add('active');
+  document.getElementById('cramDoneSummary').textContent =
+    `${s.totalStarting} card${s.totalStarting===1?'':'s'} in "${s.node.name}" · ${s.seenCount} total rep${s.seenCount===1?'':'s'}`;
+  updateToughCount();
+}
+function exitCramSession(){
+  document.getElementById('cramScreen').classList.remove('active');
+  document.getElementById('topbar').style.display = '';
+  document.getElementById('content').style.display = '';
+  cramState = null;
+  render();
+}
+function renderCramRing(progress){
+  const fig = document.getElementById('cramRing');
+  if (!fig) return;
+  const size=64, stroke=7, r=(size-stroke)/2, c=2*Math.PI*r;
+  const dash = Math.max(0,Math.min(1,progress))*c;
+  fig.innerHTML =
+    `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--paper-dark)" stroke-width="${stroke}"/>
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--teal)" stroke-width="${stroke}"
+        stroke-dasharray="${dash} ${c-dash}" stroke-linecap="round" transform="rotate(-90 ${size/2} ${size/2})"/>
+    </svg>
+    <div class="cram-ring-center"><span class="num">${Math.round(progress*100)}%</span></div>`;
 }
 function studyDueCards(){
   const srsMap = getSRSMap();
@@ -7754,6 +8157,7 @@ function openCtxMenu(e, id){
     html += `<button onclick="openCardManager('${id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="7" y="3" width="12" height="16" rx="2" transform="rotate(-8 13 11)"/><rect x="5" y="6" width="12" height="16" rx="2"/></svg> Manage cards</button><hr>`;
   }
   if (!isRoot){
+    html += `<button onclick="openCramSetup('${id}')">🔥 Cram this</button><hr>`;
     html += `<button onclick="startRename('${id}')">✎ Rename</button>`;
     html += `<button onclick="openMoveModal('${id}')">⇥ Move to…</button>`;
     html += `<button onclick="clipboardCopy('${id}')">⧉ Copy</button>`;
