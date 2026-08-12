@@ -1980,7 +1980,7 @@ button{font-family:inherit;cursor:pointer;}
     <p id="trashConfirmMsg" style="font-size:13px; color:var(--ink-soft); margin:0 0 16px; line-height:1.5;"></p>
     <div class="modal-row">
       <button class="cancel" onclick="closeModal('trashConfirmOverlay')">Cancel</button>
-      <button class="confirm confirm-danger" onclick="runTrashConfirmAction()">Delete forever</button>
+      <button class="confirm confirm-danger" id="trashConfirmActionBtn" onclick="runTrashConfirmAction()">Delete forever</button>
     </div>
   </div>
 </div>
@@ -2004,6 +2004,12 @@ button{font-family:inherit;cursor:pointer;}
         <button class="action-btn" onclick="closeModal('settingsOverlay'); document.getElementById('backupFileInput').click();">Import</button>
         <button class="action-btn" onclick="closeModal('settingsOverlay'); openExportModal();">Export</button>
       </div>
+    </div>
+
+    <div class="settings-section">
+      <p class="settings-label">Recovery snapshots</p>
+      <p class="settings-hint">A local snapshot of everything is saved automatically once per day, kept for a week — a real rollback point that a live sync problem can't also corrupt, no manual export needed.</p>
+      <div id="recoverySnapshotList"></div>
     </div>
 
     <div class="settings-section">
@@ -2736,7 +2742,62 @@ function persistLocalState(){
   // Save synchronously to localStorage immediately — this is the critical backup
   localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(payload));
   lastPersistedPayload = payload;
+  maybeSaveDailySnapshot(payload);
   return payload;
+}
+
+/* ---------------------------------------------------------
+   RECOVERY SNAPSHOTS — automatic daily rollback points.
+   The live backup (BACKUP_STORAGE_KEY) is always the newest state — if
+   something ever corrupts the LIVE data (a sync bug, a bad script, a
+   collision — anything), it gets overwritten right along with
+   everything else. These are separate: one snapshot per calendar day,
+   never overwritten until it rotates out, so there's always a real
+   point to roll back to that a live bug can't also have corrupted.
+   No manual export needed — this happens silently in the background.
+--------------------------------------------------------- */
+const SNAPSHOT_KEY_PREFIX = 'kardex_snapshot_';
+const SNAPSHOT_LAST_DATE_KEY = 'kardex_snapshot_last_date';
+const SNAPSHOT_KEEP_DAYS = 7;
+function todaySnapshotDateKey(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function maybeSaveDailySnapshot(payload){
+  try {
+    const today = todaySnapshotDateKey();
+    if (localStorage.getItem(SNAPSHOT_LAST_DATE_KEY) === today) return; // already have today's — never overwrite it again today
+    localStorage.setItem(SNAPSHOT_KEY_PREFIX + today, JSON.stringify(payload));
+    localStorage.setItem(SNAPSHOT_LAST_DATE_KEY, today);
+    // Prune anything older than the retention window
+    const cutoff = Date.now() - SNAPSHOT_KEEP_DAYS * 24 * 60 * 60 * 1000;
+    Object.keys(localStorage).forEach(key => {
+      if (!key.startsWith(SNAPSHOT_KEY_PREFIX)) return;
+      const dateStr = key.slice(SNAPSHOT_KEY_PREFIX.length);
+      const asDate = new Date(dateStr + 'T00:00:00');
+      if (!isNaN(asDate.getTime()) && asDate.getTime() < cutoff) localStorage.removeItem(key);
+    });
+  } catch(e){ console.warn('Could not save daily recovery snapshot', e); }
+}
+function listRecoverySnapshots(){
+  const out = [];
+  Object.keys(localStorage).forEach(key => {
+    if (!key.startsWith(SNAPSHOT_KEY_PREFIX) || key === SNAPSHOT_LAST_DATE_KEY) return;
+    try {
+      const payload = JSON.parse(localStorage.getItem(key));
+      out.push({ dateKey: key.slice(SNAPSHOT_KEY_PREFIX.length), payload });
+    } catch(e){}
+  });
+  out.sort((a,b) => b.dateKey.localeCompare(a.dateKey)); // newest first
+  return out;
+}
+function restoreFromSnapshot(dateKey){
+  const raw = localStorage.getItem(SNAPSHOT_KEY_PREFIX + dateKey);
+  if (!raw) { showToast('That snapshot is no longer available'); return; }
+  const parsed = JSON.parse(raw);
+  applyPersistedPayload(parsed);
+  render();
+  showToast(`Restored to your local snapshot from ${dateKey} — press Sync to push this to the cloud once you've confirmed it looks right`);
 }
 
 /* ============================================================
@@ -2766,6 +2827,35 @@ function sbHeaders(extra){
     'apikey': SUPABASE_ANON_KEY,
     'Authorization': `Bearer ${accessToken}`,
   }, extra || {});
+}
+/* Every direct call to Supabase should go through this instead of the
+   bare fetch() — not a style preference, a real fix for a real bug: a
+   tab regaining focus after sitting backgrounded for a while can fire a
+   sync BEFORE the SDK's own proactive token-refresh timer catches up
+   (browsers throttle background timers, and that timer is exactly the
+   kind of thing that gets delayed). That's an ordinary, ongoing
+   possibility, not a one-off — this reacts to it directly: on a 401,
+   actively ask the SDK for the current session (which itself refreshes
+   an expired one using the stored refresh token), update the app's own
+   copy of the token, and retry the exact same request once with it,
+   rather than just failing and silently waiting for the next
+   auto-refresh cycle to eventually catch up on its own. */
+async function sbFetch(url, options){
+  options = options || {};
+  let res = await fetch(url, options);
+  if (res.status === 401 && currentUser){
+    try {
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (!error && data && data.session){
+        accessToken = data.session.access_token;
+        const freshHeaders = Object.assign({}, options.headers, { 'Authorization': `Bearer ${accessToken}` });
+        res = await fetch(url, Object.assign({}, options, { headers: freshHeaders }));
+      }
+    } catch (err) {
+      console.warn('Session refresh retry failed', err);
+    }
+  }
+  return res;
 }
 
 /* Generic per-key serialized queue — same reasoning as the old single
@@ -2847,7 +2937,7 @@ function queueTreeSkeletonSave(){
   // device, and it should show up on another without touching anything
   // else.
   return queueSyncJob('tree', async () => {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_tree`, {
+    const res = await sbFetch(`${SUPABASE_URL}/rest/v1/kardex_tree`, {
       method: 'POST',
       headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates' }),
       body: JSON.stringify({
@@ -2870,7 +2960,7 @@ function queueDeckSave(deckId){
   // never be represented by an older snapshot captured too late.
   const snapshot = { deck_id: deckNode.id, user_id: currentUser.id, name: deckNode.name, cards: deckNode.cards, sessions: deckNode.sessions, updated_at: new Date().toISOString() };
   return queueSyncJob('deck:' + deckId, async () => {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_decks`, {
+    const res = await sbFetch(`${SUPABASE_URL}/rest/v1/kardex_decks`, {
       method: 'POST',
       headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates' }),
       body: JSON.stringify(snapshot)
@@ -2882,7 +2972,7 @@ function queueDeckSave(deckId){
 function queueDeckDelete(deckId){
   if (!SUPABASE_CONFIGURED || !currentUser || !accessToken || !deckId) return Promise.resolve(false);
   return queueSyncJob('deck:' + deckId, async () => {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_decks?deck_id=eq.${encodeURIComponent(deckId)}&user_id=eq.${currentUser.id}`, {
+    const res = await sbFetch(`${SUPABASE_URL}/rest/v1/kardex_decks?deck_id=eq.${encodeURIComponent(deckId)}&user_id=eq.${currentUser.id}`, {
       method: 'DELETE',
       headers: sbHeaders()
     });
@@ -2906,7 +2996,7 @@ function queueReviewLogFlush(){
   }));
   const upToCount = reviewLog.length;
   return queueSyncJob('reviewlog', async () => {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_review_log`, {
+    const res = await sbFetch(`${SUPABASE_URL}/rest/v1/kardex_review_log`, {
       method: 'POST',
       headers: sbHeaders(),
       body: JSON.stringify(rows)
@@ -2922,7 +3012,7 @@ function queueReviewLogFlush(){
 function queueImageUrlSave(hash, url){
   if (!SUPABASE_CONFIGURED || !currentUser || !accessToken) return Promise.resolve(false);
   return queueSyncJob('imgurl:' + hash, async () => {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls`, {
+    const res = await sbFetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls`, {
       method: 'POST',
       headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates' }),
       body: JSON.stringify({ hash, user_id: currentUser.id, url })
@@ -2939,10 +3029,10 @@ async function loadEverythingFromCloud(){
   if (!currentUser || !accessToken) return false;
   try {
     const [treeRes, decksRes, logRes, urlsRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=skeleton,pending_session,daily_deck_state,tough_mode,tough_mode_changed_at,trash,next_uid`, { headers: sbHeaders() }),
-      fetch(`${SUPABASE_URL}/rest/v1/kardex_decks?user_id=eq.${currentUser.id}&select=deck_id,name,cards,sessions`, { headers: sbHeaders() }),
-      fetch(`${SUPABASE_URL}/rest/v1/kardex_review_log?user_id=eq.${currentUser.id}&select=card_id,good,ts,question_seconds,answer_seconds&order=id.asc`, { headers: sbHeaders() }),
-      fetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls?user_id=eq.${currentUser.id}&select=hash,url`, { headers: sbHeaders() }),
+      sbFetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=skeleton,pending_session,daily_deck_state,tough_mode,tough_mode_changed_at,trash,next_uid`, { headers: sbHeaders() }),
+      sbFetch(`${SUPABASE_URL}/rest/v1/kardex_decks?user_id=eq.${currentUser.id}&select=deck_id,name,cards,sessions`, { headers: sbHeaders() }),
+      sbFetch(`${SUPABASE_URL}/rest/v1/kardex_review_log?user_id=eq.${currentUser.id}&select=card_id,good,ts,question_seconds,answer_seconds&order=id.asc`, { headers: sbHeaders() }),
+      sbFetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls?user_id=eq.${currentUser.id}&select=hash,url`, { headers: sbHeaders() }),
     ]);
     if (!treeRes.ok) return false;
     const treeRows = await treeRes.json();
@@ -3078,12 +3168,12 @@ async function migrateOldBlobToV2IfNeeded(){
   if (migrationAttempted || !currentUser || !accessToken) return;
   migrationAttempted = true;
   try {
-    const treeCheck = await fetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=user_id&limit=1`, { headers: sbHeaders() });
+    const treeCheck = await sbFetch(`${SUPABASE_URL}/rest/v1/kardex_tree?user_id=eq.${currentUser.id}&select=user_id&limit=1`, { headers: sbHeaders() });
     if (!treeCheck.ok) return; // new tables not set up yet (schema not run) — nothing to do
     const existing = await treeCheck.json();
     if (existing.length) return; // already migrated
 
-    const oldRes = await fetch(`${SUPABASE_URL}/rest/v1/kardex_state?id=eq.${currentUser.id}&select=payload`, { headers: sbHeaders() });
+    const oldRes = await sbFetch(`${SUPABASE_URL}/rest/v1/kardex_state?id=eq.${currentUser.id}&select=payload`, { headers: sbHeaders() });
     if (!oldRes.ok) return;
     const oldRows = await oldRes.json();
     if (!oldRows.length || !oldRows[0].payload) return; // nothing old to migrate either — fresh user
@@ -3126,12 +3216,12 @@ async function migrateOldBlobToV2IfNeeded(){
         question_seconds: r.questionSeconds != null ? r.questionSeconds : null,
         answer_seconds: r.answerSeconds != null ? r.answerSeconds : null,
       }));
-      await fetch(`${SUPABASE_URL}/rest/v1/kardex_review_log`, { method: 'POST', headers: sbHeaders(), body: JSON.stringify(rows) });
+      await sbFetch(`${SUPABASE_URL}/rest/v1/kardex_review_log`, { method: 'POST', headers: sbHeaders(), body: JSON.stringify(rows) });
     }
     if (old.imageUrls && typeof old.imageUrls === 'object'){
       const rows = Object.entries(old.imageUrls).map(([hash, url]) => ({ hash, user_id: currentUser.id, url }));
       if (rows.length){
-        await fetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls`, { method: 'POST', headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates' }), body: JSON.stringify(rows) });
+        await sbFetch(`${SUPABASE_URL}/rest/v1/kardex_image_urls`, { method: 'POST', headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates' }), body: JSON.stringify(rows) });
       }
     }
     console.info('Migration to per-deck storage complete.');
@@ -3144,7 +3234,7 @@ async function migrateOldBlobToV2IfNeeded(){
 async function syncToSupabase(payload){
   if (!currentUser || !accessToken) return false; // not signed in — local backup only
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/kardex_state`, {
+    const res = await sbFetch(`${SUPABASE_URL}/rest/v1/kardex_state`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -4555,12 +4645,14 @@ function confirmPermanentDelete(trashId){
   const entry = trash.find(t => t.trashId === trashId);
   if (!entry) return;
   document.getElementById('trashConfirmMsg').textContent = `Permanently delete "${entry.name}"? This can't be undone.`;
+  document.getElementById('trashConfirmActionBtn').textContent = 'Delete forever';
   trashConfirmAction = () => permanentlyDeleteFromTrash(trashId);
   document.getElementById('trashConfirmOverlay').classList.add('active');
 }
 function confirmEmptyTrash(){
   if (!trash.length) return;
   document.getElementById('trashConfirmMsg').textContent = `Permanently delete all ${trash.length} item${trash.length!==1?'s':''} in Trash? This can't be undone.`;
+  document.getElementById('trashConfirmActionBtn').textContent = 'Delete forever';
   trashConfirmAction = emptyTrash;
   document.getElementById('trashConfirmOverlay').classList.add('active');
 }
@@ -9265,10 +9357,36 @@ function renderSettingsAccount(){
 }
 function openSettingsModal(){
   renderSettingsAccount();
+  renderRecoverySnapshotList();
   document.getElementById('settingsSnippetMd').textContent = CARD_FORMAT_MD;
   document.getElementById('settingsSnippetJson').textContent = CARD_FORMAT_JSON;
   document.getElementById('settingsSnippetWord').textContent = CARD_FORMAT_WORD;
   document.getElementById('settingsOverlay').classList.add('active');
+}
+function renderRecoverySnapshotList(){
+  const el = document.getElementById('recoverySnapshotList');
+  if (!el) return;
+  const snapshots = listRecoverySnapshots();
+  if (!snapshots.length){
+    el.innerHTML = '<p class="settings-hint">No snapshots yet — the first one saves automatically the next time you make any change today.</p>';
+    return;
+  }
+  el.innerHTML = snapshots.map(s => {
+    const deckCount = (function count(n){ return n.type === 'folder' ? n.children.reduce((sum,c)=>sum+count(c),0) : 1; })(s.payload.tree);
+    return `<div class="trash-item">
+      <div class="trash-item-info">
+        <div class="trash-item-name">${s.dateKey}</div>
+        <div class="trash-item-meta mono">${deckCount} deck${deckCount!==1?'s':''} · ${s.payload.reviewLog.length} reviews logged</div>
+      </div>
+      <button class="mini-btn danger" onclick="confirmRestoreSnapshot('${s.dateKey}')">Restore this</button>
+    </div>`;
+  }).join('');
+}
+function confirmRestoreSnapshot(dateKey){
+  document.getElementById('trashConfirmMsg').textContent = `Roll back to your local snapshot from ${dateKey}? This replaces everything currently showing with that day's saved state. Anything changed since then on this device isn't deleted from the cloud — just not what you'll see until you sync again.`;
+  document.getElementById('trashConfirmActionBtn').textContent = 'Restore this snapshot';
+  trashConfirmAction = () => { restoreFromSnapshot(dateKey); closeModal('settingsOverlay'); };
+  document.getElementById('trashConfirmOverlay').classList.add('active');
 }
 async function copySettingsSnippet(elId, btn){
   const text = document.getElementById(elId).textContent;
