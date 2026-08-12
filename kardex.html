@@ -5115,11 +5115,14 @@ function showCramHub(nodeId){
   document.getElementById('cramMinutesVal').textContent = fmtCramMinutes(cramSetupCtx.minutesPerDay);
   updateCramFeasHint();
 
-  const hasLivePlan = !!(plan && plan.examDate
-    && new Date(plan.examDate+'T23:59:59').getTime() >= Date.now()
-    && plan.completedDays && plan.completedDays.some(d => !d));
-  if (hasLivePlan){
-    // Already mid-plan for this node — go straight to the schedule
+  // Show the schedule screen whenever a plan exists at all — including
+  // one where every day is already done. Previously this only counted
+  // as a "live" plan while at least one day was still incomplete, which
+  // meant finishing the last (or only) day silently dumped you back on
+  // the setup form instead of showing the finished schedule.
+  const hasPlan = !!(plan && plan.dayAssignments && plan.dayAssignments.length);
+  if (hasPlan){
+    // Already have a plan for this node — go straight to the schedule
     // instead of asking "how much time do you have" all over again.
     cramSetupCtx.preview = buildCramPlanPreview(node, plan.days, plan.minutesPerDay);
     cramSetupCtx.preview.dayAssignments = plan.dayAssignments; // keep the ORIGINAL split, don't reshuffle a plan already in progress
@@ -5231,8 +5234,11 @@ function renderCramSchedule(){
   const p = cramSetupCtx.preview;
   const node = nodeById(cramSetupCtx.nodeId);
   const plan = node.cramPlan;
+  const allDone = plan.completedDays.every(Boolean);
   const headline = document.getElementById('cramScheduleHeadline');
-  if (p.feasible){
+  if (allDone){
+    headline.innerHTML = `<div class="cram-sched-ok">✓ Plan complete — all ${plan.days} day${plan.days===1?'':'s'} done. Adjust days/budget below to start a fresh plan.</div>`;
+  } else if (p.feasible){
     headline.innerHTML = `<div class="cram-sched-ok">To clear ${p.totalCards.toLocaleString()} cards in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'}, you'll need about <b>${fmtCramMinutes(p.requiredPerDay)}/day</b>.</div>`;
   } else {
     headline.innerHTML = `
@@ -5246,6 +5252,7 @@ function renderCramSchedule(){
       </div>`;
   }
 
+  const pending = loadCramPendingSession();
   const list = document.getElementById('cramScheduleList');
   list.innerHTML = p.dayAssignments.map((ids, i) => {
     const secs = ids.reduce((sum, cid) => {
@@ -5255,14 +5262,15 @@ function renderCramSchedule(){
     }, 0);
     const done = plan.completedDays[i];
     const locked = !done && i > 0 && !plan.completedDays[i-1];
+    const isPending = !done && !locked && pending && pending.nodeId === cramSetupCtx.nodeId && pending.planDayIndex === i;
     const icon = done ? CRAM_CHECK_SVG : (locked ? CRAM_LOCK_SVG : CRAM_PLAY_SVG);
-    const status = done ? 'Done' : (locked ? 'Locked' : 'Ready');
+    const status = done ? 'Done' : (locked ? 'Locked' : (isPending ? 'Resume' : 'Ready'));
     const cls = 'cram-day-row' + (done ? ' done' : '') + (locked ? ' locked' : '');
     const click = locked ? '' : ` onclick="startCramDay('${cramSetupCtx.nodeId}', ${i})"`;
     return `<div class="${cls}"${click}>
       <span class="cram-day-icon">${icon}</span>
       <div class="cram-day-info">
-        <div class="name">Day ${i+1}</div>
+        <div class="name">Day ${i+1}${isPending ? ' — in progress' : ''}</div>
         <div class="meta">${ids.length} card${ids.length===1?'':'s'} · ${fmtCramMinutes(secs/60)}</div>
       </div>
       <span class="cram-day-status">${status}</span>
@@ -5301,10 +5309,60 @@ function renderCramAnalytics(){
   ).join('');
 }
 
+// ---------------------------------------------------------------
+// Cram pause/resume — deliberately its own storage key, completely
+// separate from the normal flashcard screen's pendingSession. A paused
+// cram day should never show up as "Resume" on the normal study
+// screen, and vice versa; the two card queues are different things.
+// Local-only (this device), not synced to the cloud — cram sessions
+// are single-sitting activity, unlike a normal study session someone
+// might reasonably pick back up on another device days later.
+// ---------------------------------------------------------------
+const CRAM_PENDING_KEY = 'kardex_cram_pending_session';
+function saveCramPendingSession(){
+  const s = cramState;
+  if (!s) return;
+  try {
+    localStorage.setItem(CRAM_PENDING_KEY, JSON.stringify({
+      nodeId: s.node.id,
+      planDayIndex: s.planDayIndex,
+      totalPlanDays: s.totalPlanDays,
+      examDate: s.examDate,
+      queue: s.queue,
+      pos: s.pos,
+      repsToday: Array.from(s.repsToday.entries()),
+      fsrsByCard: Array.from(s.fsrsByCard.entries()),
+      totalStarting: s.totalStarting,
+      seenCount: s.seenCount,
+      safeCount: s.safeCount,
+    }));
+  } catch(e){}
+}
+function loadCramPendingSession(){
+  try {
+    const raw = localStorage.getItem(CRAM_PENDING_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e){ return null; }
+}
+function clearCramPendingSession(){
+  try { localStorage.removeItem(CRAM_PENDING_KEY); } catch(e){}
+}
+
 function startCramDay(nodeId, dayIndex){
   const node = nodeById(nodeId);
   if (!node || !node.cramPlan) return;
   const plan = node.cramPlan;
+
+  const pending = loadCramPendingSession();
+  if (pending && pending.nodeId === nodeId && pending.planDayIndex === dayIndex){
+    resumeCramDay(node, pending);
+    return;
+  }
+  // Starting a DIFFERENT day/node than whatever pending session exists
+  // (if any) — that old one is stale now, clear it rather than leaving
+  // an orphaned resume point nothing will ever match again.
+  clearCramPendingSession();
+
   const idsForDay = (plan.dayAssignments[dayIndex] || []).filter(cid => cardIndex.has(cid));
   if (!idsForDay.length){
     // Nothing left for this day (cards deleted/moved since the plan was
@@ -5345,7 +5403,33 @@ function startCramDay(nodeId, dayIndex){
     seenCount: 0,
     safeCount: 0,
   };
-
+  enterCramScreen();
+  saveCramPendingSession();
+  renderCramCard();
+}
+function resumeCramDay(node, pending){
+  const byId = new Map();
+  pending.queue.forEach(cid => { const entry = cardIndex.get(cid); if (entry) byId.set(cid, entry); });
+  cramState = {
+    node,
+    planDayIndex: pending.planDayIndex,
+    totalPlanDays: pending.totalPlanDays,
+    examDate: pending.examDate,
+    examDaysLeft: daysUntil(pending.examDate),
+    byId,
+    queue: pending.queue.filter(cid => cardIndex.has(cid)),
+    pos: Math.min(pending.pos, Math.max(0, pending.queue.length-1)),
+    repsToday: new Map(pending.repsToday),
+    fsrsByCard: new Map(pending.fsrsByCard),
+    flipped: false,
+    totalStarting: pending.totalStarting,
+    seenCount: pending.seenCount,
+    safeCount: pending.safeCount,
+  };
+  enterCramScreen();
+  renderCramCard();
+}
+function enterCramScreen(){
   document.getElementById('cramHub').classList.remove('active');
   document.getElementById('topbar').style.display = 'none';
   document.getElementById('content').style.display = 'none';
@@ -5356,7 +5440,6 @@ function startCramDay(nodeId, dayIndex){
   document.getElementById('cramBody').style.display = 'flex';
   document.getElementById('cramExamChip').textContent =
     cramState.examDaysLeft <= 0 ? 'Exam day' : `${cramState.examDaysLeft} day${cramState.examDaysLeft===1?'':'s'} to exam`;
-  renderCramCard();
 }
 
 // FSRS's retrievability prediction is what decides whether a card is
@@ -5464,12 +5547,14 @@ function rateCramCard(rating){
     s.queue.splice(reinsertAt, 0, cardId);
   }
   persistTextState(entry.deck.id);
+  saveCramPendingSession(); // keeps the pause/resume point current after every rating
   renderCramCard();
 }
 function finishCramSession(){
   const s = cramState;
   document.getElementById('cramBody').style.display = 'none';
   document.getElementById('cramDone').classList.add('active');
+  clearCramPendingSession(); // day is done, nothing left to resume
 
   const node = s.node;
   const plan = node.cramPlan;
