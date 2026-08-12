@@ -1005,18 +1005,31 @@ button{font-family:inherit;cursor:pointer;}
 .grade-btn.again:hover{ background:var(--maroon); color:#fff; border-color:var(--maroon); }
 .grade-btn.good{ color:var(--teal-dark); }
 .grade-btn.good:hover{ background:var(--teal); color:#fff; border-color:var(--teal); }
-/* Cram mode's 4-way rating row reuses .grade-btn's exact shape/shadow —
-   only the accent colors differ, and those come from the SAME palette
-   tokens already used elsewhere (maroon for danger, kraft for a caution
-   middle-ground, teal for the two positive grades) rather than a new
-   dark theme. This is deliberate: Cram Mode should look like part of
-   Kardex, not a different app bolted on. */
 .grade-btn.hard{ color:var(--kraft-dark); }
 .grade-btn.hard:hover{ background:var(--kraft); color:#fff; border-color:var(--kraft); }
 .grade-btn.easy{ color:var(--teal-dark); }
 .grade-btn.easy:hover{ background:var(--teal-dark); color:#fff; border-color:var(--teal-dark); }
 
-/* ---------- Cram mode ---------- */
+/* ---------------------------------------------------------
+   CRAM THEME — a deliberately distinct dark/amber palette,
+   scoped to .cram-theme so it never leaks into the rest of the app.
+   Applied to both the Hub (schedule/analytics) and the drill screen,
+   so the whole cram experience feels like one consistent space.
+--------------------------------------------------------- */
+.cram-theme{
+  --cram-bg:#181410; --cram-card:#241D16; --cram-line:#3A2E22;
+  --cram-1:#5C2E14; --cram-2:#A8461E; --cram-3:#E8641F; --cram-4:#FF6B35;
+  --cram-text:#F4EFE8; --cram-text-soft:#B9AEA0;
+  background:var(--cram-bg); color:var(--cram-text);
+}
+.cram-icon-btn{
+  width:28px; height:28px; border-radius:50%; border:1px solid var(--cram-line);
+  background:var(--cram-card); color:var(--cram-text-soft);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.cram-icon-btn:hover{ border-color:var(--cram-4); color:var(--cram-4); }
+
+/* ---------- Cram drill screen ---------- */
 #cramScreen{
   display:none;
   flex:1;
@@ -1030,36 +1043,56 @@ button{font-family:inherit;cursor:pointer;}
   width:100%; max-width:560px;
   display:flex; align-items:center; gap:12px;
   margin-bottom:16px;
-  font-family:'IBM Plex Mono', monospace;
-  font-size:12px;
-  color:var(--ink-soft);
 }
-.cram-head #cramTitle{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cram-head #cramTitle{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--cram-4); }
 .cram-exam-chip{
   display:inline-flex; align-items:center; gap:6px;
-  background:var(--paper-dark); color:var(--maroon);
-  padding:3px 9px; border-radius:12px; font-size:11px; letter-spacing:.02em;
-  border:1px solid var(--line);
+  background:var(--cram-card); color:var(--cram-text-soft);
+  padding:3px 10px; border-radius:100px; font-size:10.5px; letter-spacing:.02em;
+  border:1px solid var(--cram-line); font-family:'IBM Plex Mono', monospace;
 }
 .cram-progress-row{
-  width:100%; max-width:560px; display:flex; align-items:center; gap:16px;
-  margin-bottom:22px;
+  width:100%; max-width:560px; display:flex; align-items:center; gap:14px;
+  margin-bottom:20px;
 }
-.cram-ring-figure{ position:relative; flex-shrink:0; width:64px; height:64px; }
+/* Smaller than a typical dashboard ring — this is a corner indicator
+   during a fast drilling pass, not a headline stat. */
+.cram-ring-figure{ position:relative; flex-shrink:0; width:46px; height:46px; }
 .cram-ring-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.cram-ring-center .num{ font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; color:var(--ink); }
+.cram-ring-center .num{ font-family:'IBM Plex Mono', monospace; font-size:10px; font-weight:600; color:var(--cram-text); }
 .cram-progress-copy{ flex:1; min-width:0; }
-.cram-progress-copy .headline{ font-family:'Fraunces', serif; font-size:15px; color:var(--ink); }
-.cram-progress-copy .sub{ font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
+.cram-progress-copy .headline{ font-family:'Fraunces', serif; font-size:14.5px; font-style:italic; color:var(--cram-text); }
+.cram-progress-copy .sub{ font-size:11px; color:var(--cram-text-soft); margin-top:3px; }
 
 .cram-card-badges{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; justify-content:center; }
 .cram-badge{
   font-family:'IBM Plex Mono', monospace; font-size:10px; padding:4px 9px;
-  border-radius:100px; border:1px solid var(--line); color:var(--ink-soft);
-  background:var(--paper-raised);
+  border-radius:100px; border:1px solid var(--cram-line); color:var(--cram-text-soft);
+  background:var(--cram-card);
 }
-.cram-badge.safe{ color:var(--teal-dark); border-color:var(--teal); background:var(--em-1, var(--paper-raised)); }
-.cram-badge.risk{ color:var(--maroon); border-color:var(--maroon); }
+.cram-badge.safe{ color:#8EDCB0; border-color:#3A5942; }
+.cram-badge.risk{ color:#FF8B7A; border-color:#5C2E22; }
+
+.cram-theme .face{ background:var(--cram-card); border-color:var(--cram-line); color:var(--cram-text); box-shadow:0 14px 34px rgba(0,0,0,.4); }
+.cram-theme .face .holes{ display:none; }
+.cram-theme .face.back{ color:var(--cram-text-soft); }
+.cram-theme .flip-hint{ color:var(--cram-text-soft); font-family:'IBM Plex Mono', monospace; letter-spacing:.06em; text-transform:uppercase; font-size:9.5px; }
+.cram-theme .grade-btn{ background:var(--cram-card); border-color:var(--cram-line); box-shadow:none; font-weight:600; }
+.cram-theme .grade-btn.again{ color:#FF8B7A; }
+.cram-theme .grade-btn.again:hover{ background:#3A1E1A; border-color:#FF8B7A; color:#FF8B7A; }
+.cram-theme .grade-btn.hard{ color:#FFC98A; }
+.cram-theme .grade-btn.hard:hover{ background:#3A2A18; border-color:#FFC98A; color:#FFC98A; }
+.cram-theme .grade-btn.good{ color:#8EDCB0; }
+.cram-theme .grade-btn.good:hover{ background:#1C3128; border-color:#8EDCB0; color:#8EDCB0; }
+.cram-theme .grade-btn.easy{ color:#6FD6E8; }
+.cram-theme .grade-btn.easy:hover{ background:#173033; border-color:#6FD6E8; color:#6FD6E8; }
+
+.cram-info-note{
+  display:flex; gap:10px; align-items:flex-start; margin-top:18px; padding:14px 16px;
+  background:var(--cram-card); border:1px solid var(--cram-line); border-radius:10px;
+  font-size:12px; color:var(--cram-text-soft); line-height:1.55; max-width:560px; width:100%;
+}
+.cram-info-note b{ color:var(--cram-text); }
 
 .cram-done{
   text-align:center;
@@ -1068,41 +1101,98 @@ button{font-family:inherit;cursor:pointer;}
   flex-direction:column; align-items:center; justify-content:center;
 }
 .cram-done.active{ display:flex; }
+.cram-theme .cram-done .stamp{ color:var(--cram-4); }
+.cram-theme .cram-done .action-btn.primary{ background:var(--cram-4); border-color:var(--cram-4); }
+.cram-theme .cram-done .action-btn.primary:hover{ background:var(--cram-3); border-color:var(--cram-3); }
 
-/* ---------- Cram setup: exam date / days-and-budget / schedule ---------- */
-.cram-setup-copy{ font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin-bottom:14px; }
-.cram-setup-label{ font-size:12px; color:var(--ink-soft); display:block; margin-bottom:6px; }
-.cram-field{ margin-bottom:20px; }
+/* ---------------------------------------------------------
+   CRAM HUB — full screen: exam-date + days/budget setup when no
+   plan exists yet; schedule list (sequentially locked) + cram-specific
+   analytics once one does.
+--------------------------------------------------------- */
+#cramHub{
+  display:none;
+  flex:1;
+  overflow-y:auto;
+  padding:30px 24px 50px;
+}
+#cramHub.active{ display:block; }
+.cram-hub-shell{ max-width:640px; margin:0 auto; }
+.cram-hub-head{ display:flex; align-items:center; gap:12px; margin-bottom:22px; }
+.cram-hub-head .cram-hub-title{ flex:1; min-width:0; }
+.cram-hub-head .cram-hub-title h2{ font-family:'Fraunces', serif; font-size:19px; font-weight:500; color:var(--cram-text); }
+.cram-hub-head .cram-hub-title .sub{ font-size:11.5px; color:var(--cram-text-soft); margin-top:2px; }
+
+.cram-setup-copy{ font-size:12.5px; color:var(--cram-text-soft); line-height:1.55; margin-bottom:18px; }
+.cram-setup-label{ font-size:11.5px; color:var(--cram-text-soft); display:block; margin-bottom:7px; letter-spacing:.02em; }
+.cram-field{ margin-bottom:22px; }
+.cram-hub-card{
+  background:var(--cram-card); border:1px solid var(--cram-line); border-radius:14px;
+  padding:22px 22px 20px; margin-bottom:16px;
+}
+#cramHub input[type="date"]{
+  width:100%; background:var(--cram-bg); border:1px solid var(--cram-line); color:var(--cram-text);
+  border-radius:8px; padding:9px 11px; font-family:'IBM Plex Mono', monospace; font-size:13px;
+}
 .cram-stepper{ display:flex; align-items:center; gap:14px; }
 .cram-stepper button{
-  width:32px; height:32px; border-radius:8px; border:1px solid var(--line-2);
-  background:var(--paper-raised); font-size:16px; cursor:pointer; color:var(--ink);
+  width:32px; height:32px; border-radius:8px; border:1px solid var(--cram-line);
+  background:var(--cram-bg); font-size:16px; cursor:pointer; color:var(--cram-text);
 }
-.cram-stepper button:hover{ border-color:var(--teal); color:var(--teal-dark); }
-.cram-stepper span{ font-size:15px; font-weight:600; min-width:70px; text-align:center; }
-.cram-field input[type="range"]{ width:100%; display:block; accent-color:var(--teal); margin-top:6px; }
+.cram-stepper button:hover{ border-color:var(--cram-4); color:var(--cram-4); }
+.cram-stepper span{ font-size:15px; font-weight:600; min-width:70px; text-align:center; color:var(--cram-text); }
+.cram-field input[type="range"]{ width:100%; display:block; accent-color:var(--cram-4); margin-top:6px; }
 .cram-feas-hint{ display:flex; align-items:flex-start; gap:8px; margin-top:6px; padding:10px 12px; border-radius:9px; font-size:12px; line-height:1.5; }
-.cram-feas-hint.ok{ background:var(--em-1, #EAF2EE); color:var(--teal-dark); }
-.cram-feas-hint.bad{ background:#FBECE9; color:#A83E31; }
-.cram-sched-ok{ font-size:14.5px; color:var(--ink); line-height:1.4; margin-bottom:16px; }
-.cram-sched-ok b{ color:var(--teal-dark); }
-.cram-sched-warn{ background:#FBECE9; border:1px solid #F0C9C0; border-radius:10px; padding:14px 16px; margin-bottom:16px; font-size:12.5px; color:#A83E31; line-height:1.5; }
-.cram-sched-warn b{ color:#A83E31; }
+.cram-feas-hint.ok{ background:#1C3128; color:#8EDCB0; }
+.cram-feas-hint.bad{ background:#3A1E1A; color:#FF8B7A; }
+.cram-sched-ok{ font-size:14.5px; color:var(--cram-text); line-height:1.4; margin-bottom:16px; }
+.cram-sched-ok b{ color:var(--cram-4); }
+.cram-sched-warn{ background:#3A1E1A; border:1px solid #5C2E22; border-radius:10px; padding:14px 16px; margin-bottom:16px; font-size:12.5px; color:#FF8B7A; line-height:1.5; }
+.cram-sched-warn b{ color:#FF8B7A; }
 .cram-sched-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
 .cram-sched-actions .mini-btn{
-  padding:7px 12px; border-radius:8px; border:1px solid #F0C9C0; background:#fff;
-  color:#A83E31; font-size:11.5px; font-weight:600; cursor:pointer;
+  padding:7px 12px; border-radius:8px; border:1px solid #5C2E22; background:transparent;
+  color:#FF8B7A; font-size:11.5px; font-weight:600; cursor:pointer;
 }
-.cram-sched-actions .mini-btn:hover{ border-color:#A83E31; }
-.cram-sched-note{ font-size:11.5px; opacity:.85; margin-top:8px; }
-.cram-sched-day-row{
-  display:grid; grid-template-columns:1fr 90px 80px; align-items:center;
-  padding:10px 4px; border-bottom:1px solid var(--line); gap:8px; font-size:12.5px;
+.cram-sched-actions .mini-btn:hover{ border-color:#FF8B7A; }
+.cram-sched-note{ font-size:11.5px; opacity:.8; margin-top:8px; }
+
+.cram-hub-btn-row{ display:flex; gap:8px; justify-content:flex-end; margin-top:4px; }
+.cram-hub-btn{
+  padding:10px 18px; border-radius:9px; border:1px solid var(--cram-line);
+  background:transparent; color:var(--cram-text-soft); font-size:13px; cursor:pointer; font-weight:500;
 }
-.cram-sched-day-row:last-child{ border-bottom:none; }
-.csd-name{ font-weight:600; color:var(--ink); }
-.csd-count{ text-align:right; color:var(--ink); }
-.csd-time{ text-align:right; color:var(--ink-soft); }
+.cram-hub-btn:hover{ border-color:var(--cram-4); color:var(--cram-4); }
+.cram-hub-btn.primary{ background:var(--cram-4); border-color:var(--cram-4); color:#1C1108; font-weight:600; }
+.cram-hub-btn.primary:hover{ background:var(--cram-3); border-color:var(--cram-3); }
+
+.cram-schedule-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
+.cram-day-row{
+  display:flex; align-items:center; gap:14px; padding:14px 16px;
+  background:var(--cram-card); border:1px solid var(--cram-line); border-radius:12px;
+  cursor:pointer; transition:border-color .15s ease;
+}
+.cram-day-row.locked{ cursor:default; opacity:.55; }
+.cram-day-row.done{ border-color:#3A5942; }
+.cram-day-row:not(.locked):hover{ border-color:var(--cram-4); }
+.cram-day-icon{ width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:var(--cram-bg); border:1px solid var(--cram-line); color:var(--cram-text-soft); }
+.cram-day-row.done .cram-day-icon{ color:#8EDCB0; border-color:#3A5942; }
+.cram-day-row:not(.locked):not(.done) .cram-day-icon{ color:var(--cram-4); border-color:var(--cram-4); }
+.cram-day-info{ flex:1; min-width:0; }
+.cram-day-info .name{ font-size:13.5px; font-weight:600; color:var(--cram-text); }
+.cram-day-info .meta{ font-size:11px; color:var(--cram-text-soft); margin-top:2px; font-family:'IBM Plex Mono', monospace; }
+.cram-day-status{ font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:var(--cram-text-soft); flex-shrink:0; }
+.cram-day-row.done .cram-day-status{ color:#8EDCB0; }
+.cram-day-row:not(.locked):not(.done) .cram-day-status{ color:var(--cram-4); }
+
+.cram-analytics-title{ font-family:'Fraunces', serif; font-size:15px; color:var(--cram-text); margin-bottom:12px; }
+.cram-analytics-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+@media(max-width:520px){ .cram-analytics-grid{ grid-template-columns:1fr 1fr; } }
+.cram-analytics-stat{ background:var(--cram-card); border:1px solid var(--cram-line); border-radius:12px; padding:14px 14px 12px; }
+.cram-analytics-stat .num{ font-family:'IBM Plex Mono', monospace; font-size:19px; font-weight:600; color:var(--cram-4); }
+.cram-analytics-stat .lbl{ font-size:10px; color:var(--cram-text-soft); text-transform:uppercase; letter-spacing:.03em; margin-top:4px; }
+.cram-hub-edit-link{ font-size:11.5px; color:var(--cram-text-soft); text-decoration:underline; cursor:pointer; background:none; border:none; padding:0; }
+.cram-hub-edit-link:hover{ color:var(--cram-4); }
 
 .study-done{
   text-align:center;
@@ -1863,7 +1953,9 @@ button{font-family:inherit;cursor:pointer;}
       <span class="sub">card index</span>
     </div>
     <div class="starred-row" id="homeRow" onclick="viewHome()">
-      <span class="star-ico">⌂</span>
+      <span class="star-ico home-ico">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
+      </span>
       <span class="tname">Home</span>
     </div>
     <div class="starred-row" id="starredRow" onclick="viewStarred()">
@@ -1891,7 +1983,8 @@ button{font-family:inherit;cursor:pointer;}
     <div class="sidebar-foot">
       <div class="account-box" id="accountBox"></div>
       <button class="new-folder-btn" onclick="sidebarCramClick()">
-        🔥 Cram
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17a2.5 2.5 0 0 0 2.5-2.5c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7.5 7.5 0 1 1-15 0c0-1.153.433-2.294 1-3 1.05 2 2.5 3 4.5 3z"/></svg>
+        Cram
       </button>
     </div>
   </aside>
@@ -2055,10 +2148,10 @@ button{font-family:inherit;cursor:pointer;}
       </div>
     </div>
 
-    <div id="cramScreen">
+    <div id="cramScreen" class="cram-theme">
       <div class="cram-head">
-        <button class="back-btn" onclick="exitCramSession()" aria-label="Back" title="Back">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        <button class="cram-icon-btn" onclick="exitCramSession()" aria-label="Back" title="Back">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <span id="cramTitle">—</span>
         <span class="cram-exam-chip" id="cramExamChip">—</span>
@@ -2078,11 +2171,9 @@ button{font-family:inherit;cursor:pointer;}
           <div class="card-stage">
             <div class="flash-card" id="cramFlashCard" onclick="flipCramCard()">
               <div class="face front">
-                <div class="holes"><span></span><span></span><span></span></div>
                 <div class="face-text" id="cramFrontText"></div>
               </div>
               <div class="face back">
-                <div class="holes"><span></span><span></span><span></span></div>
                 <div class="face-text" id="cramBackText"></div>
               </div>
             </div>
@@ -2095,70 +2186,84 @@ button{font-family:inherit;cursor:pointer;}
             <button class="grade-btn good" onclick="rateCramCard(3)">Good</button>
             <button class="grade-btn easy" onclick="rateCramCard(4)">Easy</button>
           </div>
+
+          <div class="cram-info-note" id="cramInfoNote" style="display:none;">
+            <span class="cram-icon-btn" style="width:20px; height:20px; flex-shrink:0;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/><circle cx="12" cy="12" r="10"/></svg>
+            </span>
+            <div><b>Why this rep won't reschedule the card:</b> only the first review of a card each day updates its real schedule. This is a same-day repeat, so it's just for drilling — no scheduling risk either way.</div>
+          </div>
         </div>
       </div>
 
       <div class="cram-done" id="cramDone">
         <div class="stamp">crammed ✓</div>
-        <div class="mono" style="font-size:12px; color:var(--ink-soft); margin:14px 0 20px;" id="cramDoneSummary"></div>
+        <div class="mono" style="font-size:12px; color:var(--cram-text-soft); margin:14px 0 20px;" id="cramDoneSummary"></div>
         <div class="done-actions">
-          <button class="action-btn primary" onclick="exitCramSession()">Back to drawers</button>
+          <button class="action-btn primary" onclick="exitCramSession()">Back to schedule</button>
         </div>
       </div>
     </div>
 
-    <div class="overlay" id="cramSetupOverlay">
-      <div class="modal wider" style="max-height:86vh; overflow-y:auto;">
+    <div id="cramHub" class="cram-theme">
+      <div class="cram-hub-shell">
+        <div class="cram-hub-head">
+          <button class="cram-icon-btn" onclick="exitCramHub()" aria-label="Back" title="Back">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div class="cram-hub-title">
+            <h2 id="cramHubName">—</h2>
+            <div class="sub" id="cramHubSub">—</div>
+          </div>
+          <span class="cram-exam-chip" id="cramHubExamChip" style="display:none;">—</span>
+        </div>
 
-        <div id="cramStep1">
-          <h3>Start a cram session</h3>
-          <p class="cram-setup-copy">
-            Cram Mode lets a card resurface more than once in one sitting to drill it in. Only your first
-            rating of each card today updates its real schedule — extra reps just check whether you'll
-            still remember it by exam day.
-          </p>
-          <label class="cram-setup-label">Exam date</label>
-          <input id="cramExamDateInput" type="date">
-          <div class="modal-row">
-            <button class="cancel" onclick="closeModal('cramSetupOverlay')">Cancel</button>
-            <button class="confirm" onclick="cramSetupGoStep2()">Next: set your pace →</button>
+        <div id="cramHubSetup">
+          <div class="cram-hub-card">
+            <p class="cram-setup-copy">
+              Cram Mode lets a card resurface more than once in one sitting to drill it in. Only your first
+              rating of each card today updates its real schedule — extra reps just check whether you'll
+              still remember it by exam day.
+            </p>
+            <label class="cram-setup-label">Exam date</label>
+            <input id="cramExamDateInput" type="date" oninput="cramOnDateInput()">
+          </div>
+
+          <div class="cram-hub-card">
+            <div class="cram-field">
+              <label class="cram-setup-label">Days until you want to be done</label>
+              <div class="cram-stepper">
+                <button type="button" onclick="cramAdjustDays(-1)">−</button>
+                <span id="cramDaysVal" class="mono">3 days</span>
+                <button type="button" onclick="cramAdjustDays(1)">+</button>
+              </div>
+            </div>
+            <div class="cram-field" style="margin-bottom:6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label class="cram-setup-label" style="margin-bottom:0;">Minutes per day</label>
+                <span id="cramMinutesVal" class="mono" style="font-size:13px; font-weight:600; color:var(--cram-text);"></span>
+              </div>
+              <input id="cramMinutesSlider" type="range" min="15" max="240" step="15" oninput="cramOnSliderInput()">
+            </div>
+            <div id="cramFeasHint" class="cram-feas-hint"></div>
+          </div>
+
+          <div class="cram-hub-btn-row">
+            <button class="cram-hub-btn" id="cramSetupCancelBtn" onclick="exitCramHub()">Cancel</button>
+            <button class="cram-hub-btn primary" onclick="cramBuildScheduleFromSetup()">Build schedule →</button>
           </div>
         </div>
 
-        <div id="cramStep2" style="display:none;">
-          <h3>How much time do you have?</h3>
-          <div class="cram-field">
-            <label class="cram-setup-label">Days until you want to be done</label>
-            <div class="cram-stepper">
-              <button type="button" onclick="cramAdjustDays(-1)">−</button>
-              <span id="cramDaysVal" class="mono">3 days</span>
-              <button type="button" onclick="cramAdjustDays(1)">+</button>
-            </div>
-          </div>
-          <div class="cram-field">
-            <div class="field-label-row" style="display:flex; justify-content:space-between; align-items:center;">
-              <label class="cram-setup-label" style="margin-bottom:0;">Minutes per day</label>
-              <span id="cramMinutesVal" class="mono" style="font-size:13px; font-weight:600;"></span>
-            </div>
-            <input id="cramMinutesSlider" type="range" min="15" max="240" step="15" oninput="cramOnSliderInput()">
-          </div>
-          <div id="cramFeasHint" class="cram-feas-hint"></div>
-          <div class="modal-row">
-            <button class="cancel" onclick="cramSetupGoStep1()">← Back</button>
-            <button class="confirm" onclick="cramSetupGoStep3()">See schedule →</button>
-          </div>
-        </div>
-
-        <div id="cramStep3" style="display:none;">
-          <h3>Your schedule</h3>
+        <div id="cramHubPlan" style="display:none;">
           <div id="cramScheduleHeadline"></div>
-          <div id="cramScheduleTable"></div>
-          <div class="modal-row">
-            <button class="cancel" onclick="cramSetupGoStep2()">← Adjust</button>
-            <button class="confirm" id="cramStartDayBtn" onclick="confirmCramPlanAndStart()">Start Day 1 →</button>
+          <div class="cram-schedule-list" id="cramScheduleList"></div>
+          <div style="text-align:right; margin-bottom:26px;">
+            <button class="cram-hub-edit-link" onclick="cramEditPlan()">Adjust days / budget</button>
           </div>
-        </div>
 
+          <div class="cram-analytics-title">Cram analytics — this drawer</div>
+          <div class="cram-analytics-grid" id="cramAnalyticsGrid"></div>
+        </div>
       </div>
     </div>
 
@@ -4976,50 +5081,76 @@ function openCramSetup(id){
   if (!node) return;
   const due = collectDueCardsForNode(node);
   if (!due.length){ showToast(`Nothing due in "${node.name}" right now.`); return; }
+  showCramHub(id);
+}
 
+function showCramHub(nodeId){
+  const node = nodeById(nodeId);
+  if (!node) return;
   const plan = node.cramPlan;
-  const hasLivePlan = !!(plan && plan.examDate
-    && new Date(plan.examDate+'T23:59:59').getTime() >= Date.now()
-    && plan.completedDays && plan.completedDays.some(d => !d));
 
   cramSetupCtx = {
-    nodeId: id,
+    nodeId,
     examDate: (plan && plan.examDate) || node.examDate || '',
     days: (plan && plan.days) || 3,
     minutesPerDay: (plan && plan.minutesPerDay) || 60,
     preview: null,
   };
+
+  document.getElementById('topbar').style.display = 'none';
+  document.getElementById('content').style.display = 'none';
+  document.getElementById('homeScreen').style.display = 'none';
+  document.getElementById('cramScreen').classList.remove('active');
+  document.getElementById('cramHub').classList.add('active');
+
+  document.getElementById('cramHubName').textContent = node.name;
+  const due = collectDueCardsForNode(node);
+  document.getElementById('cramHubSub').textContent = `${due.length} card${due.length===1?'':'s'} due right now`;
+
   const input = document.getElementById('cramExamDateInput');
   input.value = cramSetupCtx.examDate;
   input.min = new Date().toISOString().slice(0,10);
-  document.getElementById('cramSetupOverlay').classList.add('active');
-
-  if (hasLivePlan){
-    // Already mid-plan for this node — skip straight to the schedule
-    // instead of asking "how much time do you have" all over again.
-    cramSetupCtx.preview = buildCramPlanPreview(node, plan.days, plan.minutesPerDay);
-    cramSetupCtx.preview.dayAssignments = plan.dayAssignments; // keep the ORIGINAL split, don't reshuffle a plan already in progress
-    cramSetupGoStep3(true);
-  } else {
-    cramSetupGoStep1();
-  }
-}
-function cramSetupGoStep1(){
-  document.getElementById('cramStep1').style.display = '';
-  document.getElementById('cramStep2').style.display = 'none';
-  document.getElementById('cramStep3').style.display = 'none';
-}
-function cramSetupGoStep2(){
-  const dateStr = document.getElementById('cramExamDateInput').value;
-  if (!dateStr){ showToast('Pick an exam date first.'); return; }
-  cramSetupCtx.examDate = dateStr;
-  document.getElementById('cramStep1').style.display = 'none';
-  document.getElementById('cramStep2').style.display = '';
-  document.getElementById('cramStep3').style.display = 'none';
   document.getElementById('cramDaysVal').textContent = cramSetupCtx.days + (cramSetupCtx.days===1?' day':' days');
   document.getElementById('cramMinutesSlider').value = cramSetupCtx.minutesPerDay;
   document.getElementById('cramMinutesVal').textContent = fmtCramMinutes(cramSetupCtx.minutesPerDay);
   updateCramFeasHint();
+
+  const hasLivePlan = !!(plan && plan.examDate
+    && new Date(plan.examDate+'T23:59:59').getTime() >= Date.now()
+    && plan.completedDays && plan.completedDays.some(d => !d));
+  if (hasLivePlan){
+    // Already mid-plan for this node — go straight to the schedule
+    // instead of asking "how much time do you have" all over again.
+    cramSetupCtx.preview = buildCramPlanPreview(node, plan.days, plan.minutesPerDay);
+    cramSetupCtx.preview.dayAssignments = plan.dayAssignments; // keep the ORIGINAL split, don't reshuffle a plan already in progress
+    showCramHubPlan();
+  } else {
+    showCramHubSetup();
+  }
+}
+function showCramHubSetup(){
+  document.getElementById('cramHubSetup').style.display = '';
+  document.getElementById('cramHubPlan').style.display = 'none';
+  document.getElementById('cramHubExamChip').style.display = 'none';
+}
+function showCramHubPlan(){
+  document.getElementById('cramHubSetup').style.display = 'none';
+  document.getElementById('cramHubPlan').style.display = '';
+  const chip = document.getElementById('cramHubExamChip');
+  const daysLeft = daysUntil(cramSetupCtx.examDate);
+  chip.style.display = '';
+  chip.textContent = daysLeft <= 0 ? 'Exam day' : `${daysLeft} day${daysLeft===1?'':'s'} to exam`;
+  renderCramSchedule();
+  renderCramAnalytics();
+}
+function exitCramHub(){
+  document.getElementById('cramHub').classList.remove('active');
+  cramSetupCtx = null;
+  document.getElementById('topbar').style.display = '';
+  render();
+}
+function cramOnDateInput(){
+  cramSetupCtx.examDate = document.getElementById('cramExamDateInput').value;
 }
 function cramAdjustDays(delta){
   cramSetupCtx.days = Math.max(1, Math.min(30, cramSetupCtx.days + delta));
@@ -5040,29 +5171,66 @@ function updateCramFeasHint(){
     el.innerHTML = `<span>✓</span><span>On pace — about <b>${fmtCramMinutes(preview.requiredPerDay)}/day</b> clears all ${preview.totalCards.toLocaleString()} cards in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'}.</span>`;
   } else {
     el.className = 'cram-feas-hint bad';
-    el.innerHTML = `<span>⚠</span><span>At ${fmtCramMinutes(cramSetupCtx.minutesPerDay)}/day this needs ~<b>${fmtCramMinutes(preview.requiredPerDay)}/day</b> to cover everything in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'} — we'll show your options next.</span>`;
+    el.innerHTML = `<span>⚠</span><span>At ${fmtCramMinutes(cramSetupCtx.minutesPerDay)}/day this needs ~<b>${fmtCramMinutes(preview.requiredPerDay)}/day</b> to cover everything in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'}.</span>`;
   }
 }
-function cramSetupGoStep3(skipRebuild){
-  document.getElementById('cramStep1').style.display = 'none';
-  document.getElementById('cramStep2').style.display = 'none';
-  document.getElementById('cramStep3').style.display = '';
+function cramBuildScheduleFromSetup(){
+  if (!cramSetupCtx.examDate){ showToast('Pick an exam date first.'); return; }
   const node = nodeById(cramSetupCtx.nodeId);
-  if (!skipRebuild) cramSetupCtx.preview = buildCramPlanPreview(node, cramSetupCtx.days, cramSetupCtx.minutesPerDay);
-  renderCramSchedule();
+  cramSetupCtx.preview = buildCramPlanPreview(node, cramSetupCtx.days, cramSetupCtx.minutesPerDay);
+  persistCramPlanFromCtx();
+  showCramHubPlan();
+}
+function cramEditPlan(){
+  showCramHubSetup();
 }
 function cramApplyExtendDays(){
   cramSetupCtx.days = cramSetupCtx.preview.minDaysNeeded;
   cramSetupCtx.preview = buildCramPlanPreview(nodeById(cramSetupCtx.nodeId), cramSetupCtx.days, cramSetupCtx.minutesPerDay);
+  persistCramPlanFromCtx();
   renderCramSchedule();
 }
 function cramApplyRaiseBudget(){
   cramSetupCtx.minutesPerDay = Math.min(480, Math.ceil(cramSetupCtx.preview.requiredPerDay/15)*15);
   cramSetupCtx.preview = buildCramPlanPreview(nodeById(cramSetupCtx.nodeId), cramSetupCtx.days, cramSetupCtx.minutesPerDay);
+  persistCramPlanFromCtx();
   renderCramSchedule();
 }
+// Reuses an in-progress plan's day assignments verbatim when nothing
+// material changed — a card already scheduled for Day 2 should stay
+// there, not get randomly redealt every time the Hub is reopened.
+function persistCramPlanFromCtx(){
+  const node = nodeById(cramSetupCtx.nodeId);
+  const p = cramSetupCtx.preview;
+  const existing = node.cramPlan;
+  const reuseExisting = !!(existing && existing.examDate === cramSetupCtx.examDate
+    && existing.days === cramSetupCtx.days && existing.minutesPerDay === cramSetupCtx.minutesPerDay
+    && existing.completedDays && existing.completedDays.some(d => !d));
+  if (reuseExisting){
+    cramSetupCtx.preview.dayAssignments = existing.dayAssignments;
+  } else {
+    node.cramPlan = {
+      createdAt: Date.now(),
+      examDate: cramSetupCtx.examDate,
+      days: cramSetupCtx.days,
+      minutesPerDay: cramSetupCtx.minutesPerDay,
+      dayAssignments: p.dayAssignments,
+      completedDays: new Array(cramSetupCtx.days).fill(false),
+      safeCardIds: [], // cumulative, cross-day "predicted to hold by exam" set — see rateCramCard
+    };
+  }
+  node.examDate = cramSetupCtx.examDate;
+  persistTextState(node.type === 'deck' ? node.id : undefined);
+}
+
+const CRAM_LOCK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+const CRAM_CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const CRAM_PLAY_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+
 function renderCramSchedule(){
   const p = cramSetupCtx.preview;
+  const node = nodeById(cramSetupCtx.nodeId);
+  const plan = node.cramPlan;
   const headline = document.getElementById('cramScheduleHeadline');
   if (p.feasible){
     headline.innerHTML = `<div class="cram-sched-ok">To clear ${p.totalCards.toLocaleString()} cards in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'}, you'll need about <b>${fmtCramMinutes(p.requiredPerDay)}/day</b>.</div>`;
@@ -5074,53 +5242,63 @@ function renderCramSchedule(){
           <button class="mini-btn" onclick="cramApplyExtendDays()">Extend to ${p.minDaysNeeded} day${p.minDaysNeeded===1?'':'s'}</button>
           <button class="mini-btn" onclick="cramApplyRaiseBudget()">Raise to ${fmtCramMinutes(p.requiredPerDay)}/day</button>
         </div>
-        <div class="cram-sched-note">Or just start anyway below — later days will simply have more to catch up on.</div>
+        <div class="cram-sched-note">Or just start Day 1 below — later days will simply have more to catch up on.</div>
       </div>`;
   }
-  const table = document.getElementById('cramScheduleTable');
-  table.innerHTML = p.dayAssignments.map((ids, i) => {
+
+  const list = document.getElementById('cramScheduleList');
+  list.innerHTML = p.dayAssignments.map((ids, i) => {
     const secs = ids.reduce((sum, cid) => {
       const entry = cardIndex.get(cid);
       const bucket = entry ? answerBucketFor(entry.card) : 'medium';
       return sum + p.med[bucket];
     }, 0);
-    return `<div class="cram-sched-day-row">
-      <div class="csd-name">Day ${i+1}</div>
-      <div class="csd-count mono">${ids.length} card${ids.length===1?'':'s'}</div>
-      <div class="csd-time mono">${fmtCramMinutes(secs/60)}</div>
+    const done = plan.completedDays[i];
+    const locked = !done && i > 0 && !plan.completedDays[i-1];
+    const icon = done ? CRAM_CHECK_SVG : (locked ? CRAM_LOCK_SVG : CRAM_PLAY_SVG);
+    const status = done ? 'Done' : (locked ? 'Locked' : 'Ready');
+    const cls = 'cram-day-row' + (done ? ' done' : '') + (locked ? ' locked' : '');
+    const click = locked ? '' : ` onclick="startCramDay('${cramSetupCtx.nodeId}', ${i})"`;
+    return `<div class="${cls}"${click}>
+      <span class="cram-day-icon">${icon}</span>
+      <div class="cram-day-info">
+        <div class="name">Day ${i+1}</div>
+        <div class="meta">${ids.length} card${ids.length===1?'':'s'} · ${fmtCramMinutes(secs/60)}</div>
+      </div>
+      <span class="cram-day-status">${status}</span>
     </div>`;
   }).join('');
-  const node = nodeById(cramSetupCtx.nodeId);
-  const existingPlan = node.cramPlan;
-  const nextDayIdx = (existingPlan && existingPlan.examDate === cramSetupCtx.examDate && existingPlan.completedDays)
-    ? existingPlan.completedDays.findIndex(d => !d) : 0;
-  document.getElementById('cramStartDayBtn').textContent = nextDayIdx > 0 ? `Continue Day ${nextDayIdx+1} →` : 'Start Day 1 →';
 }
-function confirmCramPlanAndStart(){
+
+// Cram-specific analytics, scoped to this node's own cards and history —
+// deliberately separate from the Home dashboard's general review stats,
+// since these numbers only make sense in the context of cramming
+// toward a specific exam.
+function renderCramAnalytics(){
   const node = nodeById(cramSetupCtx.nodeId);
-  const p = cramSetupCtx.preview;
-  const existing = node.cramPlan;
-  // Reuse an in-progress plan's day assignments verbatim rather than
-  // reshuffling — a card already scheduled for Day 2 should stay there,
-  // not get randomly redealt every time this modal is reopened.
-  const reuseExisting = !!(existing && existing.examDate === cramSetupCtx.examDate
-    && existing.days === cramSetupCtx.days && existing.minutesPerDay === cramSetupCtx.minutesPerDay
-    && existing.completedDays && existing.completedDays.some(d => !d));
-  if (!reuseExisting){
-    node.cramPlan = {
-      createdAt: Date.now(),
-      examDate: cramSetupCtx.examDate,
-      days: cramSetupCtx.days,
-      minutesPerDay: cramSetupCtx.minutesPerDay,
-      dayAssignments: p.dayAssignments,
-      completedDays: new Array(cramSetupCtx.days).fill(false),
-    };
-  }
-  node.examDate = cramSetupCtx.examDate;
-  persistTextState(node.type === 'deck' ? node.id : undefined);
-  closeModal('cramSetupOverlay');
-  const dayIdx = node.cramPlan.completedDays.findIndex(d => !d);
-  startCramDay(node.id, dayIdx < 0 ? 0 : dayIdx);
+  const plan = node.cramPlan;
+  const allIds = new Set();
+  (function walk(n){
+    if (n.type === 'folder'){ n.children.forEach(walk); return; }
+    n.cards.forEach(c => allIds.add(c.id));
+  })(node);
+
+  const cramEntries = reviewLog.filter(r => r.cram && allIds.has(r.cardId));
+  const totalReps = cramEntries.length;
+  const goodCount = cramEntries.filter(r => r.good).length;
+  const accuracy = totalReps ? Math.round(goodCount/totalReps*100) : null;
+  const daysDone = plan.completedDays.filter(Boolean).length;
+  const safeCount = (plan.safeCardIds || []).length;
+
+  const stats = [
+    { num: totalReps.toLocaleString(), lbl: 'Cram reps logged' },
+    { num: accuracy == null ? '—' : accuracy + '%', lbl: 'Cram accuracy' },
+    { num: `${daysDone}/${plan.days}`, lbl: 'Days completed' },
+    { num: safeCount.toLocaleString(), lbl: 'Predicted exam-safe' },
+  ];
+  document.getElementById('cramAnalyticsGrid').innerHTML = stats.map(s =>
+    `<div class="cram-analytics-stat"><div class="num">${s.num}</div><div class="lbl">${s.lbl}</div></div>`
+  ).join('');
 }
 
 function startCramDay(nodeId, dayIndex){
@@ -5135,7 +5313,11 @@ function startCramDay(nodeId, dayIndex){
     plan.completedDays[dayIndex] = true;
     persistTextState(node.type === 'deck' ? node.id : undefined);
     const nextIdx = plan.completedDays.findIndex(d => !d);
-    if (nextIdx < 0){ showToast(`Nothing left to cram in "${node.name}" — plan complete.`); return; }
+    if (nextIdx < 0){
+      showToast(`Nothing left to cram in "${node.name}" — plan complete.`);
+      showCramHub(nodeId);
+      return;
+    }
     startCramDay(nodeId, nextIdx);
     return;
   }
@@ -5164,6 +5346,7 @@ function startCramDay(nodeId, dayIndex){
     safeCount: 0,
   };
 
+  document.getElementById('cramHub').classList.remove('active');
   document.getElementById('topbar').style.display = 'none';
   document.getElementById('content').style.display = 'none';
   document.getElementById('homeScreen').style.display = 'none';
@@ -5202,11 +5385,15 @@ function renderCramCard(){
 
   const reps = s.repsToday.get(cardId) || 0;
   const badges = [`<span class="cram-badge">Rep ${reps+1} today</span>`];
+  const infoNote = document.getElementById('cramInfoNote');
   if (reps > 0){
     const fsrs = s.fsrsByCard.get(cardId);
     const r = fsrs ? Math.round(fsrsRetrievability(s.examDaysLeft, fsrs.stability)*100) : null;
-    badges.push(`<span class="cram-badge">Already rescheduled — this rep just drills it</span>`);
+    badges.push(`<span class="cram-badge">FSRS: not rescheduling this rep</span>`);
     if (r != null) badges.push(`<span class="cram-badge ${r>=CRAM_SAFE_THRESHOLD*100?'safe':'risk'}">${r}% predicted recall by exam</span>`);
+    infoNote.style.display = 'flex';
+  } else {
+    infoNote.style.display = 'none';
   }
   document.getElementById('cramCardBadges').innerHTML = badges.join('');
 
@@ -5249,22 +5436,34 @@ function rateCramCard(rating){
     const good = rating >= 3;
     reviewLog.push({ cardId, good, ts: Date.now(), questionSeconds:0, answerSeconds:0, usedHint:false, cram:true });
     srsMapCache = null;
-    persistTextState(entry.deck.id);
   }
 
   const retrAtExam = fsrsRetrievability(s.examDaysLeft, updated.stability);
   const isSafe = retrAtExam >= CRAM_SAFE_THRESHOLD;
+  const plan = s.node.cramPlan;
 
   s.queue.splice(s.pos, 1);
   if (isSafe){
     s.safeCount++;
+    if (plan){
+      if (!plan.safeCardIds) plan.safeCardIds = [];
+      if (!plan.safeCardIds.includes(cardId)) plan.safeCardIds.push(cardId);
+    }
   } else {
+    // A card that looked safe on an earlier day but slipped back below
+    // threshold today shouldn't still count toward the Hub's
+    // "predicted exam-safe" total.
+    if (plan && plan.safeCardIds){
+      const idx = plan.safeCardIds.indexOf(cardId);
+      if (idx !== -1) plan.safeCardIds.splice(idx, 1);
+    }
     // Not confident it'll hold — push it back in a few cards later
     // rather than immediately (immediate repeats just get memorized by
     // position, not actually learned).
     const reinsertAt = Math.min(s.queue.length, s.pos + 3 + Math.floor(Math.random()*3));
     s.queue.splice(reinsertAt, 0, cardId);
   }
+  persistTextState(entry.deck.id);
   renderCramCard();
 }
 function finishCramSession(){
@@ -5289,19 +5488,24 @@ function finishCramSession(){
 }
 function exitCramSession(){
   document.getElementById('cramScreen').classList.remove('active');
-  document.getElementById('topbar').style.display = '';
+  const nodeId = cramState ? cramState.node.id : (cramSetupCtx && cramSetupCtx.nodeId);
   cramState = null;
-  render(); // render() now decides content vs. homeScreen visibility correctly again
+  if (nodeId){
+    showCramHub(nodeId); // land back on the schedule, not the main app
+  } else {
+    document.getElementById('topbar').style.display = '';
+    render();
+  }
 }
 function renderCramRing(progress){
   const fig = document.getElementById('cramRing');
   if (!fig) return;
-  const size=64, stroke=7, r=(size-stroke)/2, c=2*Math.PI*r;
+  const size=46, stroke=5, r=(size-stroke)/2, c=2*Math.PI*r;
   const dash = Math.max(0,Math.min(1,progress))*c;
   fig.innerHTML =
     `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--paper-dark)" stroke-width="${stroke}"/>
-      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--teal)" stroke-width="${stroke}"
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--cram-line)" stroke-width="${stroke}"/>
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--cram-4)" stroke-width="${stroke}"
         stroke-dasharray="${dash} ${c-dash}" stroke-linecap="round" transform="rotate(-90 ${size/2} ${size/2})"/>
     </svg>
     <div class="cram-ring-center"><span class="num">${Math.round(progress*100)}%</span></div>`;
@@ -10227,12 +10431,14 @@ function render(){
   document.getElementById('toughRow').classList.toggle('active', state.viewingTough);
   const homeRowEl = document.getElementById('homeRow');
   if (homeRowEl) homeRowEl.classList.toggle('active', state.viewingHome);
-  // A live cram session owns #topbar/#content/#homeScreen/#cramScreen —
-  // sidebar counts above still refresh (useful, since cram reviews change
-  // due-counts live), but a background render triggered by sync/focus/
-  // visibilitychange must NOT touch the screen underneath an open cram
-  // session, or the two screens end up stacked on top of each other.
-  if (cramState) return;
+  // A live cram session or an open Cram Hub owns #topbar/#content/
+  // #homeScreen/#cramScreen/#cramHub — sidebar counts above still
+  // refresh (useful, since cram reviews change due-counts live), but a
+  // background render triggered by sync/focus/visibilitychange must NOT
+  // touch the screen underneath, or screens end up stacked on top of
+  // each other (this exact bug happened once already with #content).
+  const cramHubEl = document.getElementById('cramHub');
+  if (cramState || (cramHubEl && cramHubEl.classList.contains('active'))) return;
   if (state.viewingHome){
     document.getElementById('content').style.display = 'none';
     document.getElementById('homeScreen').style.display = 'block';
