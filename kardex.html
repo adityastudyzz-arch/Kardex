@@ -1069,6 +1069,41 @@ button{font-family:inherit;cursor:pointer;}
 }
 .cram-done.active{ display:flex; }
 
+/* ---------- Cram setup: exam date / days-and-budget / schedule ---------- */
+.cram-setup-copy{ font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin-bottom:14px; }
+.cram-setup-label{ font-size:12px; color:var(--ink-soft); display:block; margin-bottom:6px; }
+.cram-field{ margin-bottom:20px; }
+.cram-stepper{ display:flex; align-items:center; gap:14px; }
+.cram-stepper button{
+  width:32px; height:32px; border-radius:8px; border:1px solid var(--line-2);
+  background:var(--paper-raised); font-size:16px; cursor:pointer; color:var(--ink);
+}
+.cram-stepper button:hover{ border-color:var(--teal); color:var(--teal-dark); }
+.cram-stepper span{ font-size:15px; font-weight:600; min-width:70px; text-align:center; }
+.cram-field input[type="range"]{ width:100%; display:block; accent-color:var(--teal); margin-top:6px; }
+.cram-feas-hint{ display:flex; align-items:flex-start; gap:8px; margin-top:6px; padding:10px 12px; border-radius:9px; font-size:12px; line-height:1.5; }
+.cram-feas-hint.ok{ background:var(--em-1, #EAF2EE); color:var(--teal-dark); }
+.cram-feas-hint.bad{ background:#FBECE9; color:#A83E31; }
+.cram-sched-ok{ font-size:14.5px; color:var(--ink); line-height:1.4; margin-bottom:16px; }
+.cram-sched-ok b{ color:var(--teal-dark); }
+.cram-sched-warn{ background:#FBECE9; border:1px solid #F0C9C0; border-radius:10px; padding:14px 16px; margin-bottom:16px; font-size:12.5px; color:#A83E31; line-height:1.5; }
+.cram-sched-warn b{ color:#A83E31; }
+.cram-sched-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.cram-sched-actions .mini-btn{
+  padding:7px 12px; border-radius:8px; border:1px solid #F0C9C0; background:#fff;
+  color:#A83E31; font-size:11.5px; font-weight:600; cursor:pointer;
+}
+.cram-sched-actions .mini-btn:hover{ border-color:#A83E31; }
+.cram-sched-note{ font-size:11.5px; opacity:.85; margin-top:8px; }
+.cram-sched-day-row{
+  display:grid; grid-template-columns:1fr 90px 80px; align-items:center;
+  padding:10px 4px; border-bottom:1px solid var(--line); gap:8px; font-size:12.5px;
+}
+.cram-sched-day-row:last-child{ border-bottom:none; }
+.csd-name{ font-weight:600; color:var(--ink); }
+.csd-count{ text-align:right; color:var(--ink); }
+.csd-time{ text-align:right; color:var(--ink-soft); }
+
 .study-done{
   text-align:center;
   flex:1;
@@ -2073,19 +2108,57 @@ button{font-family:inherit;cursor:pointer;}
     </div>
 
     <div class="overlay" id="cramSetupOverlay">
-      <div class="modal">
-        <h3>Start a cram session</h3>
-        <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin-bottom:14px;">
-          Cram Mode lets a card resurface more than once in one sitting to drill it in. Only your first
-          rating of each card today updates its real schedule — extra reps just check whether you'll
-          still remember it by exam day.
-        </p>
-        <label style="font-size:12px; color:var(--ink-soft); display:block; margin-bottom:6px;">Exam date</label>
-        <input id="cramExamDateInput" type="date">
-        <div class="modal-row">
-          <button class="cancel" onclick="closeModal('cramSetupOverlay')">Cancel</button>
-          <button class="confirm" onclick="confirmCramSetup()">Start cramming</button>
+      <div class="modal wider" style="max-height:86vh; overflow-y:auto;">
+
+        <div id="cramStep1">
+          <h3>Start a cram session</h3>
+          <p class="cram-setup-copy">
+            Cram Mode lets a card resurface more than once in one sitting to drill it in. Only your first
+            rating of each card today updates its real schedule — extra reps just check whether you'll
+            still remember it by exam day.
+          </p>
+          <label class="cram-setup-label">Exam date</label>
+          <input id="cramExamDateInput" type="date">
+          <div class="modal-row">
+            <button class="cancel" onclick="closeModal('cramSetupOverlay')">Cancel</button>
+            <button class="confirm" onclick="cramSetupGoStep2()">Next: set your pace →</button>
+          </div>
         </div>
+
+        <div id="cramStep2" style="display:none;">
+          <h3>How much time do you have?</h3>
+          <div class="cram-field">
+            <label class="cram-setup-label">Days until you want to be done</label>
+            <div class="cram-stepper">
+              <button type="button" onclick="cramAdjustDays(-1)">−</button>
+              <span id="cramDaysVal" class="mono">3 days</span>
+              <button type="button" onclick="cramAdjustDays(1)">+</button>
+            </div>
+          </div>
+          <div class="cram-field">
+            <div class="field-label-row" style="display:flex; justify-content:space-between; align-items:center;">
+              <label class="cram-setup-label" style="margin-bottom:0;">Minutes per day</label>
+              <span id="cramMinutesVal" class="mono" style="font-size:13px; font-weight:600;"></span>
+            </div>
+            <input id="cramMinutesSlider" type="range" min="15" max="240" step="15" oninput="cramOnSliderInput()">
+          </div>
+          <div id="cramFeasHint" class="cram-feas-hint"></div>
+          <div class="modal-row">
+            <button class="cancel" onclick="cramSetupGoStep1()">← Back</button>
+            <button class="confirm" onclick="cramSetupGoStep3()">See schedule →</button>
+          </div>
+        </div>
+
+        <div id="cramStep3" style="display:none;">
+          <h3>Your schedule</h3>
+          <div id="cramScheduleHeadline"></div>
+          <div id="cramScheduleTable"></div>
+          <div class="modal-row">
+            <button class="cancel" onclick="cramSetupGoStep2()">← Adjust</button>
+            <button class="confirm" id="cramStartDayBtn" onclick="confirmCramPlanAndStart()">Start Day 1 →</button>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -3151,11 +3224,12 @@ function buildTreeSkeleton(node){
     return {
       id: node.id, type: 'folder', name: node.name,
       collapsed: node.collapsed, createdAt: node.createdAt, examDate: node.examDate || null,
+      cramPlan: node.cramPlan || null,
       children: node.children.map(buildTreeSkeleton)
     };
   }
   // deck — cards/sessions live in kardex_decks, not here
-  return { id: node.id, type: 'deck', name: node.name, lastStudied: node.lastStudied, createdAt: node.createdAt, examDate: node.examDate || null };
+  return { id: node.id, type: 'deck', name: node.name, lastStudied: node.lastStudied, createdAt: node.createdAt, examDate: node.examDate || null, cramPlan: node.cramPlan || null };
 }
 
 /* Every deck needs its own row pushed to the cloud at LEAST once — a
@@ -4315,12 +4389,12 @@ function restoreFromTrash(trashId){
     // empty placeholder, and not dependent on a cloud round-trip.
     function reliveFromSkeleton(skel){
       if (skel.type === 'folder'){
-        return { id: skel.id, type: 'folder', name: skel.name, collapsed: !!skel.collapsed, createdAt: skel.createdAt || Date.now(), examDate: skel.examDate || null, children: skel.children.map(reliveFromSkeleton) };
+        return { id: skel.id, type: 'folder', name: skel.name, collapsed: !!skel.collapsed, createdAt: skel.createdAt || Date.now(), examDate: skel.examDate || null, cramPlan: skel.cramPlan || null, children: skel.children.map(reliveFromSkeleton) };
       }
       const existingDeck = nodeById(skel.id); // shouldn't normally exist, but guards against double-restore
       if (existingDeck) return existingDeck;
       const snap = (entry.deckSnapshots && entry.deckSnapshots[skel.id]) || { cards: [], sessions: [] };
-      return { id: skel.id, type: 'deck', name: skel.name, lastStudied: skel.lastStudied, createdAt: skel.createdAt || Date.now(), examDate: skel.examDate || null, cards: snap.cards, sessions: snap.sessions };
+      return { id: skel.id, type: 'deck', name: skel.name, lastStudied: skel.lastStudied, createdAt: skel.createdAt || Date.now(), examDate: skel.examDate || null, cramPlan: skel.cramPlan || null, cards: snap.cards, sessions: snap.sessions };
     }
     const revived = reliveFromSkeleton(entry.node);
     parent.children.push(revived);
@@ -4800,7 +4874,7 @@ function fsrsPriorForCard(cardId){
    before this session ends.
 --------------------------------------------------------- */
 let cramState = null;
-let cramSetupTargetId = null;
+let cramSetupCtx = null; // { nodeId, examDate, days, minutesPerDay, preview }
 
 function collectDueCardsForNode(node){
   const srsMap = getSRSMap();
@@ -4811,6 +4885,90 @@ function collectDueCardsForNode(node){
   })(node);
   return out;
 }
+function daysUntil(dateStr){
+  const DAY = 86400000;
+  const target = new Date(dateStr + 'T23:59:59').getTime();
+  return Math.max(0, Math.ceil((target - Date.now()) / DAY));
+}
+function fmtCramMinutes(mins){
+  mins = Math.max(0, Math.round(mins));
+  const h = Math.floor(mins/60), m = mins%60;
+  return (h>0 ? h+'h ' : '') + (m>0 || h===0 ? m+'m' : '');
+}
+// Small/medium/long by answer length — same idea floated for the daily
+// random-20 deck: sorts cards by how long they typically take, so a
+// day's queue isn't accidentally all the slow ones by chance.
+function answerBucketFor(card){
+  const len = (card.b || '').replace(/<[^>]*>/g,'').trim().length;
+  if (len < 40) return 'small';
+  if (len < 120) return 'medium';
+  return 'long';
+}
+// Real per-bucket median seconds, pulled from your own review history
+// (questionSeconds + answerSeconds in reviewLog) rather than a guess.
+// Cram-mode-logged entries carry no face-timing data (0/0), so they're
+// excluded here — including them would skew every median toward zero.
+function computeBucketMedianSeconds(){
+  const byBucket = { small:[], medium:[], long:[] };
+  reviewLog.forEach(r => {
+    const secs = (r.questionSeconds||0) + (r.answerSeconds||0);
+    if (secs <= 0) return;
+    const entry = cardIndex.get(r.cardId);
+    if (!entry) return;
+    byBucket[answerBucketFor(entry.card)].push(secs);
+  });
+  function median(arr){
+    if (!arr.length) return null;
+    const s = arr.slice().sort((a,b)=>a-b);
+    const mid = Math.floor(s.length/2);
+    return s.length % 2 ? s[mid] : (s[mid-1]+s[mid])/2;
+  }
+  const DEFAULTS = { small:15, medium:30, long:55 }; // seconds — used only until you have enough real history
+  return {
+    small: median(byBucket.small) || DEFAULTS.small,
+    medium: median(byBucket.medium) || DEFAULTS.medium,
+    long: median(byBucket.long) || DEFAULTS.long,
+  };
+}
+// Pure — computes feasibility + a proposed day-by-day card split for a
+// candidate (days, minutesPerDay). Doesn't touch node.cramPlan; that
+// only happens once the person confirms in Step 3.
+function buildCramPlanPreview(node, days, minutesPerDay){
+  const due = collectDueCardsForNode(node);
+  const med = computeBucketMedianSeconds();
+  const buckets = { small:[], medium:[], long:[] };
+  due.forEach(x => buckets[answerBucketFor(x.card)].push(x.card.id));
+  const counts = { small:buckets.small.length, medium:buckets.medium.length, long:buckets.long.length };
+  const totalCards = due.length;
+  const totalSec = counts.small*med.small + counts.medium*med.medium + counts.long*med.long;
+  const totalMin = totalSec/60;
+  const requiredPerDay = days>0 ? totalMin/days : totalMin;
+  const feasible = minutesPerDay >= requiredPerDay - 0.5;
+  const minDaysNeeded = minutesPerDay>0 ? Math.max(1, Math.ceil(totalMin/minutesPerDay)) : days;
+  const avgSecPerCard = totalCards>0 ? totalSec/totalCards : 0;
+  const availableMin = days*minutesPerDay;
+  const cardsThatFit = avgSecPerCard>0 ? Math.floor((availableMin*60)/avgSecPerCard) : totalCards;
+  const overflowCards = Math.max(0, totalCards - cardsThatFit);
+
+  // Balance each bucket proportionally across days, shuffled within
+  // each bucket first — same reasoning as the daily random-20 deck:
+  // day 2 shouldn't end up all long cards just by chance.
+  const dayAssignments = Array.from({length:days}, () => []);
+  ['small','medium','long'].forEach(b => {
+    const ids = buckets[b].slice();
+    for (let i=ids.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [ids[i],ids[j]] = [ids[j],ids[i]]; }
+    const per = Math.floor(ids.length/days);
+    let idx = 0;
+    for (let d=0; d<days; d++){
+      const take = (d===days-1) ? ids.length-idx : per;
+      dayAssignments[d].push(...ids.slice(idx, idx+take));
+      idx += take;
+    }
+  });
+  dayAssignments.forEach(arr => { for (let i=arr.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [arr[i],arr[j]] = [arr[j],arr[i]]; } });
+
+  return { med, counts, totalCards, totalMin, requiredPerDay, feasible, minDaysNeeded, overflowCards, dayAssignments, days, minutesPerDay };
+}
 
 function openCramSetup(id){
   closeCtxMenu();
@@ -4818,45 +4976,183 @@ function openCramSetup(id){
   if (!node) return;
   const due = collectDueCardsForNode(node);
   if (!due.length){ showToast(`Nothing due in "${node.name}" right now.`); return; }
-  cramSetupTargetId = id;
+
+  const plan = node.cramPlan;
+  const hasLivePlan = !!(plan && plan.examDate
+    && new Date(plan.examDate+'T23:59:59').getTime() >= Date.now()
+    && plan.completedDays && plan.completedDays.some(d => !d));
+
+  cramSetupCtx = {
+    nodeId: id,
+    examDate: (plan && plan.examDate) || node.examDate || '',
+    days: (plan && plan.days) || 3,
+    minutesPerDay: (plan && plan.minutesPerDay) || 60,
+    preview: null,
+  };
   const input = document.getElementById('cramExamDateInput');
-  input.value = node.examDate || '';
+  input.value = cramSetupCtx.examDate;
   input.min = new Date().toISOString().slice(0,10);
   document.getElementById('cramSetupOverlay').classList.add('active');
+
+  if (hasLivePlan){
+    // Already mid-plan for this node — skip straight to the schedule
+    // instead of asking "how much time do you have" all over again.
+    cramSetupCtx.preview = buildCramPlanPreview(node, plan.days, plan.minutesPerDay);
+    cramSetupCtx.preview.dayAssignments = plan.dayAssignments; // keep the ORIGINAL split, don't reshuffle a plan already in progress
+    cramSetupGoStep3(true);
+  } else {
+    cramSetupGoStep1();
+  }
 }
-function confirmCramSetup(){
-  const node = nodeById(cramSetupTargetId);
+function cramSetupGoStep1(){
+  document.getElementById('cramStep1').style.display = '';
+  document.getElementById('cramStep2').style.display = 'none';
+  document.getElementById('cramStep3').style.display = 'none';
+}
+function cramSetupGoStep2(){
   const dateStr = document.getElementById('cramExamDateInput').value;
-  if (!node || !dateStr) return;
-  node.examDate = dateStr;
+  if (!dateStr){ showToast('Pick an exam date first.'); return; }
+  cramSetupCtx.examDate = dateStr;
+  document.getElementById('cramStep1').style.display = 'none';
+  document.getElementById('cramStep2').style.display = '';
+  document.getElementById('cramStep3').style.display = 'none';
+  document.getElementById('cramDaysVal').textContent = cramSetupCtx.days + (cramSetupCtx.days===1?' day':' days');
+  document.getElementById('cramMinutesSlider').value = cramSetupCtx.minutesPerDay;
+  document.getElementById('cramMinutesVal').textContent = fmtCramMinutes(cramSetupCtx.minutesPerDay);
+  updateCramFeasHint();
+}
+function cramAdjustDays(delta){
+  cramSetupCtx.days = Math.max(1, Math.min(30, cramSetupCtx.days + delta));
+  document.getElementById('cramDaysVal').textContent = cramSetupCtx.days + (cramSetupCtx.days===1?' day':' days');
+  updateCramFeasHint();
+}
+function cramOnSliderInput(){
+  cramSetupCtx.minutesPerDay = +document.getElementById('cramMinutesSlider').value;
+  document.getElementById('cramMinutesVal').textContent = fmtCramMinutes(cramSetupCtx.minutesPerDay);
+  updateCramFeasHint();
+}
+function updateCramFeasHint(){
+  const node = nodeById(cramSetupCtx.nodeId);
+  const preview = buildCramPlanPreview(node, cramSetupCtx.days, cramSetupCtx.minutesPerDay);
+  const el = document.getElementById('cramFeasHint');
+  if (preview.feasible){
+    el.className = 'cram-feas-hint ok';
+    el.innerHTML = `<span>✓</span><span>On pace — about <b>${fmtCramMinutes(preview.requiredPerDay)}/day</b> clears all ${preview.totalCards.toLocaleString()} cards in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'}.</span>`;
+  } else {
+    el.className = 'cram-feas-hint bad';
+    el.innerHTML = `<span>⚠</span><span>At ${fmtCramMinutes(cramSetupCtx.minutesPerDay)}/day this needs ~<b>${fmtCramMinutes(preview.requiredPerDay)}/day</b> to cover everything in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'} — we'll show your options next.</span>`;
+  }
+}
+function cramSetupGoStep3(skipRebuild){
+  document.getElementById('cramStep1').style.display = 'none';
+  document.getElementById('cramStep2').style.display = 'none';
+  document.getElementById('cramStep3').style.display = '';
+  const node = nodeById(cramSetupCtx.nodeId);
+  if (!skipRebuild) cramSetupCtx.preview = buildCramPlanPreview(node, cramSetupCtx.days, cramSetupCtx.minutesPerDay);
+  renderCramSchedule();
+}
+function cramApplyExtendDays(){
+  cramSetupCtx.days = cramSetupCtx.preview.minDaysNeeded;
+  cramSetupCtx.preview = buildCramPlanPreview(nodeById(cramSetupCtx.nodeId), cramSetupCtx.days, cramSetupCtx.minutesPerDay);
+  renderCramSchedule();
+}
+function cramApplyRaiseBudget(){
+  cramSetupCtx.minutesPerDay = Math.min(480, Math.ceil(cramSetupCtx.preview.requiredPerDay/15)*15);
+  cramSetupCtx.preview = buildCramPlanPreview(nodeById(cramSetupCtx.nodeId), cramSetupCtx.days, cramSetupCtx.minutesPerDay);
+  renderCramSchedule();
+}
+function renderCramSchedule(){
+  const p = cramSetupCtx.preview;
+  const headline = document.getElementById('cramScheduleHeadline');
+  if (p.feasible){
+    headline.innerHTML = `<div class="cram-sched-ok">To clear ${p.totalCards.toLocaleString()} cards in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'}, you'll need about <b>${fmtCramMinutes(p.requiredPerDay)}/day</b>.</div>`;
+  } else {
+    headline.innerHTML = `
+      <div class="cram-sched-warn">
+        <div>At ${fmtCramMinutes(cramSetupCtx.minutesPerDay)}/day this needs ~<b>${fmtCramMinutes(p.requiredPerDay)}/day</b> to cover everything in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'}.</div>
+        <div class="cram-sched-actions">
+          <button class="mini-btn" onclick="cramApplyExtendDays()">Extend to ${p.minDaysNeeded} day${p.minDaysNeeded===1?'':'s'}</button>
+          <button class="mini-btn" onclick="cramApplyRaiseBudget()">Raise to ${fmtCramMinutes(p.requiredPerDay)}/day</button>
+        </div>
+        <div class="cram-sched-note">Or just start anyway below — later days will simply have more to catch up on.</div>
+      </div>`;
+  }
+  const table = document.getElementById('cramScheduleTable');
+  table.innerHTML = p.dayAssignments.map((ids, i) => {
+    const secs = ids.reduce((sum, cid) => {
+      const entry = cardIndex.get(cid);
+      const bucket = entry ? answerBucketFor(entry.card) : 'medium';
+      return sum + p.med[bucket];
+    }, 0);
+    return `<div class="cram-sched-day-row">
+      <div class="csd-name">Day ${i+1}</div>
+      <div class="csd-count mono">${ids.length} card${ids.length===1?'':'s'}</div>
+      <div class="csd-time mono">${fmtCramMinutes(secs/60)}</div>
+    </div>`;
+  }).join('');
+  const node = nodeById(cramSetupCtx.nodeId);
+  const existingPlan = node.cramPlan;
+  const nextDayIdx = (existingPlan && existingPlan.examDate === cramSetupCtx.examDate && existingPlan.completedDays)
+    ? existingPlan.completedDays.findIndex(d => !d) : 0;
+  document.getElementById('cramStartDayBtn').textContent = nextDayIdx > 0 ? `Continue Day ${nextDayIdx+1} →` : 'Start Day 1 →';
+}
+function confirmCramPlanAndStart(){
+  const node = nodeById(cramSetupCtx.nodeId);
+  const p = cramSetupCtx.preview;
+  const existing = node.cramPlan;
+  // Reuse an in-progress plan's day assignments verbatim rather than
+  // reshuffling — a card already scheduled for Day 2 should stay there,
+  // not get randomly redealt every time this modal is reopened.
+  const reuseExisting = !!(existing && existing.examDate === cramSetupCtx.examDate
+    && existing.days === cramSetupCtx.days && existing.minutesPerDay === cramSetupCtx.minutesPerDay
+    && existing.completedDays && existing.completedDays.some(d => !d));
+  if (!reuseExisting){
+    node.cramPlan = {
+      createdAt: Date.now(),
+      examDate: cramSetupCtx.examDate,
+      days: cramSetupCtx.days,
+      minutesPerDay: cramSetupCtx.minutesPerDay,
+      dayAssignments: p.dayAssignments,
+      completedDays: new Array(cramSetupCtx.days).fill(false),
+    };
+  }
+  node.examDate = cramSetupCtx.examDate;
   persistTextState(node.type === 'deck' ? node.id : undefined);
   closeModal('cramSetupOverlay');
-  startCramSession(node.id);
-}
-function daysUntil(dateStr){
-  const DAY = 86400000;
-  const target = new Date(dateStr + 'T23:59:59').getTime();
-  return Math.max(0, Math.ceil((target - Date.now()) / DAY));
+  const dayIdx = node.cramPlan.completedDays.findIndex(d => !d);
+  startCramDay(node.id, dayIdx < 0 ? 0 : dayIdx);
 }
 
-function startCramSession(nodeId){
+function startCramDay(nodeId, dayIndex){
   const node = nodeById(nodeId);
-  if (!node) return;
-  const due = collectDueCardsForNode(node);
-  if (!due.length){ showToast(`Nothing due in "${node.name}" right now.`); return; }
-
-  const order = due.map(x => x.card.id);
-  // Fisher-Yates shuffle so the drilling order isn't just deck order.
+  if (!node || !node.cramPlan) return;
+  const plan = node.cramPlan;
+  const idsForDay = (plan.dayAssignments[dayIndex] || []).filter(cid => cardIndex.has(cid));
+  if (!idsForDay.length){
+    // Nothing left for this day (cards deleted/moved since the plan was
+    // built) — mark it done and roll straight into whatever's next
+    // rather than showing an empty session.
+    plan.completedDays[dayIndex] = true;
+    persistTextState(node.type === 'deck' ? node.id : undefined);
+    const nextIdx = plan.completedDays.findIndex(d => !d);
+    if (nextIdx < 0){ showToast(`Nothing left to cram in "${node.name}" — plan complete.`); return; }
+    startCramDay(nodeId, nextIdx);
+    return;
+  }
+  const order = idsForDay.slice();
   for (let i = order.length-1; i>0; i--){
     const j = Math.floor(Math.random()*(i+1));
     [order[i], order[j]] = [order[j], order[i]];
   }
-  const byId = new Map(due.map(x => [x.card.id, x]));
+  const byId = new Map();
+  order.forEach(cid => { const entry = cardIndex.get(cid); if (entry) byId.set(cid, entry); });
 
   cramState = {
     node,
-    examDate: node.examDate,
-    examDaysLeft: daysUntil(node.examDate),
+    planDayIndex: dayIndex,
+    totalPlanDays: plan.days,
+    examDate: plan.examDate,
+    examDaysLeft: daysUntil(plan.examDate),
     byId,
     queue: order,
     pos: 0,
@@ -4900,7 +5196,7 @@ function renderCramCard(){
   card.classList.remove('flipped');
   requestAnimationFrame(()=> card.classList.remove('no-anim'));
 
-  document.getElementById('cramTitle').textContent = s.node.name;
+  document.getElementById('cramTitle').textContent = s.node.name + (s.totalPlanDays>1 ? ` · Day ${s.planDayIndex+1}/${s.totalPlanDays}` : '');
   document.getElementById('cramFrontText').innerHTML = renderCardFace(entry.card, 'front');
   document.getElementById('cramBackText').innerHTML = renderCardFace(entry.card, 'back');
 
@@ -4975,8 +5271,20 @@ function finishCramSession(){
   const s = cramState;
   document.getElementById('cramBody').style.display = 'none';
   document.getElementById('cramDone').classList.add('active');
+
+  const node = s.node;
+  const plan = node.cramPlan;
+  let progressMsg = '';
+  if (plan && typeof s.planDayIndex === 'number'){
+    plan.completedDays[s.planDayIndex] = true;
+    persistTextState(node.type === 'deck' ? node.id : undefined);
+    const remainingDays = plan.completedDays.filter(d => !d).length;
+    progressMsg = remainingDays > 0
+      ? ` · Day ${s.planDayIndex+1} of ${plan.days} done, ${remainingDays} to go`
+      : ` · Plan complete — all ${plan.days} day${plan.days===1?'':'s'} done`;
+  }
   document.getElementById('cramDoneSummary').textContent =
-    `${s.totalStarting} card${s.totalStarting===1?'':'s'} in "${s.node.name}" · ${s.seenCount} total rep${s.seenCount===1?'':'s'}`;
+    `${s.totalStarting} card${s.totalStarting===1?'':'s'} in "${node.name}"${progressMsg} · ${s.seenCount} total rep${s.seenCount===1?'':'s'}`;
   updateToughCount();
 }
 function exitCramSession(){
