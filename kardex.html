@@ -2059,7 +2059,8 @@ button{font-family:inherit;cursor:pointer;}
       <input type="file" id="deckFileInput" accept=".md,.markdown,.json,.txt,.docx,.doc" style="display:none" onchange="onDeckFileChosen(event)">
       <textarea id="importText" placeholder="…or paste your Markdown / JSON cards here" oninput="onImportTextChange()"></textarea>
       <div class="import-status" id="importStatus"></div>
-      <div class="import-hint">Markdown blocks separated by a line containing <strong>exactly three hyphens and nothing else</strong> (<code>---</code> — not <code>--</code>, not <code>----</code>, on its own line by itself), each block starting with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:** The [[answer]] is hidden</code>), plus optional <code>**Tags:**</code> and <code>**Links:** 2, 5</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links}</code>. An image link in a Q or A block (<code>![](url.png)</code>, or just the bare link) is fetched and attached automatically. Word <code>.docx</code> files are also supported and previewed as cards before the deck is created.</div>
+      <div class="import-hint">Markdown blocks separated by a line containing <strong>exactly three hyphens and nothing else</strong> (<code>---</code> — not <code>--</code>, not <code>----</code>, on its own line by itself), each block starting with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:** The [[answer]] is hidden</code>), plus optional <code>**Tags:**</code> and <code>**Links:** 2, 5</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links}</code>. An image link in a Q or A block (<code>![](url.png)</code>, or just the bare link) is fetched and attached automatically. Word <code>.docx</code> files are also supported and previewed as cards before the deck is created.
+      <br><br><strong>Multiple decks from one paste:</strong> start each deck with <code>### Deck: &lt;name&gt;</code> (optionally end it with a line containing only <code>===</code>), or use a JSON array of <code>{deck, cards}</code> objects — see Settings for the full format and an example. When detected, the name field above is ignored and each deck uses its own name instead.</div>
     </div>
     <div class="fetch-progress-wrap" id="deckFetchProgressWrap" style="display:none;">
       <div class="fetch-progress-label" id="deckFetchProgressLabel">Fetching images…</div>
@@ -6875,6 +6876,7 @@ function openDeckModal(path){
   document.getElementById('importStatus').textContent='';
   document.getElementById('importStatus').className='import-status';
   importedCards = null;
+  importedMultiDeck = null;
   importedCardsIsFromDocx = false;
   document.getElementById('deckFetchProgressWrap').style.display = 'none'; // in case a previous use left this visible
   document.getElementById('deckModalRow').querySelectorAll('button').forEach(b => b.disabled = false);
@@ -6922,6 +6924,7 @@ let importedCards = null;     // parsed cards waiting to be committed
 // This flag tells confirmDeck() to trust the already-parsed
 // importedCards instead of re-deriving it from the lossy preview.
 let importedCardsIsFromDocx = false;
+let importedMultiDeck = null; // set instead of importedCards when the paste contains multiple "### Deck:" blocks or a JSON array of {deck, cards}
 
 function setDeckMode(mode){
   deckMode = mode;
@@ -7600,6 +7603,52 @@ function parseDeckInput(text){
   return cards;
 }
 
+// The website's own deck-name limit (see deckNameInput's maxlength) —
+// a parsed deck name longer than this gets clamped to match, since the
+// manually-typed name field enforces the same limit.
+const DECK_NAME_MAX_LEN = 40;
+
+// Detects a SINGLE paste containing multiple decks' worth of cards and
+// splits it into { name, cards } entries — one deck() gets created per
+// entry instead of one deck for the whole paste. Returns null (not an
+// error) when the input doesn't look like multi-deck content at all, so
+// callers can fall back to the normal single-deck parseDeckInput path.
+function parseMultiDeckInput(text){
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('[')){
+    let data;
+    try { data = JSON.parse(trimmed); } catch(e){ return null; }
+    if (!Array.isArray(data) || !data.length) return null;
+    const looksLikeDeckArray = data.every(d => d && typeof d === 'object' && !Array.isArray(d)
+      && (typeof d.deck === 'string' || typeof d.name === 'string') && Array.isArray(d.cards));
+    if (!looksLikeDeckArray) return null;
+    return data.map(d => {
+      const name = String(d.deck || d.name).trim().slice(0, DECK_NAME_MAX_LEN);
+      const cards = parseJSONCards(JSON.stringify(d.cards)).map(normalizeDocumentCard);
+      return { name, cards };
+    });
+  }
+
+  // Markdown: "### Deck: <name>" marks the start of each deck; an
+  // optional standalone "===" line marks where it ends (the next
+  // "### Deck:" header, or the end of the text, also ends it — the
+  // marker just lets you leave a blank gap between decks if you want).
+  const deckHeaderRe = /^###\s*Deck:\s*(.+)$/gim;
+  const matches = [...trimmed.matchAll(deckHeaderRe)];
+  if (matches.length < 2) return null; // 0 or 1 header isn't multi-deck input — let the normal single-deck parser handle it
+
+  return matches.map((m, i) => {
+    const start = m.index + m[0].length;
+    const end = i+1 < matches.length ? matches[i+1].index : trimmed.length;
+    const name = m[1].trim().slice(0, DECK_NAME_MAX_LEN);
+    let block = trimmed.slice(start, end);
+    block = block.replace(/^[ \t]*===[ \t]*$/im, ''); // strip the end-of-deck marker line, if present
+    return { name, cards: parseMarkdownCards(block.trim()) };
+  });
+}
+
 function onImportTextChange(){
   // The person is editing the text directly — from here on the textarea
   // is the source of truth again, not whatever DOCX (if any) produced it.
@@ -7610,8 +7659,25 @@ function onImportTextChange(){
     statusEl.textContent = '';
     statusEl.className = 'import-status';
     importedCards = null;
+    importedMultiDeck = null;
     return;
   }
+  const multi = parseMultiDeckInput(text);
+  if (multi){
+    importedMultiDeck = multi;
+    importedCards = null;
+    const totalCards = multi.reduce((n,d)=>n+d.cards.length, 0);
+    const empty = multi.filter(d => !d.cards.length);
+    if (empty.length){
+      statusEl.textContent = `✗ "${empty[0].name}" has no valid cards — check its Q:/A: blocks.`;
+      statusEl.className = 'import-status err';
+    } else {
+      statusEl.textContent = `✓ Detected ${multi.length} decks — "${multi.map(d=>d.name).join('", "')}" (${totalCards} card${totalCards!==1?'s':''} total). The name field above is ignored — each deck uses its own name.`;
+      statusEl.className = 'import-status ok';
+    }
+    return;
+  }
+  importedMultiDeck = null;
   try{
     importedCards = parseDeckInput(text);
     statusEl.textContent = `✓ Parsed ${importedCards.length} card${importedCards.length!==1?'s':''}`;
@@ -7720,9 +7786,85 @@ function confirmFolder(){
 }
 async function confirmDeck(){
   const nameInput = document.getElementById('deckNameInput');
+  const parent = findFolder(modalTargetPath);
+
+  // Multi-deck paste: detected before the name requirement below, since
+  // in this mode each deck takes its own name from the pasted content —
+  // the name field isn't used at all.
+  if (deckMode === 'import' && !importedCardsIsFromDocx){
+    importedMultiDeck = parseMultiDeckInput(document.getElementById('importText').value);
+  }
+  if (deckMode === 'import' && importedMultiDeck && importedMultiDeck.length){
+    const empty = importedMultiDeck.filter(d => !d.cards.length);
+    const statusEl = document.getElementById('importStatus');
+    if (empty.length){
+      statusEl.textContent = `✗ "${empty[0].name}" has no valid cards — check its Q:/A: blocks.`;
+      statusEl.className = 'import-status err';
+      return;
+    }
+    const totalPending = importedMultiDeck.reduce((n,d)=> n + d.cards.reduce((m,c)=> m + (c.pendingImageUrls ? c.pendingImageUrls.front.length + c.pendingImageUrls.back.length : 0), 0), 0);
+    const wrap = document.getElementById('deckFetchProgressWrap');
+    const label = document.getElementById('deckFetchProgressLabel');
+    const fill = document.getElementById('deckFetchProgressFill');
+    const row = document.getElementById('deckModalRow');
+    if (totalPending){
+      wrap.style.display = 'block';
+      row.querySelectorAll('button').forEach(b => b.disabled = true);
+      label.textContent = `Fetching image 0 of ${totalPending}…`;
+      fill.style.width = '0%';
+    }
+    let doneSoFar = 0;
+    const createdDecks = [];
+    for (let i = 0; i < importedMultiDeck.length; i++){
+      const entry = importedMultiDeck[i];
+      const entryPending = entry.cards.reduce((m,c)=> m + (c.pendingImageUrls ? c.pendingImageUrls.front.length + c.pendingImageUrls.back.length : 0), 0);
+      if (entryPending){
+        await resolvePendingImageUrls(entry.cards, (done, total) => {
+          label.textContent = `Deck ${i+1} of ${importedMultiDeck.length} — fetching image ${doneSoFar+done} of ${totalPending}…`;
+          fill.style.width = Math.round(((doneSoFar+done)/totalPending)*100) + '%';
+        });
+      }
+      doneSoFar += entryPending;
+      const refMap = new Map();
+      const newCards = entry.cards.map((c, idx)=>{
+        const nc = card(c.question, c.answer, c.tags);
+        nc.type = c.type || 'basic';
+        nc.clozeSource = c.clozeSource || null;
+        nc.importRefId = c.refId != null ? c.refId : null;
+        nc.img = { front: c.img?.front || null, back: c.img?.back || null };
+        nc.links = [];
+        refMap.set(c.refId != null ? c.refId : (idx+1), nc);
+        return nc;
+      });
+      entry.cards.forEach((c, idx)=>{
+        const src = newCards[idx];
+        (c.links || []).forEach(refNum=>{
+          const target = refMap.get(refNum);
+          if (target && target !== src){
+            if (!src.links.includes(target.id)) src.links.push(target.id);
+            if (!target.links.includes(src.id)) target.links.push(src.id);
+          }
+        });
+      });
+      const deckName = entry.name || `Deck ${i+1}`;
+      const newDeck = deck(deckName, newCards);
+      parent.children.push(newDeck);
+      createdDecks.push(newDeck);
+    }
+    if (totalPending){
+      wrap.style.display = 'none';
+      row.querySelectorAll('button').forEach(b => b.disabled = false);
+    }
+    rebuildIndex();
+    closeModal('deckOverlay');
+    createdDecks.forEach(nd => persistTextState(nd.id));
+    showToast(`Created ${createdDecks.length} decks from your paste.`);
+    render();
+    return;
+  }
+
   const name = nameInput.value.trim();
   if (!name){ flagEmptyName(nameInput, 'Name your deck first'); return; }
-  const parent = findFolder(modalTargetPath);
 
   if (deckMode === 'import'){
     // (Re)parse on submit in case the user tabbed away without triggering
@@ -9902,7 +10044,32 @@ function avatarColor(seed){
 }
 
 /* ---------------- Settings modal ---------------- */
-const CARD_FORMAT_MD = `— HOW TO SEPARATE CARDS —
+const CARD_FORMAT_MD = `— MULTIPLE DECKS IN ONE PASTE —
+Normally this whole paste becomes ONE deck (using the name you type above). To
+create SEVERAL decks at once instead, start each one with a line like:
+### Deck: <deck name>
+Everything after that line — cards, --- separators, all of it — belongs to
+that deck, right up until the next "### Deck:" line (or the end of the
+paste). You can optionally mark exactly where a deck ends with a line
+containing ONLY === (three equals signs, nothing else) — useful if you want
+a gap between decks, but not required.
+IMPORTANT for whoever's generating this content: deck names must be under ${DECK_NAME_MAX_LEN} characters — keep every "### Deck: <name>" line under that limit, since that's this website's actual character limit for a deck name and anything longer gets cut off automatically.
+When "### Deck:" lines are present, the name field in the New Deck dialog is
+ignored entirely — each deck uses its own name from its own line instead.
+
+Example — two decks from one paste:
+### Deck: Malaria Pharmacology
+### Card 1
+**Q:** First-line treatment for uncomplicated P. falciparum malaria?
+**A:** Artemisinin-based combination therapy (ACT)
+===
+
+### Deck: Amoebiasis
+### Card 1
+**Q:** Drug of choice for invasive amoebiasis?
+**A:** Metronidazole
+
+— HOW TO SEPARATE CARDS —
 Put a line with EXACTLY three hyphens (---) and nothing else between each card — not two (--), not four (----), not three plus spaces or any other character on that line. Exactly "---", completely alone on its own line.
 
 — BASIC CARD —
@@ -9971,7 +10138,31 @@ Example:
 ![](https://example.com/median-nerve.png)
 **A:** The median nerve`;
 
-const CARD_FORMAT_JSON = `[
+const CARD_FORMAT_JSON = `— MULTIPLE DECKS IN ONE PASTE —
+For one deck, use a plain array of cards like the example further below.
+For SEVERAL decks in one paste, wrap them instead as an array of
+{deck, cards} objects — "deck" is that deck's name (must be under ${DECK_NAME_MAX_LEN}
+characters, this website's actual limit for a deck name), "cards" is the
+normal array of card objects:
+[
+  {
+    "deck": "Malaria Pharmacology",
+    "cards": [
+      { "question": "First-line treatment for uncomplicated P. falciparum malaria?", "answer": "Artemisinin-based combination therapy (ACT)" }
+    ]
+  },
+  {
+    "deck": "Amoebiasis",
+    "cards": [
+      { "question": "Drug of choice for invasive amoebiasis?", "answer": "Metronidazole" }
+    ]
+  }
+]
+When the paste is shaped like that, the name field in the New Deck dialog is
+ignored — each deck uses its own "deck" value instead.
+
+— SINGLE DECK —
+[
   {
     "question": "What nerve is compressed in carpal tunnel syndrome?",
     "answer": "The median nerve",
