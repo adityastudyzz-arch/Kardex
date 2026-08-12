@@ -805,6 +805,31 @@ button{font-family:inherit;cursor:pointer;}
   background:var(--maroon); margin-right:5px; vertical-align:1px;
 }
 
+/* ---------- Deck color filters ---------- */
+.color-swatch-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:4px; }
+.color-swatch{
+  aspect-ratio:1; border-radius:10px; border:2px solid var(--line);
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  position:relative;
+}
+.color-swatch:hover{ border-color:var(--ink-soft); }
+.color-swatch.selected{ border-color:var(--ink); box-shadow:0 0 0 2px var(--paper-raised), 0 0 0 4px var(--ink); }
+.color-swatch .check{ color:var(--ink); opacity:0; }
+.color-swatch.selected .check{ opacity:1; }
+.color-swatch.none-swatch{ background:var(--paper-raised); }
+
+.filter-chip-row{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 14px; }
+.filter-chip{
+  display:inline-flex; align-items:center; gap:7px;
+  padding:5px 12px 5px 8px; border-radius:100px; border:1.5px solid transparent;
+  font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink);
+  cursor:pointer; user-select:none;
+}
+.filter-chip .sw{ width:11px; height:11px; border-radius:50%; flex-shrink:0; border:1px solid rgba(0,0,0,.12); }
+.filter-chip .ct{ opacity:.65; }
+.filter-chip.active{ border-color:var(--ink); font-weight:600; }
+.filter-chip:hover{ border-color:var(--ink-soft); }
+
 /* Drag ghost affordance */
 [draggable="true"]{ }
 .dragging{ opacity:.4; }
@@ -2094,6 +2119,28 @@ button{font-family:inherit;cursor:pointer;}
   </div>
 </div>
 
+<div class="overlay" id="colorPickerOverlay">
+  <div class="modal">
+    <h3>Deck color</h3>
+    <p class="settings-hint" style="margin:0 0 14px;">Used as a filter in this drawer — click a color's chip later to show only decks in that color.</p>
+    <div class="color-swatch-grid" id="colorSwatchGrid"></div>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal('colorPickerOverlay')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="filterRenameOverlay">
+  <div class="modal">
+    <h3>Rename filter</h3>
+    <input id="filterRenameInput" type="text" maxlength="24">
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal('filterRenameOverlay')">Cancel</button>
+      <button class="confirm" onclick="confirmFilterRename()">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="deleteOverlay">
   <div class="modal">
     <h3>Move to Trash?</h3>
@@ -3064,7 +3111,7 @@ function buildTreeSkeleton(node){
     };
   }
   // deck — cards/sessions live in kardex_decks, not here
-  return { id: node.id, type: 'deck', name: node.name, lastStudied: node.lastStudied, createdAt: node.createdAt };
+  return { id: node.id, type: 'deck', name: node.name, lastStudied: node.lastStudied, createdAt: node.createdAt, color: node.color || null };
 }
 
 /* Every deck needs its own row pushed to the cloud at LEAST once — a
@@ -4244,7 +4291,7 @@ function restoreFromTrash(trashId){
       const existingDeck = nodeById(skel.id); // shouldn't normally exist, but guards against double-restore
       if (existingDeck) return existingDeck;
       const snap = (entry.deckSnapshots && entry.deckSnapshots[skel.id]) || { cards: [], sessions: [] };
-      return { id: skel.id, type: 'deck', name: skel.name, lastStudied: skel.lastStudied, createdAt: skel.createdAt || Date.now(), cards: snap.cards, sessions: snap.sessions };
+      return { id: skel.id, type: 'deck', name: skel.name, lastStudied: skel.lastStudied, createdAt: skel.createdAt || Date.now(), color: skel.color || null, cards: snap.cards, sessions: snap.sessions };
     }
     const revived = reliveFromSkeleton(entry.node);
     parent.children.push(revived);
@@ -4339,6 +4386,7 @@ const state = {
   peekStack: [],            // saved study sessions, pushed when following a "see also" link mid-study
   homeStatsExpanded: false, // mobile dashboard: stat cards collapsed to one row by default
   viewingHome: false,
+  deckColorFilter: null,    // preset color id, or null — active per-drawer color filter (reset on drawer change)
 };
 /* Default landing page — 'home' (review-activity dashboard) or 'root'
    (straight into the drawer tree, the original behavior). Read once at
@@ -6048,6 +6096,95 @@ function sortControl(folderId, current){
   return wrap;
 }
 
+/* ---------------------------------------------------------
+   DECK COLOR FILTERS
+   A fixed set of light, paper-friendly presets — deliberately all
+   high-lightness pastels so the existing dark --ink/--ink-soft text
+   stays legible on every single one without needing a separate
+   per-swatch text color. Labels default to "Filter 1", "2", etc. but
+   are renamable; renames are a small global preference (not per-deck,
+   not per-drawer), stored locally on this device.
+--------------------------------------------------------- */
+const DECK_COLOR_PRESETS = [
+  { id:'c1', hex:'#E3EDE4' }, // sage
+  { id:'c2', hex:'#E1EDF5' }, // sky
+  { id:'c3', hex:'#F7E4E4' }, // blush
+  { id:'c4', hex:'#EAE3F5' }, // lavender
+  { id:'c5', hex:'#F7F0D9' }, // butter
+  { id:'c6', hex:'#F7E6D9' }, // peach
+  { id:'c7', hex:'#DCF0E8' }, // mint
+  { id:'c8', hex:'#E4E6E9' }, // slate
+];
+function deckColorHex(colorId){
+  const preset = DECK_COLOR_PRESETS.find(c => c.id === colorId);
+  return preset ? preset.hex : null;
+}
+function loadFilterLabels(){
+  try { return JSON.parse(localStorage.getItem('kardex_filter_labels') || '{}'); } catch(e){ return {}; }
+}
+function saveFilterLabels(labels){
+  try { localStorage.setItem('kardex_filter_labels', JSON.stringify(labels)); } catch(e){}
+}
+function filterLabel(colorId){
+  const labels = loadFilterLabels();
+  if (labels[colorId]) return labels[colorId];
+  const idx = DECK_COLOR_PRESETS.findIndex(c => c.id === colorId);
+  return 'Filter ' + (idx + 1);
+}
+
+let colorPickerTargetId = null;
+function openColorPicker(id){
+  closeCtxMenu();
+  const node = nodeById(id);
+  if (!node || node.type !== 'deck') return;
+  colorPickerTargetId = id;
+  const grid = document.getElementById('colorSwatchGrid');
+  grid.innerHTML = '';
+  const noneSwatch = document.createElement('div');
+  noneSwatch.className = 'color-swatch none-swatch' + (!node.color ? ' selected' : '');
+  noneSwatch.title = 'No color';
+  noneSwatch.innerHTML = `<svg class="check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
+  noneSwatch.onclick = () => setDeckColor(id, null);
+  grid.appendChild(noneSwatch);
+  DECK_COLOR_PRESETS.forEach(preset => {
+    const sw = document.createElement('div');
+    sw.className = 'color-swatch' + (node.color === preset.id ? ' selected' : '');
+    sw.style.background = preset.hex;
+    sw.title = filterLabel(preset.id);
+    sw.innerHTML = `<svg class="check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
+    sw.onclick = () => setDeckColor(id, preset.id);
+    grid.appendChild(sw);
+  });
+  document.getElementById('colorPickerOverlay').classList.add('active');
+}
+function setDeckColor(id, colorId){
+  const node = nodeById(id);
+  if (!node) return;
+  node.color = colorId || null;
+  persistTextState(node.id);
+  closeModal('colorPickerOverlay');
+  render();
+}
+
+let filterRenameTargetId = null;
+function openFilterRename(colorId){
+  filterRenameTargetId = colorId;
+  const input = document.getElementById('filterRenameInput');
+  input.value = filterLabel(colorId);
+  document.getElementById('filterRenameOverlay').classList.add('active');
+  setTimeout(() => { input.focus(); input.select(); }, 50);
+}
+function confirmFilterRename(){
+  const name = document.getElementById('filterRenameInput').value.trim();
+  if (!name || !filterRenameTargetId) return;
+  const labels = loadFilterLabels();
+  labels[filterRenameTargetId] = name;
+  saveFilterLabels(labels);
+  closeModal('filterRenameOverlay');
+  filterRenameTargetId = null;
+  render();
+}
+
 function renderContent(){
   const el = document.getElementById('content');
   el.innerHTML = '';
@@ -6073,6 +6210,13 @@ function renderContent(){
   }
 
   const currentFolderId = state.currentPath[state.currentPath.length-1];
+  // Filter is scoped to whichever drawer you're looking at — reset it
+  // the moment the drawer changes, so it can't silently keep hiding
+  // decks in a totally different drawer you just navigated into.
+  if (lastFilterFolderId !== currentFolderId){
+    state.deckColorFilter = null;
+    lastFilterFolderId = currentFolderId;
+  }
   const subfolders = folderNode.children.filter(c=>c.type==='folder');
   const decks = folderNode.children.filter(c=>c.type==='deck');
 
@@ -6101,10 +6245,40 @@ function renderContent(){
     const label = document.createElement('div');
     label.className='section-label'; label.textContent = 'Decks';
     el.appendChild(label);
+    const chipRow = colorFilterChipRow(sortedDecks);
+    if (chipRow) el.appendChild(chipRow);
+    const visibleDecks = state.deckColorFilter
+      ? sortedDecks.filter(d => d.color === state.deckColorFilter)
+      : sortedDecks;
     const grid = document.createElement('div'); grid.className='grid';
-    sortedDecks.forEach(d=> grid.appendChild(deckTile(d)));
+    visibleDecks.forEach(d=> grid.appendChild(deckTile(d)));
     el.appendChild(grid);
   }
+}
+let lastFilterFolderId = null;
+// Only shows chips for colors actually present among THIS drawer's
+// decks — a color nobody's used here doesn't clutter the row.
+function colorFilterChipRow(decksInDrawer){
+  const present = new Map(); // colorId -> count
+  decksInDrawer.forEach(d => { if (d.color) present.set(d.color, (present.get(d.color)||0) + 1); });
+  if (!present.size) return null;
+  const row = document.createElement('div');
+  row.className = 'filter-chip-row';
+  DECK_COLOR_PRESETS.forEach(preset => {
+    const count = present.get(preset.id);
+    if (!count) return;
+    const chip = document.createElement('div');
+    chip.className = 'filter-chip' + (state.deckColorFilter === preset.id ? ' active' : '');
+    chip.innerHTML = `<span class="sw" style="background:${preset.hex}"></span>${escapeHtml(filterLabel(preset.id))}<span class="ct">${count}</span>`;
+    chip.title = 'Click to filter · double-click to rename';
+    chip.onclick = () => {
+      state.deckColorFilter = state.deckColorFilter === preset.id ? null : preset.id;
+      render();
+    };
+    chip.ondblclick = (e) => { e.stopPropagation(); openFilterRename(preset.id); };
+    row.appendChild(chip);
+  });
+  return row;
 }
 
 function folderTile(f){
@@ -6152,6 +6326,10 @@ function deckTile(d, opts){
       <div class="dname">${escapeHtml(d.name)}</div>
       <div class="drow">${metaHtml}</div>
     </div>`;
+  if (d.color){
+    const hex = deckColorHex(d.color);
+    if (hex) div.querySelector('.card').style.background = hex;
+  }
   div.querySelector('.kebab-btn').onclick = (e)=>{ e.stopPropagation(); openCtxMenu(e, d.id); };
   // From search results: open a filtered front/back viewer of just the
   // matching cards in this deck, instead of studying the whole thing.
@@ -7955,7 +8133,8 @@ function openCtxMenu(e, id){
   let html = '';
   if (!isRoot && !isFolder){
     html += `<button onclick="openNotebook('${id}')">📖 Notebook view</button>`;
-    html += `<button onclick="openCardManager('${id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="7" y="3" width="12" height="16" rx="2" transform="rotate(-8 13 11)"/><rect x="5" y="6" width="12" height="16" rx="2"/></svg> Manage cards</button><hr>`;
+    html += `<button onclick="openCardManager('${id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="7" y="3" width="12" height="16" rx="2" transform="rotate(-8 13 11)"/><rect x="5" y="6" width="12" height="16" rx="2"/></svg> Manage cards</button>`;
+    html += `<button onclick="openColorPicker('${id}')">🎨 Color</button><hr>`;
   }
   if (!isRoot){
     html += `<button onclick="startRename('${id}')">✎ Rename</button>`;
