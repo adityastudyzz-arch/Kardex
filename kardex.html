@@ -354,6 +354,16 @@ button{font-family:inherit;cursor:pointer;}
 .action-btn.primary:hover{ background:var(--teal-dark); color:#fff; }
 .action-btn.icon-only{ padding:8px; width:34px; height:34px; justify-content:center; }
 #syncBtn.syncing svg{ animation: sync-spin .8s linear infinite; }
+/* Home dashboard has no drawer/deck to act on, so the topbar's
+   search/+Drawer/+Deck/resume controls don't apply there — only the
+   sidebar toggle and sync stay. Hiding individual children (rather
+   than the whole bar) keeps sync's exact existing #syncBtn element and
+   spin-state logic untouched, no duplicate button needed. */
+#topbar.home-mode .search-wrap,
+#topbar.home-mode #mobileSearchBtn,
+#topbar.home-mode #resumeStudyBtn,
+#topbar.home-mode #pasteBtn,
+#topbar.home-mode > .action-btn:not(#syncBtn){ display:none !important; }
 @keyframes sync-spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
 .resume-btn{
   border-color:rgba(47,111,98,.4);
@@ -9565,9 +9575,11 @@ function render(){
     document.getElementById('content').style.display = 'none';
     document.getElementById('homeScreen').style.display = 'block';
     document.getElementById('crumbs').innerHTML = '';
+    document.getElementById('topbar').classList.add('home-mode');
     renderHomeScreen();
     return;
   }
+  document.getElementById('topbar').classList.remove('home-mode');
   document.getElementById('homeScreen').style.display = 'none';
   document.getElementById('content').style.display = '';
   if (state.managingDeckId){
