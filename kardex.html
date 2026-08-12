@@ -451,6 +451,87 @@ button{font-family:inherit;cursor:pointer;}
   padding:26px 30px 60px;
 }
 
+/* ---------- Home dashboard ---------- */
+#homeScreen{
+  display:none;
+  flex:1;
+  overflow-y:auto;
+  padding:26px 30px 60px;
+}
+.home-shell{ max-width:960px; margin:0 auto; }
+.home-greet{ font-family:'Fraunces', serif; font-size:23px; font-weight:500; color:var(--ink); }
+.home-greet-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; margin-bottom:22px; }
+.home-stat-strip{ display:flex; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--paper-raised); margin-bottom:20px; box-shadow:var(--shadow); }
+.home-stat{ flex:1; padding:16px 18px; border-right:1px solid var(--line); min-width:0; }
+.home-stat:last-child{ border-right:none; }
+.home-stat .num{ font-family:'IBM Plex Mono', monospace; font-size:21px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.home-stat .lbl{ font-size:10.5px; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-soft); margin-top:4px; }
+.home-card{ background:var(--paper-raised); border:1px solid var(--line); border-radius:14px; padding:22px 24px 20px; margin-bottom:18px; box-shadow:var(--shadow); }
+.home-card-title{ font-family:'Fraunces', serif; font-size:16px; font-weight:500; color:var(--ink); }
+.home-card-sub{ font-size:12px; color:var(--ink-soft); margin:3px 0 16px; }
+.home-row-2{ display:grid; grid-template-columns:1.15fr 1fr; gap:18px; }
+
+.hm-wrap{ overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling:touch; }
+.hm-inner{ display:inline-block; min-width:100%; }
+.hm-months{ display:grid; grid-template-columns:26px repeat(53, 11px); column-gap:3px; font-size:9.5px; color:var(--ink-soft); margin-bottom:6px; font-family:'IBM Plex Mono', monospace; }
+.hm-grid{ display:grid; grid-template-columns:26px repeat(53, 11px); grid-template-rows:repeat(7, 11px); grid-auto-flow:column; column-gap:3px; row-gap:3px; }
+.hm-daylabel{ grid-column:1; font-size:8.5px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace; display:flex; align-items:center; }
+.hm-cell{ width:11px; height:11px; border-radius:3px; cursor:default; }
+.hm-legend{ display:flex; align-items:center; gap:6px; margin-top:12px; font-size:10px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace; flex-wrap:wrap; }
+.hm-legend .sw{ width:10px; height:10px; border-radius:3px; }
+
+.home-forecast{ display:flex; align-items:flex-end; gap:12px; height:130px; padding:0 2px; }
+.hf-col{ flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; gap:6px; min-width:0; }
+.hf-bar-stack{ width:100%; max-width:30px; display:flex; flex-direction:column-reverse; border-radius:5px 5px 3px 3px; overflow:hidden; }
+.hf-bar-review{ background:var(--teal-dark); width:100%; min-height:1px; }
+.hf-bar-new{ background:var(--em-3, #6FBE97); width:100%; min-height:1px; }
+.hf-total{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink); font-weight:500; }
+.hf-day{ font-size:10.5px; color:var(--ink-soft); margin-top:2px; white-space:nowrap; }
+.hf-day.today{ color:var(--teal-dark); font-weight:700; }
+.home-forecast-legend{ display:flex; gap:16px; margin-top:14px; font-size:11px; color:var(--ink-soft); flex-wrap:wrap; }
+.home-forecast-legend span{ display:flex; align-items:center; gap:6px; }
+.home-forecast-legend .sw{ width:9px; height:9px; border-radius:3px; }
+
+.home-maturity-body{ display:flex; align-items:center; gap:24px; }
+.home-donut-figure{ position:relative; flex-shrink:0; }
+.home-donut-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.home-donut-center .num{ font-family:'IBM Plex Mono', monospace; font-size:19px; font-weight:600; color:var(--ink); }
+.home-donut-center .lbl{ font-size:9px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; margin-top:2px; }
+.home-mat-legend{ display:flex; flex-direction:column; gap:12px; flex:1; min-width:0; }
+.home-mat-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.home-mat-row-left{ display:flex; align-items:center; gap:9px; min-width:0; }
+.home-mat-sw{ width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+.home-mat-name{ font-size:13px; color:var(--ink); }
+.home-mat-desc{ font-size:11px; color:var(--ink-soft); }
+.home-mat-count{ font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; color:var(--ink); flex-shrink:0; }
+.home-empty{ font-size:13px; color:var(--ink-soft); text-align:center; padding:30px 10px; }
+
+/* ---------- Home dashboard: responsive ---------- */
+@media (max-width:900px){
+  #homeScreen{ padding:20px 16px 50px; }
+  .home-greet{ font-size:19px; }
+  .home-stat-strip{ flex-wrap:wrap; }
+  .home-stat{ flex:1 1 50%; border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
+  .home-stat:nth-child(2n){ border-right:none; }
+  .home-stat:nth-last-child(-n+2){ border-bottom:none; }
+  .home-card{ padding:18px 16px 16px; }
+  .home-row-2{ grid-template-columns:1fr; gap:16px; }
+  .home-maturity-body{ gap:18px; }
+}
+@media (max-width:480px){
+  .home-stat{ padding:12px 12px; }
+  .home-stat .num{ font-size:17px; }
+  .home-stat .lbl{ font-size:9.5px; }
+  .hm-cell{ width:9px; height:9px; }
+  .hm-months{ grid-template-columns:20px repeat(53, 9px); }
+  .hm-grid{ grid-template-columns:20px repeat(53, 9px); grid-template-rows:repeat(7, 9px); }
+  .home-forecast{ height:100px; gap:6px; }
+  .hf-day{ font-size:9px; }
+  .home-donut-figure, .home-donut-figure svg{ width:100px !important; height:100px !important; }
+  .home-mat-name{ font-size:12px; }
+  .home-mat-desc{ font-size:10px; }
+}
+
 /* Empty state */
 .empty{
   margin-top:60px;
@@ -1708,6 +1789,12 @@ button{font-family:inherit;cursor:pointer;}
       <span class="mark">Kardex</span>
       <span class="sub">card index</span>
     </div>
+    <div class="starred-row" id="homeRow" onclick="viewHome()">
+      <span class="star-ico home-ico">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
+      </span>
+      <span class="tname">Home</span>
+    </div>
     <div class="starred-row" id="starredRow" onclick="viewStarred()">
       <span class="star-ico">★</span>
       <span class="tname">Starred</span>
@@ -1717,11 +1804,6 @@ button{font-family:inherit;cursor:pointer;}
       <span class="tough-ico">⚑</span>
       <span class="tname">Tough cards</span>
       <span class="tcount" id="toughCount">0</span>
-    </div>
-    <div class="starred-row trash-row" id="trashRow" onclick="viewTrash()">
-      <span class="trash-ico">🗑</span>
-      <span class="tname">Trash</span>
-      <span class="tcount" id="trashCount"></span>
     </div>
     <div class="tough-mode-row" id="toughModeRow">
       <span class="tmode-label">Tough mode</span>
@@ -1770,6 +1852,59 @@ button{font-family:inherit;cursor:pointer;}
     </div>
 
     <div id="content"></div>
+
+    <div id="homeScreen">
+      <div class="home-shell">
+        <div class="home-greet" id="homeGreet">Welcome back</div>
+        <div class="home-greet-sub" id="homeGreetSub">—</div>
+
+        <div class="home-stat-strip">
+          <div class="home-stat"><div class="num mono" id="homeStatStreak">—</div><div class="lbl">Current streak</div></div>
+          <div class="home-stat"><div class="num mono" id="homeStatLongest">—</div><div class="lbl">Longest streak</div></div>
+          <div class="home-stat"><div class="num mono" id="homeStatTotal">—</div><div class="lbl">Cards reviewed</div></div>
+          <div class="home-stat"><div class="num mono" id="homeStatAccuracy">—</div><div class="lbl">30-day accuracy</div></div>
+        </div>
+
+        <div class="home-card">
+          <div class="home-card-title">Review activity</div>
+          <div class="home-card-sub">Every square is a day · darker = more cards reviewed</div>
+          <div class="hm-wrap"><div class="hm-inner" id="homeHeatmap"></div></div>
+        </div>
+
+        <div class="home-row-2">
+          <div class="home-card">
+            <div class="home-card-title">Due this week</div>
+            <div class="home-card-sub">New cards vs. scheduled reviews, next 7 days</div>
+            <div class="home-forecast" id="homeForecast"></div>
+            <div class="home-forecast-legend">
+              <span><span class="sw" style="background:var(--em-3, #6FBE97)"></span>New</span>
+              <span><span class="sw" style="background:var(--teal-dark)"></span>Review</span>
+            </div>
+          </div>
+          <div class="home-card">
+            <div class="home-card-title">Card maturity</div>
+            <div class="home-card-sub">How much of your deck has "graduated"</div>
+            <div class="home-maturity-body">
+              <div class="home-donut-figure" id="homeDonut"></div>
+              <div class="home-mat-legend">
+                <div class="home-mat-row">
+                  <div class="home-mat-row-left"><span class="home-mat-sw" style="background:var(--line-2)"></span><div><div class="home-mat-name">New</div><div class="home-mat-desc">Not yet reviewed</div></div></div>
+                  <div class="home-mat-count" id="homeMatNew">—</div>
+                </div>
+                <div class="home-mat-row">
+                  <div class="home-mat-row-left"><span class="home-mat-sw" style="background:var(--em-3, #6FBE97)"></span><div><div class="home-mat-name">Young</div><div class="home-mat-desc">Interval &lt; 21 days</div></div></div>
+                  <div class="home-mat-count" id="homeMatYoung">—</div>
+                </div>
+                <div class="home-mat-row">
+                  <div class="home-mat-row-left"><span class="home-mat-sw" style="background:var(--teal-dark)"></span><div><div class="home-mat-name">Mature</div><div class="home-mat-desc">Interval &ge; 21 days</div></div></div>
+                  <div class="home-mat-count" id="homeMatMature">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div id="study">
       <div class="study-head">
@@ -2013,6 +2148,14 @@ button{font-family:inherit;cursor:pointer;}
       <div class="settings-btn-row">
         <button class="action-btn" onclick="closeModal('settingsOverlay'); document.getElementById('backupFileInput').click();">Import</button>
         <button class="action-btn" onclick="closeModal('settingsOverlay'); openExportModal();">Export</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <p class="settings-label">Trash</p>
+      <p class="settings-hint">Deleted drawers and decks stay here for a while before being permanently removed.</p>
+      <div class="settings-btn-row">
+        <button class="action-btn" onclick="closeModal('settingsOverlay'); viewTrash();">Open trash <span class="mono" id="settingsTrashCount" style="opacity:.7; margin-left:4px;">0</span></button>
       </div>
     </div>
 
@@ -4043,8 +4186,8 @@ function trashCard(deckId, deckName, cardObj){
   saveTrashLocal();
 }
 function renderTrashBadgeCount(){
-  const el = document.getElementById('trashCount');
-  if (el) el.textContent = trash.length ? String(trash.length) : '';
+  const el = document.getElementById('settingsTrashCount');
+  if (el) el.textContent = trash.length ? String(trash.length) : '0';
 }
 function restoreFromTrash(trashId){
   const idx = trash.findIndex(t => t.trashId === trashId);
@@ -4161,6 +4304,7 @@ const state = {
   clipboard: null,          // { id, mode: 'copy' | 'cut' }
   peekStack: [],            // saved study sessions, pushed when following a "see also" link mid-study
   homeStatsExpanded: false, // mobile dashboard: stat cards collapsed to one row by default
+  viewingHome: false,
 };
 loadPendingSession();
 
@@ -4504,6 +4648,7 @@ function renderTreeNode(node, path){
     state.currentPath = path;
     state.viewingStarred = false;
     state.viewingTough = false;
+    state.viewingHome = false;
     state.managingDeckId = null;
     closeSidebar();
     render();
@@ -4583,7 +4728,7 @@ function renderCrumbs(){
     const span = document.createElement('span');
     span.className = 'crumb' + (i===state.currentPath.length-1 ? ' current':'');
     span.textContent = n.name;
-    span.onclick = ()=>{ state.currentPath = state.currentPath.slice(0,i+1); state.viewingStarred=false; state.viewingTough=false; state.managingDeckId=null; render(); };
+    span.onclick = ()=>{ state.currentPath = state.currentPath.slice(0,i+1); state.viewingStarred=false; state.viewingTough=false; state.viewingHome=false; state.managingDeckId=null; render(); };
     el.appendChild(span);
     if (i < state.currentPath.length-1){
       const sep = document.createElement('span');
@@ -4593,9 +4738,21 @@ function renderCrumbs(){
   });
 }
 
+function viewHome(){
+  state.viewingStarred = false;
+  state.viewingTough = false;
+  state.managingDeckId = null;
+  state.search = '';
+  const searchInputEl = document.getElementById('searchInput');
+  if (searchInputEl) searchInputEl.value = '';
+  state.viewingHome = true;
+  closeSidebar();
+  render();
+}
 function viewStarred(){
   state.viewingStarred = true;
   state.viewingTough = false;
+  state.viewingHome = false;
   state.managingDeckId = null;
   state.search = '';
   document.getElementById('searchInput').value = '';
@@ -4605,6 +4762,7 @@ function viewStarred(){
 
 function viewTough(){
   state.viewingTough = true;
+  state.viewingHome = false;
   state.viewingStarred = false;
   state.managingDeckId = null;
   state.search = '';
@@ -4960,6 +5118,7 @@ function openCardManager(deckId){
   state.managingDeckId = deckId;
   state.viewingStarred = false;
   state.viewingTough = false;
+  state.viewingHome = false;
   closeSidebar();
   render();
 }
@@ -5918,7 +6077,7 @@ function folderTile(f){
       <div class="fmeta">${decks} deck${decks!==1?'s':''} · ${cards} card${cards!==1?'s':''}</div>
     </div>`;
   div.querySelector('.kebab-btn').onclick = (e)=>{ e.stopPropagation(); openCtxMenu(e, f.id); };
-  div.onclick = ()=>{ state.currentPath = [...state.currentPath, f.id]; state.viewingStarred=false; state.viewingTough=false; state.managingDeckId=null; render(); };
+  div.onclick = ()=>{ state.currentPath = [...state.currentPath, f.id]; state.viewingStarred=false; state.viewingTough=false; state.viewingHome=false; state.managingDeckId=null; render(); };
   div.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', f.id); div.classList.add('dragging'); };
   div.ondragend = ()=> div.classList.remove('dragging');
   div.ondragover = (e)=>{ e.preventDefault(); div.classList.add('dragover'); };
@@ -6086,12 +6245,13 @@ function goToSearchCardResult(deckId, cardId){
   document.getElementById('searchInput').value = '';
   state.viewingStarred = false;
   state.viewingTough = false;
+  state.viewingHome = false;
   state.currentPath = pathToNode(deckId).slice(0, -1);
   openCardManager(deckId);
   openCardEditor(deckId, cardId);
 }
 
-function onSearch(v){ state.search = v; state.viewingStarred = false; state.viewingTough = false; state.managingDeckId = null; render(); }
+function onSearch(v){ state.search = v; state.viewingStarred = false; state.viewingTough = false; state.viewingHome=false; state.managingDeckId = null; render(); }
 
 /* --- mobile search overlay: same underlying search, presented as a
    blurred spotlight-style panel instead of replacing the page content --- */
@@ -6109,6 +6269,7 @@ function goToOverlayResult(kind, id){
   closeSearchOverlay();
   state.viewingStarred = false;
   state.viewingTough = false;
+  state.viewingHome = false;
   state.managingDeckId = null;
   if (kind === 'folder'){
     state.currentPath = pathToNode(id);
@@ -8357,6 +8518,7 @@ function startSearchDeckPeek(deck, query){
   closeSearchOverlay();
   state.viewingStarred = false;
   state.viewingTough = false;
+  state.viewingHome = false;
   state.managingDeckId = null;
   closeSidebar();
 
@@ -9116,6 +9278,232 @@ function sanitizeCurrentPath(){
     }
   }
 }
+/* ---------------------------------------------------------
+   HOME DASHBOARD
+   All real data — reviewLog for activity/accuracy, getSRSMap() for
+   due-dates and maturity buckets. No seeded/fake numbers.
+--------------------------------------------------------- */
+function homeUserFirstName(){
+  if (!currentUser) return null;
+  const meta = currentUser.user_metadata || {};
+  const name = meta.full_name || meta.name || '';
+  return name ? name.split(' ')[0] : null;
+}
+function dayKey(ts){
+  const d = new Date(ts);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function renderHomeScreen(){
+  const name = homeUserFirstName();
+  document.getElementById('homeGreet').textContent = name ? `Welcome back, ${name}` : 'Welcome back';
+  const lastEntry = reviewLog.length ? reviewLog[reviewLog.length-1] : null;
+  document.getElementById('homeGreetSub').textContent = lastEntry
+    ? `Last studied ${new Date(lastEntry.ts).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`
+    : 'No reviews logged yet — pick a drawer to get started.';
+
+  renderHomeStats();
+  renderHomeHeatmap();
+  renderHomeForecast();
+  renderHomeMaturity();
+}
+
+function renderHomeStats(){
+  const DAY = 86400000;
+  const byDay = new Map();
+  reviewLog.forEach(r => byDay.set(dayKey(r.ts), (byDay.get(dayKey(r.ts))||0) + 1));
+
+  let streak = 0;
+  let cursor = new Date();
+  if (!byDay.has(dayKey(cursor.getTime())) && byDay.has(dayKey(cursor.getTime() - DAY))){
+    cursor = new Date(cursor.getTime() - DAY);
+  }
+  while (byDay.has(dayKey(cursor.getTime()))){
+    streak++;
+    cursor = new Date(cursor.getTime() - DAY);
+  }
+  const activeDays = Array.from(byDay.keys()).sort();
+  let longest = 0, run = 0, prevTs = null;
+  activeDays.forEach(k => {
+    const ts = new Date(k).getTime();
+    if (prevTs !== null && ts - prevTs === DAY) run++; else run = 1;
+    longest = Math.max(longest, run);
+    prevTs = ts;
+  });
+
+  const total = reviewLog.length;
+  const cutoff = Date.now() - 30*DAY;
+  const recent = reviewLog.filter(r => r.ts >= cutoff);
+  const accuracy = recent.length ? Math.round(recent.filter(r=>r.good).length / recent.length * 100) : null;
+
+  document.getElementById('homeStatStreak').textContent = streak + (streak===1?' day':' days');
+  document.getElementById('homeStatLongest').textContent = longest + (longest===1?' day':' days');
+  document.getElementById('homeStatTotal').textContent = total.toLocaleString();
+  document.getElementById('homeStatAccuracy').textContent = accuracy == null ? '—' : accuracy + '%';
+}
+
+function renderHomeHeatmap(){
+  const DAY = 86400000;
+  const byDay = new Map();
+  reviewLog.forEach(r => byDay.set(dayKey(r.ts), (byDay.get(dayKey(r.ts))||0) + 1));
+
+  const end = new Date();
+  const totalDays = 371;
+  const start = new Date(end.getTime() - (totalDays-1)*DAY);
+  start.setDate(start.getDate() - start.getDay());
+
+  const days = [];
+  let maxCount = 1;
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)){
+    const k = dayKey(d.getTime());
+    const count = byDay.get(k) || 0;
+    maxCount = Math.max(maxCount, count);
+    days.push({ date: new Date(d), key: k, count });
+  }
+
+  const RAMP = ['var(--paper-dark)', '#B7D9CC', '#6FBE97', '#2F6F62', '#1F4E44'];
+  function colorFor(count){
+    if (!count) return RAMP[0];
+    const frac = count / maxCount;
+    if (frac < 0.2) return RAMP[1];
+    if (frac < 0.45) return RAMP[2];
+    if (frac < 0.75) return RAMP[3];
+    return RAMP[4];
+  }
+
+  const weeks = Math.ceil(days.length/7);
+  const monthsRow = document.createElement('div');
+  monthsRow.className = 'hm-months';
+  monthsRow.appendChild(document.createElement('span'));
+  let lastMonth = -1;
+  for (let w=0; w<weeks; w++){
+    const dInWeek = days[w*7];
+    const label = document.createElement('span');
+    if (dInWeek && dInWeek.date.getMonth() !== lastMonth && dInWeek.date.getDate() <= 7){
+      lastMonth = dInWeek.date.getMonth();
+      label.textContent = dInWeek.date.toLocaleDateString('en-US',{month:'short'});
+    }
+    monthsRow.appendChild(label);
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'hm-grid';
+  const DOWLABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+  for (let dow=0; dow<7; dow++){
+    const lbl = document.createElement('div');
+    lbl.className = 'hm-daylabel';
+    lbl.textContent = DOWLABELS[dow];
+    grid.appendChild(lbl);
+  }
+  days.forEach(d => {
+    const cell = document.createElement('div');
+    cell.className = 'hm-cell';
+    cell.style.background = colorFor(d.count);
+    if (d.date <= end){
+      cell.title = `${d.count} card${d.count===1?'':'s'} reviewed · ${d.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
+    } else {
+      cell.style.visibility = 'hidden';
+    }
+    grid.appendChild(cell);
+  });
+
+  const container = document.getElementById('homeHeatmap');
+  container.innerHTML = '';
+  container.appendChild(monthsRow);
+  container.appendChild(grid);
+  const legend = document.createElement('div');
+  legend.className = 'hm-legend';
+  legend.innerHTML = 'Less ' + RAMP.map(c => `<span class="sw" style="background:${c}"></span>`).join('') + ' More';
+  container.appendChild(legend);
+}
+
+function renderHomeForecast(){
+  const DAY = 86400000;
+  const srsMap = getSRSMap();
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const buckets = [0,0,0,0,0,0,0];
+  const newBuckets = [0,0,0,0,0,0,0];
+  cardIndexList.forEach(entry => {
+    const s = srsMap.get(entry.card.id);
+    if (!s || !s.reps) return; // never reviewed — counted separately as "new" below
+    const daysOut = Math.floor((s.dueDate - today.getTime()) / DAY);
+    if (daysOut >= 0 && daysOut < 7) buckets[daysOut]++;
+  });
+  const unseenCount = cardIndexList.filter(entry => { const s = srsMap.get(entry.card.id); return !s || !s.reps; }).length;
+  newBuckets[0] = unseenCount;
+
+  const maxTotal = Math.max(1, ...buckets.map((b,i)=>b+newBuckets[i]));
+  const container = document.getElementById('homeForecast');
+  container.innerHTML = '';
+  for (let i=0; i<7; i++){
+    const d = new Date(today.getTime() + i*DAY);
+    const col = document.createElement('div');
+    col.className = 'hf-col';
+    const totalVal = document.createElement('div');
+    totalVal.className = 'hf-total';
+    totalVal.textContent = buckets[i] + newBuckets[i];
+    col.appendChild(totalVal);
+    const stack = document.createElement('div');
+    stack.className = 'hf-bar-stack';
+    stack.style.height = '96px';
+    const reviewBar = document.createElement('div');
+    reviewBar.className = 'hf-bar-review';
+    reviewBar.style.height = ((buckets[i]/maxTotal)*100) + '%';
+    const newBar = document.createElement('div');
+    newBar.className = 'hf-bar-new';
+    newBar.style.height = ((newBuckets[i]/maxTotal)*100) + '%';
+    stack.appendChild(reviewBar);
+    stack.appendChild(newBar);
+    col.appendChild(stack);
+    const dayLbl = document.createElement('div');
+    dayLbl.className = 'hf-day' + (i===0 ? ' today' : '');
+    dayLbl.textContent = i===0 ? 'Today' : DOW[d.getDay()];
+    col.appendChild(dayLbl);
+    container.appendChild(col);
+  }
+}
+
+function renderHomeMaturity(){
+  const srsMap = getSRSMap();
+  let newCt = 0, youngCt = 0, matureCt = 0;
+  cardIndexList.forEach(entry => {
+    const s = srsMap.get(entry.card.id);
+    if (!s || !s.reps) newCt++;
+    else if (s.interval < 21) youngCt++;
+    else matureCt++;
+  });
+  const totalCt = newCt + youngCt + matureCt;
+  document.getElementById('homeMatNew').textContent = newCt.toLocaleString();
+  document.getElementById('homeMatYoung').textContent = youngCt.toLocaleString();
+  document.getElementById('homeMatMature').textContent = matureCt.toLocaleString();
+
+  const size = 132, stroke = 18, r = (size-stroke)/2, c = 2*Math.PI*r;
+  const fig = document.getElementById('homeDonut');
+  fig.style.width = size+'px'; fig.style.height = size+'px';
+  if (!totalCt){
+    fig.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${stroke}"/></svg>`;
+  } else {
+    const segments = [
+      { val:newCt, color:'var(--line-2)' },
+      { val:youngCt, color:'#6FBE97' },
+      { val:matureCt, color:'var(--teal-dark)' }
+    ];
+    let offset = 0, svgParts = '';
+    segments.forEach(seg => {
+      const frac = seg.val/totalCt;
+      const dash = frac*c;
+      svgParts += `<circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="${stroke}" stroke-dasharray="${dash} ${c-dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${size/2} ${size/2})" stroke-linecap="butt"/>`;
+      offset += dash;
+    });
+    fig.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${svgParts}</svg>`;
+  }
+  const centerDiv = document.createElement('div');
+  centerDiv.className = 'home-donut-center';
+  centerDiv.innerHTML = `<div class="num">${totalCt.toLocaleString()}</div><div class="lbl">Total cards</div>`;
+  fig.appendChild(centerDiv);
+}
+
 function render(){
   sanitizeCurrentPath();
   renderTree();
@@ -9126,6 +9514,17 @@ function render(){
   renderResumeButtons();
   document.getElementById('starredRow').classList.toggle('active', state.viewingStarred);
   document.getElementById('toughRow').classList.toggle('active', state.viewingTough);
+  const homeRowEl = document.getElementById('homeRow');
+  if (homeRowEl) homeRowEl.classList.toggle('active', state.viewingHome);
+  if (state.viewingHome){
+    document.getElementById('content').style.display = 'none';
+    document.getElementById('homeScreen').style.display = 'block';
+    document.getElementById('crumbs').innerHTML = '';
+    renderHomeScreen();
+    return;
+  }
+  document.getElementById('homeScreen').style.display = 'none';
+  document.getElementById('content').style.display = '';
   if (state.managingDeckId){
     renderManageCards();
   } else if (state.viewingStarred){
@@ -9400,6 +9799,7 @@ function renderSettingsAccount(){
 function openSettingsModal(){
   renderSettingsAccount();
   renderRecoverySnapshotList();
+  renderTrashBadgeCount();
   document.getElementById('settingsSnippetMd').textContent = CARD_FORMAT_MD;
   document.getElementById('settingsSnippetJson').textContent = CARD_FORMAT_JSON;
   document.getElementById('settingsSnippetWord').textContent = CARD_FORMAT_WORD;
