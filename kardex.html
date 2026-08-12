@@ -1291,6 +1291,10 @@ button{font-family:inherit;cursor:pointer;}
 .import-status.err{ color:var(--maroon); }
 .import-status.warn{ color:var(--kraft-dark); white-space:pre-line; line-height:1.5; }
 .import-hint{ font-size:11px; color:var(--ink-soft); margin:-6px 0 12px; line-height:1.5; }
+.fetch-progress-wrap{ margin:2px 0 14px; }
+.fetch-progress-label{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft); margin-bottom:6px; }
+.fetch-progress-track{ width:100%; height:6px; border-radius:4px; background:var(--paper-dark); overflow:hidden; }
+.fetch-progress-fill{ height:100%; width:0%; background:var(--teal); border-radius:4px; transition:width .2s ease; }
 .import-hint code{ background:var(--paper-dark); padding:1px 5px; border-radius:4px; font-size:10.5px; }
 .highlight{ background:#F5E1A4; padding:0 3px; border-radius:3px; }
 
@@ -1887,7 +1891,11 @@ button{font-family:inherit;cursor:pointer;}
       <div class="import-status" id="importStatus"></div>
       <div class="import-hint">Markdown blocks separated by a line containing <strong>exactly three hyphens and nothing else</strong> (<code>---</code> — not <code>--</code>, not <code>----</code>, on its own line by itself), each block starting with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:** The [[answer]] is hidden</code>), plus optional <code>**Tags:**</code> and <code>**Links:** 2, 5</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links}</code>. An image link in a Q or A block (<code>![](url.png)</code>, or just the bare link) is fetched and attached automatically. Word <code>.docx</code> files are also supported and previewed as cards before the deck is created.</div>
     </div>
-    <div class="modal-row">
+    <div class="fetch-progress-wrap" id="deckFetchProgressWrap" style="display:none;">
+      <div class="fetch-progress-label" id="deckFetchProgressLabel">Fetching images…</div>
+      <div class="fetch-progress-track"><div class="fetch-progress-fill" id="deckFetchProgressFill"></div></div>
+    </div>
+    <div class="modal-row" id="deckModalRow">
       <button class="cancel" onclick="closeModal('deckOverlay')">Cancel</button>
       <button class="confirm" onclick="confirmDeck()">Create</button>
     </div>
@@ -1919,7 +1927,11 @@ button{font-family:inherit;cursor:pointer;}
       <div class="import-status" id="bulkImportStatus"></div>
       <div class="import-hint">Same format as new-deck import — Markdown blocks separated by a line containing <strong>exactly three hyphens and nothing else</strong> (<code>---</code> — not <code>--</code>, not <code>----</code>, on its own line by itself), each starting with <code>### Card N</code>, <code>**Q:**</code>/<code>**A:**</code> (or <code>**Type:** cloze</code> + <code>**Cloze:**</code>), plus optional <code>**Tags:**</code>/<code>**Links:**</code> — or a JSON array of <code>{question, answer, tags, type, cloze, links, id}</code>. An image link in a Q or A block is fetched and attached automatically, same as new-deck import. Word <code>.docx</code> files also preview into the same card model, and any embedded images are mapped into the front or back of the generated cards.</div>
     </div>
-    <div class="modal-row">
+    <div class="fetch-progress-wrap" id="bulkFetchProgressWrap" style="display:none;">
+      <div class="fetch-progress-label" id="bulkFetchProgressLabel">Fetching images…</div>
+      <div class="fetch-progress-track"><div class="fetch-progress-fill" id="bulkFetchProgressFill"></div></div>
+    </div>
+    <div class="modal-row" id="bulkAddModalRow">
       <button class="cancel" onclick="closeModal('bulkAddOverlay')">Cancel</button>
       <button class="confirm" id="bulkAddConfirmBtn" onclick="confirmBulkAdd()">Add cards</button>
     </div>
@@ -6482,6 +6494,8 @@ function openDeckModal(path){
   document.getElementById('importStatus').className='import-status';
   importedCards = null;
   importedCardsIsFromDocx = false;
+  document.getElementById('deckFetchProgressWrap').style.display = 'none'; // in case a previous use left this visible
+  document.getElementById('deckModalRow').querySelectorAll('button').forEach(b => b.disabled = false);
   document.getElementById('deckOverlay').classList.add('active');
   setTimeout(()=>document.getElementById('deckNameInput').focus(), 50);
 }
@@ -6580,7 +6594,9 @@ async function fetchAndStoreImageUrl(url){
    array multiple images already use), run once at deck-creation time —
    not during live preview — so this is the only place import ever
    touches the network. */
-async function resolvePendingImageUrls(cards){
+async function resolvePendingImageUrls(cards, onProgress){
+  let done = 0;
+  const total = cards.reduce((n, c) => n + (c.pendingImageUrls ? (c.pendingImageUrls.front.length + c.pendingImageUrls.back.length) : 0), 0);
   for (const c of cards){
     if (!c.pendingImageUrls) continue;
     for (const side of ['front', 'back']){
@@ -6600,6 +6616,8 @@ async function resolvePendingImageUrls(cards){
           const field = side === 'front' ? 'question' : 'answer';
           c[field] = (c[field] ? c[field] + '\n' : '') + url;
         }
+        done++;
+        if (onProgress) onProgress(done, total);
       }
     }
   }
@@ -7354,8 +7372,20 @@ async function confirmDeck(){
     // of the live preview.
     const pendingUrlCount = importedCards.reduce((n, c) => n + (c.pendingImageUrls ? (c.pendingImageUrls.front.length + c.pendingImageUrls.back.length) : 0), 0);
     if (pendingUrlCount){
-      showToast(`Fetching ${pendingUrlCount} image${pendingUrlCount!==1?'s':''}…`);
-      await resolvePendingImageUrls(importedCards);
+      const wrap = document.getElementById('deckFetchProgressWrap');
+      const label = document.getElementById('deckFetchProgressLabel');
+      const fill = document.getElementById('deckFetchProgressFill');
+      const row = document.getElementById('deckModalRow');
+      wrap.style.display = 'block';
+      row.querySelectorAll('button').forEach(b => b.disabled = true);
+      label.textContent = `Fetching image 0 of ${pendingUrlCount}…`;
+      fill.style.width = '0%';
+      await resolvePendingImageUrls(importedCards, (done, total) => {
+        label.textContent = `Fetching image ${done} of ${total}…`;
+        fill.style.width = Math.round((done / total) * 100) + '%';
+      });
+      wrap.style.display = 'none';
+      row.querySelectorAll('button').forEach(b => b.disabled = false);
     }
     const refMap = new Map();
     const newCards = importedCards.map((c, idx)=>{
@@ -7417,6 +7447,8 @@ function openBulkAddModal(deckId){
   document.getElementById('bulkFileNameLabel').textContent = '';
   document.getElementById('bulkImportStatus').textContent = '';
   document.getElementById('bulkImportStatus').className = 'import-status';
+  document.getElementById('bulkFetchProgressWrap').style.display = 'none';
+  document.getElementById('bulkAddModalRow').querySelectorAll('button').forEach(b => b.disabled = false);
   document.getElementById('bulkAddOverlay').classList.add('active');
   setTimeout(()=> document.getElementById('bulkImportText').focus(), 50);
 }
@@ -7620,8 +7652,20 @@ async function confirmBulkAdd(){
   }
   const pendingUrlCount = cards.reduce((n, c) => n + (c.pendingImageUrls ? (c.pendingImageUrls.front.length + c.pendingImageUrls.back.length) : 0), 0);
   if (pendingUrlCount){
-    showToast(`Fetching ${pendingUrlCount} image${pendingUrlCount!==1?'s':''}…`);
-    await resolvePendingImageUrls(cards);
+    const wrap = document.getElementById('bulkFetchProgressWrap');
+    const label = document.getElementById('bulkFetchProgressLabel');
+    const fill = document.getElementById('bulkFetchProgressFill');
+    const row = document.getElementById('bulkAddModalRow');
+    wrap.style.display = 'block';
+    row.querySelectorAll('button').forEach(b => b.disabled = true);
+    label.textContent = `Fetching image 0 of ${pendingUrlCount}…`;
+    fill.style.width = '0%';
+    await resolvePendingImageUrls(cards, (done, total) => {
+      label.textContent = `Fetching image ${done} of ${total}…`;
+      fill.style.width = Math.round((done / total) * 100) + '%';
+    });
+    wrap.style.display = 'none';
+    row.querySelectorAll('button').forEach(b => b.disabled = false);
   }
 
   const dupInfo = analyzeBulkDuplicates(deckId, cards);
