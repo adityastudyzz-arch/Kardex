@@ -451,62 +451,6 @@ button{font-family:inherit;cursor:pointer;}
   padding:26px 30px 60px;
 }
 
-/* ---------- Home dashboard ---------- */
-#homeScreen{
-  display:none;
-  flex:1;
-  overflow-y:auto;
-  padding:26px 30px 60px;
-}
-.home-shell{ max-width:960px; margin:0 auto; }
-.home-greet{ font-family:'Fraunces', serif; font-size:23px; font-weight:500; color:var(--ink); }
-.home-greet-sub{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; margin-bottom:22px; }
-.home-stat-strip{ display:flex; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--paper-raised); margin-bottom:20px; box-shadow:var(--shadow); }
-.home-stat{ flex:1; padding:16px 18px; border-right:1px solid var(--line); }
-.home-stat:last-child{ border-right:none; }
-.home-stat .num{ font-family:'IBM Plex Mono', monospace; font-size:21px; font-weight:600; color:var(--ink); }
-.home-stat .lbl{ font-size:10.5px; letter-spacing:.03em; text-transform:uppercase; color:var(--ink-soft); margin-top:4px; }
-.home-card{ background:var(--paper-raised); border:1px solid var(--line); border-radius:14px; padding:22px 24px 20px; margin-bottom:18px; box-shadow:var(--shadow); }
-.home-card-title{ font-family:'Fraunces', serif; font-size:16px; font-weight:500; color:var(--ink); }
-.home-card-sub{ font-size:12px; color:var(--ink-soft); margin:3px 0 16px; }
-.home-row-2{ display:grid; grid-template-columns:1.15fr 1fr; gap:18px; }
-@media(max-width:820px){ .home-row-2{ grid-template-columns:1fr; } }
-
-.hm-wrap{ overflow-x:auto; padding-bottom:4px; }
-.hm-inner{ display:inline-block; min-width:100%; }
-.hm-months{ display:grid; grid-template-columns:26px repeat(53, 11px); column-gap:3px; font-size:9.5px; color:var(--ink-soft); margin-bottom:6px; font-family:'IBM Plex Mono', monospace; }
-.hm-grid{ display:grid; grid-template-columns:26px repeat(53, 11px); grid-template-rows:repeat(7, 11px); grid-auto-flow:column; column-gap:3px; row-gap:3px; }
-.hm-daylabel{ grid-column:1; font-size:8.5px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace; display:flex; align-items:center; }
-.hm-cell{ width:11px; height:11px; border-radius:3px; cursor:default; }
-.hm-legend{ display:flex; align-items:center; gap:6px; margin-top:12px; font-size:10px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace; }
-.hm-legend .sw{ width:10px; height:10px; border-radius:3px; }
-
-.home-forecast{ display:flex; align-items:flex-end; gap:12px; height:130px; padding:0 2px; }
-.hf-col{ flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; gap:6px; }
-.hf-bar-stack{ width:100%; max-width:30px; display:flex; flex-direction:column-reverse; border-radius:5px 5px 3px 3px; overflow:hidden; }
-.hf-bar-review{ background:var(--teal-dark); width:100%; min-height:1px; }
-.hf-bar-new{ background:var(--em-3, #6FBE97); width:100%; min-height:1px; }
-.hf-total{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink); font-weight:500; }
-.hf-day{ font-size:10.5px; color:var(--ink-soft); margin-top:2px; }
-.hf-day.today{ color:var(--teal-dark); font-weight:700; }
-.home-forecast-legend{ display:flex; gap:16px; margin-top:14px; font-size:11px; color:var(--ink-soft); }
-.home-forecast-legend span{ display:flex; align-items:center; gap:6px; }
-.home-forecast-legend .sw{ width:9px; height:9px; border-radius:3px; }
-
-.home-maturity-body{ display:flex; align-items:center; gap:24px; }
-.home-donut-figure{ position:relative; flex-shrink:0; }
-.home-donut-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.home-donut-center .num{ font-family:'IBM Plex Mono', monospace; font-size:19px; font-weight:600; color:var(--ink); }
-.home-donut-center .lbl{ font-size:9px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; margin-top:2px; }
-.home-mat-legend{ display:flex; flex-direction:column; gap:12px; flex:1; }
-.home-mat-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.home-mat-row-left{ display:flex; align-items:center; gap:9px; }
-.home-mat-sw{ width:10px; height:10px; border-radius:3px; flex-shrink:0; }
-.home-mat-name{ font-size:13px; color:var(--ink); }
-.home-mat-desc{ font-size:11px; color:var(--ink-soft); }
-.home-mat-count{ font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600; color:var(--ink); }
-.home-empty{ font-size:13px; color:var(--ink-soft); text-align:center; padding:30px 10px; }
-
 /* Empty state */
 .empty{
   margin-top:60px;
@@ -1005,212 +949,6 @@ button{font-family:inherit;cursor:pointer;}
 .grade-btn.again:hover{ background:var(--maroon); color:#fff; border-color:var(--maroon); }
 .grade-btn.good{ color:var(--teal-dark); }
 .grade-btn.good:hover{ background:var(--teal); color:#fff; border-color:var(--teal); }
-.grade-btn.hard{ color:var(--kraft-dark); }
-.grade-btn.hard:hover{ background:var(--kraft); color:#fff; border-color:var(--kraft); }
-.grade-btn.easy{ color:var(--teal-dark); }
-.grade-btn.easy:hover{ background:var(--teal-dark); color:#fff; border-color:var(--teal-dark); }
-
-/* ---------------------------------------------------------
-   CRAM THEME — a deliberately distinct dark/amber palette,
-   scoped to .cram-theme so it never leaks into the rest of the app.
-   Applied to both the Hub (schedule/analytics) and the drill screen,
-   so the whole cram experience feels like one consistent space.
---------------------------------------------------------- */
-.cram-theme{
-  --cram-bg:#181410; --cram-card:#241D16; --cram-line:#3A2E22;
-  --cram-1:#5C2E14; --cram-2:#A8461E; --cram-3:#E8641F; --cram-4:#FF6B35;
-  --cram-text:#F4EFE8; --cram-text-soft:#B9AEA0;
-  background:var(--cram-bg); color:var(--cram-text);
-}
-.cram-icon-btn{
-  width:28px; height:28px; border-radius:50%; border:1px solid var(--cram-line);
-  background:var(--cram-card); color:var(--cram-text-soft);
-  display:flex; align-items:center; justify-content:center; flex-shrink:0;
-}
-.cram-icon-btn:hover{ border-color:var(--cram-4); color:var(--cram-4); }
-
-/* ---------- Cram drill screen ---------- */
-#cramScreen{
-  display:none;
-  flex:1;
-  flex-direction:column;
-  align-items:center;
-  padding:30px 20px 40px;
-  overflow-y:auto;
-}
-#cramScreen.active{ display:flex; }
-.cram-head{
-  width:100%; max-width:560px;
-  display:flex; align-items:center; gap:12px;
-  margin-bottom:16px;
-}
-.cram-head #cramTitle{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--cram-4); }
-.cram-exam-chip{
-  display:inline-flex; align-items:center; gap:6px;
-  background:var(--cram-card); color:var(--cram-text-soft);
-  padding:3px 10px; border-radius:100px; font-size:10.5px; letter-spacing:.02em;
-  border:1px solid var(--cram-line); font-family:'IBM Plex Mono', monospace;
-}
-.cram-progress-row{
-  width:100%; max-width:560px; display:flex; align-items:center; gap:14px;
-  margin-bottom:20px;
-}
-/* Smaller than a typical dashboard ring — this is a corner indicator
-   during a fast drilling pass, not a headline stat. */
-.cram-ring-figure{ position:relative; flex-shrink:0; width:46px; height:46px; }
-.cram-ring-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.cram-ring-center .num{ font-family:'IBM Plex Mono', monospace; font-size:10px; font-weight:600; color:var(--cram-text); }
-.cram-progress-copy{ flex:1; min-width:0; }
-.cram-progress-copy .headline{ font-family:'Fraunces', serif; font-size:14.5px; font-style:italic; color:var(--cram-text); }
-.cram-progress-copy .sub{ font-size:11px; color:var(--cram-text-soft); margin-top:3px; }
-
-.cram-card-badges{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; justify-content:center; }
-.cram-badge{
-  font-family:'IBM Plex Mono', monospace; font-size:10px; padding:4px 9px;
-  border-radius:100px; border:1px solid var(--cram-line); color:var(--cram-text-soft);
-  background:var(--cram-card);
-}
-.cram-badge.safe{ color:#8EDCB0; border-color:#3A5942; }
-.cram-badge.risk{ color:#FF8B7A; border-color:#5C2E22; }
-
-.cram-theme .face{ background:var(--cram-card); border-color:var(--cram-line); color:var(--cram-text); box-shadow:0 14px 34px rgba(0,0,0,.4); }
-.cram-theme .face .holes{ display:none; }
-.cram-theme .face.back{ color:var(--cram-text-soft); }
-/* .highlight has no explicit text color in the normal theme (it just
-   inherits --ink, which is dark, and sits fine on its light-yellow
-   background). Inside the cram theme the inherited color becomes
-   --cram-text (near-white), which is illegible on that same light
-   background — so it needs an explicit dark color here specifically. */
-.cram-theme .face .highlight{ color:#2A2110; }
-/* Card tables carry their own light-theme colors (--surface background,
-   --ink text) regardless of theme, so inside a dark cram card the text
-   silently inherits near-white and lands on a near-white table
-   background — invisible. Give the table its own dark-theme colors
-   here rather than relying on inheritance. */
-.cram-theme .face .card-table{ background:var(--cram-card); border-color:var(--cram-line); }
-.cram-theme .face .card-table th{ background:var(--cram-line); color:var(--cram-text); border-color:var(--cram-line); }
-.cram-theme .face .card-table td{ background:transparent; color:var(--cram-text); border-color:var(--cram-line); }
-.cram-theme .flip-hint{ color:var(--cram-text-soft); font-family:'IBM Plex Mono', monospace; letter-spacing:.06em; text-transform:uppercase; font-size:9.5px; }
-.cram-theme .grade-btn{ background:var(--cram-card); border-color:var(--cram-line); box-shadow:none; font-weight:600; }
-.cram-theme .grade-btn.again{ color:#FF8B7A; }
-.cram-theme .grade-btn.again:hover{ background:#3A1E1A; border-color:#FF8B7A; color:#FF8B7A; }
-.cram-theme .grade-btn.hard{ color:#FFC98A; }
-.cram-theme .grade-btn.hard:hover{ background:#3A2A18; border-color:#FFC98A; color:#FFC98A; }
-.cram-theme .grade-btn.good{ color:#8EDCB0; }
-.cram-theme .grade-btn.good:hover{ background:#1C3128; border-color:#8EDCB0; color:#8EDCB0; }
-.cram-theme .grade-btn.easy{ color:#6FD6E8; }
-.cram-theme .grade-btn.easy:hover{ background:#173033; border-color:#6FD6E8; color:#6FD6E8; }
-
-.cram-info-note{
-  display:flex; gap:10px; align-items:flex-start; margin-top:18px; padding:14px 16px;
-  background:var(--cram-card); border:1px solid var(--cram-line); border-radius:10px;
-  font-size:12px; color:var(--cram-text-soft); line-height:1.55; max-width:560px; width:100%;
-}
-.cram-info-note b{ color:var(--cram-text); }
-
-.cram-done{
-  text-align:center;
-  flex:1;
-  display:none;
-  flex-direction:column; align-items:center; justify-content:center;
-}
-.cram-done.active{ display:flex; }
-.cram-theme .cram-done .stamp{
-  font-family:'Caveat', cursive; font-size:34px; color:var(--cram-4);
-  border:2px solid var(--cram-4); border-radius:10px; padding:8px 22px;
-  display:inline-block; transform:rotate(-3deg); margin-bottom:18px;
-}
-.cram-theme .cram-done .action-btn.primary{ background:var(--cram-4); border-color:var(--cram-4); }
-.cram-theme .cram-done .action-btn.primary:hover{ background:var(--cram-3); border-color:var(--cram-3); }
-
-/* ---------------------------------------------------------
-   CRAM HUB — full screen: exam-date + days/budget setup when no
-   plan exists yet; schedule list (sequentially locked) + cram-specific
-   analytics once one does.
---------------------------------------------------------- */
-#cramHub{
-  display:none;
-  flex:1;
-  overflow-y:auto;
-  padding:30px 24px 50px;
-}
-#cramHub.active{ display:block; }
-.cram-hub-shell{ max-width:640px; margin:0 auto; }
-.cram-hub-head{ display:flex; align-items:center; gap:12px; margin-bottom:22px; }
-.cram-hub-head .cram-hub-title{ flex:1; min-width:0; }
-.cram-hub-head .cram-hub-title h2{ font-family:'Fraunces', serif; font-size:19px; font-weight:500; color:var(--cram-text); }
-.cram-hub-head .cram-hub-title .sub{ font-size:11.5px; color:var(--cram-text-soft); margin-top:2px; }
-
-.cram-setup-copy{ font-size:12.5px; color:var(--cram-text-soft); line-height:1.55; margin-bottom:18px; }
-.cram-setup-label{ font-size:11.5px; color:var(--cram-text-soft); display:block; margin-bottom:7px; letter-spacing:.02em; }
-.cram-field{ margin-bottom:22px; }
-.cram-hub-card{
-  background:var(--cram-card); border:1px solid var(--cram-line); border-radius:14px;
-  padding:22px 22px 20px; margin-bottom:16px;
-}
-#cramHub input[type="date"]{
-  width:100%; background:var(--cram-bg); border:1px solid var(--cram-line); color:var(--cram-text);
-  border-radius:8px; padding:9px 11px; font-family:'IBM Plex Mono', monospace; font-size:13px;
-}
-.cram-stepper{ display:flex; align-items:center; gap:14px; }
-.cram-stepper button{
-  width:32px; height:32px; border-radius:8px; border:1px solid var(--cram-line);
-  background:var(--cram-bg); font-size:16px; cursor:pointer; color:var(--cram-text);
-}
-.cram-stepper button:hover{ border-color:var(--cram-4); color:var(--cram-4); }
-.cram-stepper span{ font-size:15px; font-weight:600; min-width:70px; text-align:center; color:var(--cram-text); }
-.cram-field input[type="range"]{ width:100%; display:block; accent-color:var(--cram-4); margin-top:6px; }
-.cram-feas-hint{ display:flex; align-items:flex-start; gap:8px; margin-top:6px; padding:10px 12px; border-radius:9px; font-size:12px; line-height:1.5; }
-.cram-feas-hint.ok{ background:#1C3128; color:#8EDCB0; }
-.cram-feas-hint.bad{ background:#3A1E1A; color:#FF8B7A; }
-.cram-sched-ok{ font-size:14.5px; color:var(--cram-text); line-height:1.4; margin-bottom:16px; }
-.cram-sched-ok b{ color:var(--cram-4); }
-.cram-sched-warn{ background:#3A1E1A; border:1px solid #5C2E22; border-radius:10px; padding:14px 16px; margin-bottom:16px; font-size:12.5px; color:#FF8B7A; line-height:1.5; }
-.cram-sched-warn b{ color:#FF8B7A; }
-.cram-sched-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-.cram-sched-actions .mini-btn{
-  padding:7px 12px; border-radius:8px; border:1px solid #5C2E22; background:transparent;
-  color:#FF8B7A; font-size:11.5px; font-weight:600; cursor:pointer;
-}
-.cram-sched-actions .mini-btn:hover{ border-color:#FF8B7A; }
-.cram-sched-note{ font-size:11.5px; opacity:.8; margin-top:8px; }
-
-.cram-hub-btn-row{ display:flex; gap:8px; justify-content:flex-end; margin-top:4px; }
-.cram-hub-btn{
-  padding:10px 18px; border-radius:9px; border:1px solid var(--cram-line);
-  background:transparent; color:var(--cram-text-soft); font-size:13px; cursor:pointer; font-weight:500;
-}
-.cram-hub-btn:hover{ border-color:var(--cram-4); color:var(--cram-4); }
-.cram-hub-btn.primary{ background:var(--cram-4); border-color:var(--cram-4); color:#1C1108; font-weight:600; }
-.cram-hub-btn.primary:hover{ background:var(--cram-3); border-color:var(--cram-3); }
-
-.cram-schedule-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
-.cram-day-row{
-  display:flex; align-items:center; gap:14px; padding:14px 16px;
-  background:var(--cram-card); border:1px solid var(--cram-line); border-radius:12px;
-  cursor:pointer; transition:border-color .15s ease;
-}
-.cram-day-row.locked{ cursor:default; opacity:.55; }
-.cram-day-row.done{ border-color:#3A5942; }
-.cram-day-row:not(.locked):hover{ border-color:var(--cram-4); }
-.cram-day-icon{ width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:var(--cram-bg); border:1px solid var(--cram-line); color:var(--cram-text-soft); }
-.cram-day-row.done .cram-day-icon{ color:#8EDCB0; border-color:#3A5942; }
-.cram-day-row:not(.locked):not(.done) .cram-day-icon{ color:var(--cram-4); border-color:var(--cram-4); }
-.cram-day-info{ flex:1; min-width:0; }
-.cram-day-info .name{ font-size:13.5px; font-weight:600; color:var(--cram-text); }
-.cram-day-info .meta{ font-size:11px; color:var(--cram-text-soft); margin-top:2px; font-family:'IBM Plex Mono', monospace; }
-.cram-day-status{ font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:var(--cram-text-soft); flex-shrink:0; }
-.cram-day-row.done .cram-day-status{ color:#8EDCB0; }
-.cram-day-row:not(.locked):not(.done) .cram-day-status{ color:var(--cram-4); }
-
-.cram-analytics-title{ font-family:'Fraunces', serif; font-size:15px; color:var(--cram-text); margin-bottom:12px; }
-.cram-analytics-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
-@media(max-width:520px){ .cram-analytics-grid{ grid-template-columns:1fr 1fr; } }
-.cram-analytics-stat{ background:var(--cram-card); border:1px solid var(--cram-line); border-radius:12px; padding:14px 14px 12px; }
-.cram-analytics-stat .num{ font-family:'IBM Plex Mono', monospace; font-size:19px; font-weight:600; color:var(--cram-4); }
-.cram-analytics-stat .lbl{ font-size:10px; color:var(--cram-text-soft); text-transform:uppercase; letter-spacing:.03em; margin-top:4px; }
-.cram-hub-edit-link{ font-size:11.5px; color:var(--cram-text-soft); text-decoration:underline; cursor:pointer; background:none; border:none; padding:0; }
-.cram-hub-edit-link:hover{ color:var(--cram-4); }
 
 .study-done{
   text-align:center;
@@ -1970,12 +1708,6 @@ button{font-family:inherit;cursor:pointer;}
       <span class="mark">Kardex</span>
       <span class="sub">card index</span>
     </div>
-    <div class="starred-row" id="homeRow" onclick="viewHome()">
-      <span class="star-ico home-ico">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
-      </span>
-      <span class="tname">Home</span>
-    </div>
     <div class="starred-row" id="starredRow" onclick="viewStarred()">
       <span class="star-ico">★</span>
       <span class="tname">Starred</span>
@@ -2000,9 +1732,9 @@ button{font-family:inherit;cursor:pointer;}
     <nav id="tree"></nav>
     <div class="sidebar-foot">
       <div class="account-box" id="accountBox"></div>
-      <button class="new-folder-btn" onclick="sidebarCramClick()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17a2.5 2.5 0 0 0 2.5-2.5c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7.5 7.5 0 1 1-15 0c0-1.153.433-2.294 1-3 1.05 2 2.5 3 4.5 3z"/></svg>
-        Cram
+      <button class="new-folder-btn" onclick="openFolderModal(state.currentPath)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        New drawer
       </button>
     </div>
   </aside>
@@ -2038,59 +1770,6 @@ button{font-family:inherit;cursor:pointer;}
     </div>
 
     <div id="content"></div>
-
-    <div id="homeScreen">
-      <div class="home-shell">
-        <div class="home-greet" id="homeGreet">Welcome back</div>
-        <div class="home-greet-sub" id="homeGreetSub">—</div>
-
-        <div class="home-stat-strip">
-          <div class="home-stat"><div class="num mono" id="homeStatStreak">—</div><div class="lbl">Current streak</div></div>
-          <div class="home-stat"><div class="num mono" id="homeStatLongest">—</div><div class="lbl">Longest streak</div></div>
-          <div class="home-stat"><div class="num mono" id="homeStatTotal">—</div><div class="lbl">Cards reviewed</div></div>
-          <div class="home-stat"><div class="num mono" id="homeStatAccuracy">—</div><div class="lbl">30-day accuracy</div></div>
-        </div>
-
-        <div class="home-card">
-          <div class="home-card-title">Review activity</div>
-          <div class="home-card-sub">Every square is a day · darker = more cards reviewed</div>
-          <div class="hm-wrap"><div class="hm-inner" id="homeHeatmap"></div></div>
-        </div>
-
-        <div class="home-row-2">
-          <div class="home-card">
-            <div class="home-card-title">Due this week</div>
-            <div class="home-card-sub">New cards vs. scheduled reviews, next 7 days</div>
-            <div class="home-forecast" id="homeForecast"></div>
-            <div class="home-forecast-legend">
-              <span><span class="sw" style="background:var(--em-3, #6FBE97)"></span>New</span>
-              <span><span class="sw" style="background:var(--teal-dark)"></span>Review</span>
-            </div>
-          </div>
-          <div class="home-card">
-            <div class="home-card-title">Card maturity</div>
-            <div class="home-card-sub">How much of your deck has "graduated"</div>
-            <div class="home-maturity-body">
-              <div class="home-donut-figure" id="homeDonut"></div>
-              <div class="home-mat-legend">
-                <div class="home-mat-row">
-                  <div class="home-mat-row-left"><span class="home-mat-sw" style="background:var(--line-2)"></span><div><div class="home-mat-name">New</div><div class="home-mat-desc">Not yet reviewed</div></div></div>
-                  <div class="home-mat-count" id="homeMatNew">—</div>
-                </div>
-                <div class="home-mat-row">
-                  <div class="home-mat-row-left"><span class="home-mat-sw" style="background:var(--em-3, #6FBE97)"></span><div><div class="home-mat-name">Young</div><div class="home-mat-desc">Interval &lt; 21 days</div></div></div>
-                  <div class="home-mat-count" id="homeMatYoung">—</div>
-                </div>
-                <div class="home-mat-row">
-                  <div class="home-mat-row-left"><span class="home-mat-sw" style="background:var(--teal-dark)"></span><div><div class="home-mat-name">Mature</div><div class="home-mat-desc">Interval &ge; 21 days</div></div></div>
-                  <div class="home-mat-count" id="homeMatMature">—</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div id="study">
       <div class="study-head">
@@ -2163,125 +1842,6 @@ button{font-family:inherit;cursor:pointer;}
           <button class="action-btn" onclick="exitStudy()">Back to drawers</button>
         </div>
         <button class="action-btn tough-btn" id="toughRedoBtn" style="display:none;" onclick="redoTough()"></button>
-      </div>
-    </div>
-
-    <div id="cramScreen" class="cram-theme">
-      <div class="cram-head">
-        <button class="cram-icon-btn" onclick="exitCramSession()" aria-label="Back" title="Back">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-        </button>
-        <span id="cramTitle">—</span>
-        <span class="cram-exam-chip" id="cramExamChip">—</span>
-      </div>
-
-      <div class="cram-progress-row">
-        <div class="cram-ring-figure" id="cramRing"></div>
-        <div class="cram-progress-copy">
-          <div class="headline" id="cramHeadline">—</div>
-          <div class="sub" id="cramSub">—</div>
-        </div>
-      </div>
-
-      <div id="cramBody" style="width:100%; flex:1; min-height:0; display:flex; flex-direction:column; align-items:center;">
-        <div class="study-center">
-          <div class="cram-card-badges" id="cramCardBadges"></div>
-          <div class="card-stage">
-            <div class="flash-card" id="cramFlashCard" onclick="flipCramCard()">
-              <div class="face front">
-                <div class="face-text" id="cramFrontText"></div>
-              </div>
-              <div class="face back">
-                <div class="face-text" id="cramBackText"></div>
-              </div>
-            </div>
-          </div>
-          <div class="flip-hint">tap card to flip</div>
-
-          <div class="grade-row" id="cramGradeRow" style="margin-top:20px;">
-            <button class="grade-btn again" onclick="rateCramCard(1)">Again</button>
-            <button class="grade-btn hard" onclick="rateCramCard(2)">Hard</button>
-            <button class="grade-btn good" onclick="rateCramCard(3)">Good</button>
-            <button class="grade-btn easy" onclick="rateCramCard(4)">Easy</button>
-          </div>
-
-          <div class="cram-info-note" id="cramInfoNote" style="display:none;">
-            <span class="cram-icon-btn" style="width:20px; height:20px; flex-shrink:0;">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/><circle cx="12" cy="12" r="10"/></svg>
-            </span>
-            <div><b>Why this rep won't reschedule the card:</b> only the first review of a card each day updates its real schedule. This is a same-day repeat, so it's just for drilling — no scheduling risk either way.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="cram-done" id="cramDone">
-        <div class="stamp">crammed ✓</div>
-        <div class="mono" style="font-size:12px; color:var(--cram-text-soft); margin:14px 0 20px;" id="cramDoneSummary"></div>
-        <div class="done-actions">
-          <button class="action-btn primary" onclick="exitCramSession()">Back to schedule</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="cramHub" class="cram-theme">
-      <div class="cram-hub-shell">
-        <div class="cram-hub-head">
-          <button class="cram-icon-btn" onclick="exitCramHub()" aria-label="Back" title="Back">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-          </button>
-          <div class="cram-hub-title">
-            <h2 id="cramHubName">—</h2>
-            <div class="sub" id="cramHubSub">—</div>
-          </div>
-          <span class="cram-exam-chip" id="cramHubExamChip" style="display:none;">—</span>
-        </div>
-
-        <div id="cramHubSetup">
-          <div class="cram-hub-card">
-            <p class="cram-setup-copy">
-              Cram Mode lets a card resurface more than once in one sitting to drill it in. Only your first
-              rating of each card today updates its real schedule — extra reps just check whether you'll
-              still remember it by exam day.
-            </p>
-            <label class="cram-setup-label">Exam date</label>
-            <input id="cramExamDateInput" type="date" oninput="cramOnDateInput()">
-          </div>
-
-          <div class="cram-hub-card">
-            <div class="cram-field">
-              <label class="cram-setup-label">Days until you want to be done</label>
-              <div class="cram-stepper">
-                <button type="button" onclick="cramAdjustDays(-1)">−</button>
-                <span id="cramDaysVal" class="mono">3 days</span>
-                <button type="button" onclick="cramAdjustDays(1)">+</button>
-              </div>
-            </div>
-            <div class="cram-field" style="margin-bottom:6px;">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <label class="cram-setup-label" style="margin-bottom:0;">Minutes per day</label>
-                <span id="cramMinutesVal" class="mono" style="font-size:13px; font-weight:600; color:var(--cram-text);"></span>
-              </div>
-              <input id="cramMinutesSlider" type="range" min="15" max="240" step="15" oninput="cramOnSliderInput()">
-            </div>
-            <div id="cramFeasHint" class="cram-feas-hint"></div>
-          </div>
-
-          <div class="cram-hub-btn-row">
-            <button class="cram-hub-btn" id="cramSetupCancelBtn" onclick="exitCramHub()">Cancel</button>
-            <button class="cram-hub-btn primary" onclick="cramBuildScheduleFromSetup()">Build schedule →</button>
-          </div>
-        </div>
-
-        <div id="cramHubPlan" style="display:none;">
-          <div id="cramScheduleHeadline"></div>
-          <div class="cram-schedule-list" id="cramScheduleList"></div>
-          <div style="text-align:right; margin-bottom:26px;">
-            <button class="cram-hub-edit-link" onclick="cramEditPlan()">Adjust days / budget</button>
-          </div>
-
-          <div class="cram-analytics-title">Cram analytics — this drawer</div>
-          <div class="cram-analytics-grid" id="cramAnalyticsGrid"></div>
-        </div>
       </div>
     </div>
 
@@ -2453,15 +2013,6 @@ button{font-family:inherit;cursor:pointer;}
       <div class="settings-btn-row">
         <button class="action-btn" onclick="closeModal('settingsOverlay'); document.getElementById('backupFileInput').click();">Import</button>
         <button class="action-btn" onclick="closeModal('settingsOverlay'); openExportModal();">Export</button>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <p class="settings-label">Default landing page</p>
-      <p class="settings-hint">What you see when Kardex loads — the review-activity dashboard, or straight into your drawers.</p>
-      <div class="settings-btn-row">
-        <button class="action-btn" id="landingHomeBtn" onclick="setDefaultLanding('home')">Home dashboard</button>
-        <button class="action-btn" id="landingRootBtn" onclick="setDefaultLanding('root')">Root folder</button>
       </div>
     </div>
 
@@ -3346,13 +2897,12 @@ function buildTreeSkeleton(node){
   if (node.type === 'folder'){
     return {
       id: node.id, type: 'folder', name: node.name,
-      collapsed: node.collapsed, createdAt: node.createdAt, examDate: node.examDate || null,
-      cramPlan: node.cramPlan || null,
+      collapsed: node.collapsed, createdAt: node.createdAt,
       children: node.children.map(buildTreeSkeleton)
     };
   }
   // deck — cards/sessions live in kardex_decks, not here
-  return { id: node.id, type: 'deck', name: node.name, lastStudied: node.lastStudied, createdAt: node.createdAt, examDate: node.examDate || null, cramPlan: node.cramPlan || null };
+  return { id: node.id, type: 'deck', name: node.name, lastStudied: node.lastStudied, createdAt: node.createdAt };
 }
 
 /* Every deck needs its own row pushed to the cloud at LEAST once — a
@@ -4512,12 +4062,12 @@ function restoreFromTrash(trashId){
     // empty placeholder, and not dependent on a cloud round-trip.
     function reliveFromSkeleton(skel){
       if (skel.type === 'folder'){
-        return { id: skel.id, type: 'folder', name: skel.name, collapsed: !!skel.collapsed, createdAt: skel.createdAt || Date.now(), examDate: skel.examDate || null, cramPlan: skel.cramPlan || null, children: skel.children.map(reliveFromSkeleton) };
+        return { id: skel.id, type: 'folder', name: skel.name, collapsed: !!skel.collapsed, createdAt: skel.createdAt || Date.now(), children: skel.children.map(reliveFromSkeleton) };
       }
       const existingDeck = nodeById(skel.id); // shouldn't normally exist, but guards against double-restore
       if (existingDeck) return existingDeck;
       const snap = (entry.deckSnapshots && entry.deckSnapshots[skel.id]) || { cards: [], sessions: [] };
-      return { id: skel.id, type: 'deck', name: skel.name, lastStudied: skel.lastStudied, createdAt: skel.createdAt || Date.now(), examDate: skel.examDate || null, cramPlan: skel.cramPlan || null, cards: snap.cards, sessions: snap.sessions };
+      return { id: skel.id, type: 'deck', name: skel.name, lastStudied: skel.lastStudied, createdAt: skel.createdAt || Date.now(), cards: snap.cards, sessions: snap.sessions };
     }
     const revived = reliveFromSkeleton(entry.node);
     parent.children.push(revived);
@@ -4606,23 +4156,12 @@ const state = {
   toughSort: 'subject',     // 'subject' | 'recent'
   toughFilter: '',
   toughCollapsed: new Set(),   // deck ids collapsed in the tough-cards drawer
-  viewingHome: false,       // set from kardex_default_landing at boot — see loadDefaultLandingPref()
   managingDeckId: null,     // set while browsing/editing a deck's cards
   notebookDeckId: null,     // set while browsing the notebook (continuous, formatted) view of a deck
   clipboard: null,          // { id, mode: 'copy' | 'cut' }
   peekStack: [],            // saved study sessions, pushed when following a "see also" link mid-study
   homeStatsExpanded: false, // mobile dashboard: stat cards collapsed to one row by default
 };
-/* Default landing page — 'home' (review-activity dashboard) or 'root'
-   (straight into the drawer tree, the pre-existing behavior). Read once
-   at boot and applied to state.viewingHome below; changing it later
-   (Settings) only affects the NEXT load, not the current session, same
-   as how most apps treat a "start on" preference. */
-function loadDefaultLandingPref(){
-  try { return localStorage.getItem('kardex_default_landing') === 'root' ? 'root' : 'home'; }
-  catch(e){ return 'home'; }
-}
-state.viewingHome = loadDefaultLandingPref() === 'home';
 loadPendingSession();
 
 /* ---------------------------------------------------------
@@ -4924,695 +4463,6 @@ function dueCount(){
   const srsMap = getSRSMap();
   return cardIndexList.filter(i => isCardDue(i.card.id, srsMap)).length;
 }
-
-/* ---------------------------------------------------------
-   FSRS (FSRS-4.5 default weights) — used ONLY by Cram Mode.
-   The main app's due-dates keep using the SM-2-style scheduler above
-   (computeAllSRS) — that stays untouched and everyone's existing
-   schedule keeps working exactly as it did. FSRS is layered in
-   specifically for Cram Mode's job: predicting whether you'll still
-   remember a card by a target exam date, which SM-2's flat
-   ease/interval model isn't built to answer.
---------------------------------------------------------- */
-const FSRS_W = [0.4072,1.1829,3.1262,15.4722,7.2102,0.5316,1.0651,0.0234,1.616,0.1544,1.0824,1.9813,0.0953,0.2975,2.2042,0.2407,2.9466];
-const FSRS_DECAY = -0.5;
-const FSRS_FACTOR = 19/81;
-function fsrsRetrievability(elapsedDays, stability){
-  if (!stability || stability <= 0) return 0;
-  return Math.pow(1 + FSRS_FACTOR * Math.max(0,elapsedDays) / stability, FSRS_DECAY);
-}
-function fsrsInitialStability(rating){ return Math.max(0.1, FSRS_W[rating-1]); }
-function fsrsInitialDifficulty(rating){
-  return Math.min(10, Math.max(1, FSRS_W[4] - (rating-3)*FSRS_W[5]));
-}
-function fsrsNextDifficulty(prevD, rating){
-  const d = prevD - FSRS_W[6]*(rating-3);
-  return Math.min(10, Math.max(1, FSRS_W[7]*fsrsInitialDifficulty(4) + (1-FSRS_W[7])*d));
-}
-function fsrsNextStability(prevD, prevS, r, rating){
-  if (rating === 1){
-    return FSRS_W[11] * Math.pow(prevD, -FSRS_W[12]) * (Math.pow(prevS+1, FSRS_W[13]) - 1) * Math.exp((1-r)*FSRS_W[14]);
-  }
-  const hardPenalty = rating === 2 ? FSRS_W[15] : 1;
-  const easyBonus = rating === 4 ? FSRS_W[16] : 1;
-  return prevS * (1 + Math.exp(FSRS_W[8]) * (11-prevD) * Math.pow(prevS, -FSRS_W[9]) * (Math.exp((1-r)*FSRS_W[10]) - 1) * hardPenalty * easyBonus);
-}
-// Applies one FSRS review. prevState is {difficulty, stability, lastReviewTs} or null for a card FSRS hasn't seen yet.
-function fsrsReview(prevState, rating, now){
-  now = now || Date.now();
-  const DAY = 86400000;
-  if (!prevState || !prevState.stability){
-    return { difficulty: fsrsInitialDifficulty(rating), stability: fsrsInitialStability(rating), lastReviewTs: now };
-  }
-  const elapsedDays = (now - prevState.lastReviewTs) / DAY;
-  const r = fsrsRetrievability(elapsedDays, prevState.stability);
-  const nextD = fsrsNextDifficulty(prevState.difficulty, rating);
-  const nextS = Math.max(0.1, fsrsNextStability(prevState.difficulty, prevState.stability, r, rating));
-  return { difficulty: nextD, stability: nextS, lastReviewTs: now };
-}
-// Cram mode has no real FSRS review history to draw on (the main app
-// never ran FSRS), so a card entering a cram session gets a rough prior
-// built from its existing SM-2 state — its current interval stands in
-// for stability, difficulty starts at a neutral mid-point. A card with
-// no review history at all gets no prior; its first cram rating seeds
-// FSRS fresh, same as any brand-new card would.
-function fsrsPriorForCard(cardId){
-  const s = getSRSMap().get(cardId);
-  if (!s || !s.reps) return null;
-  const DAY = 86400000;
-  const approxLastReview = s.dueDate - Math.max(1, s.interval) * DAY;
-  return { difficulty: 5, stability: Math.max(0.5, s.interval || 1), lastReviewTs: approxLastReview };
-}
-
-/* ---------------------------------------------------------
-   CRAM MODE
-   A self-contained session, deliberately kept separate from the normal
-   study/resume/pending-session machinery: cram sessions are short,
-   live, same-sitting drills, not something meant to be paused and
-   picked up on another device the way a real study session is.
-   Only the FIRST rating of a card in a session touches the real
-   reviewLog (so the main SM-2 scheduler and cloud sync stay exactly as
-   they already work) — later same-day reps only update the in-memory
-   FSRS estimate and decide whether the card needs to resurface again
-   before this session ends.
---------------------------------------------------------- */
-let cramState = null;
-let cramSetupCtx = null; // { nodeId, examDate, days, minutesPerDay, preview }
-
-function collectDueCardsForNode(node){
-  const srsMap = getSRSMap();
-  const out = [];
-  (function walk(n){
-    if (n.type === 'folder'){ n.children.forEach(walk); return; }
-    n.cards.forEach(c => { if (isCardDue(c.id, srsMap)) out.push({ card:c, deck:n }); });
-  })(node);
-  return out;
-}
-function daysUntil(dateStr){
-  const DAY = 86400000;
-  const target = new Date(dateStr + 'T23:59:59').getTime();
-  return Math.max(0, Math.ceil((target - Date.now()) / DAY));
-}
-function fmtCramMinutes(mins){
-  mins = Math.max(0, Math.round(mins));
-  const h = Math.floor(mins/60), m = mins%60;
-  return (h>0 ? h+'h ' : '') + (m>0 || h===0 ? m+'m' : '');
-}
-// Small/medium/long by answer length — same idea floated for the daily
-// random-20 deck: sorts cards by how long they typically take, so a
-// day's queue isn't accidentally all the slow ones by chance.
-function answerBucketFor(card){
-  const len = (card.b || '').replace(/<[^>]*>/g,'').trim().length;
-  if (len < 40) return 'small';
-  if (len < 120) return 'medium';
-  return 'long';
-}
-// Real per-bucket median seconds, pulled from your own review history
-// (questionSeconds + answerSeconds in reviewLog) rather than a guess.
-// Cram-mode-logged entries carry no face-timing data (0/0), so they're
-// excluded here — including them would skew every median toward zero.
-function computeBucketMedianSeconds(){
-  const byBucket = { small:[], medium:[], long:[] };
-  reviewLog.forEach(r => {
-    const secs = (r.questionSeconds||0) + (r.answerSeconds||0);
-    if (secs <= 0) return;
-    const entry = cardIndex.get(r.cardId);
-    if (!entry) return;
-    byBucket[answerBucketFor(entry.card)].push(secs);
-  });
-  function median(arr){
-    if (!arr.length) return null;
-    const s = arr.slice().sort((a,b)=>a-b);
-    const mid = Math.floor(s.length/2);
-    return s.length % 2 ? s[mid] : (s[mid-1]+s[mid])/2;
-  }
-  const DEFAULTS = { small:15, medium:30, long:55 }; // seconds — used only until you have enough real history
-  return {
-    small: median(byBucket.small) || DEFAULTS.small,
-    medium: median(byBucket.medium) || DEFAULTS.medium,
-    long: median(byBucket.long) || DEFAULTS.long,
-  };
-}
-// Pure — computes feasibility + a proposed day-by-day card split for a
-// candidate (days, minutesPerDay). Doesn't touch node.cramPlan; that
-// only happens once the person confirms in Step 3.
-function buildCramPlanPreview(node, days, minutesPerDay){
-  const due = collectDueCardsForNode(node);
-  const med = computeBucketMedianSeconds();
-  const buckets = { small:[], medium:[], long:[] };
-  due.forEach(x => buckets[answerBucketFor(x.card)].push(x.card.id));
-  const counts = { small:buckets.small.length, medium:buckets.medium.length, long:buckets.long.length };
-  const totalCards = due.length;
-  const totalSec = counts.small*med.small + counts.medium*med.medium + counts.long*med.long;
-  const totalMin = totalSec/60;
-  const requiredPerDay = days>0 ? totalMin/days : totalMin;
-  const feasible = minutesPerDay >= requiredPerDay - 0.5;
-  const minDaysNeeded = minutesPerDay>0 ? Math.max(1, Math.ceil(totalMin/minutesPerDay)) : days;
-  const avgSecPerCard = totalCards>0 ? totalSec/totalCards : 0;
-  const availableMin = days*minutesPerDay;
-  const cardsThatFit = avgSecPerCard>0 ? Math.floor((availableMin*60)/avgSecPerCard) : totalCards;
-  const overflowCards = Math.max(0, totalCards - cardsThatFit);
-
-  // Balance each bucket proportionally across days, shuffled within
-  // each bucket first — same reasoning as the daily random-20 deck:
-  // day 2 shouldn't end up all long cards just by chance.
-  const dayAssignments = Array.from({length:days}, () => []);
-  ['small','medium','long'].forEach(b => {
-    const ids = buckets[b].slice();
-    for (let i=ids.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [ids[i],ids[j]] = [ids[j],ids[i]]; }
-    const per = Math.floor(ids.length/days);
-    let idx = 0;
-    for (let d=0; d<days; d++){
-      const take = (d===days-1) ? ids.length-idx : per;
-      dayAssignments[d].push(...ids.slice(idx, idx+take));
-      idx += take;
-    }
-  });
-  dayAssignments.forEach(arr => { for (let i=arr.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [arr[i],arr[j]] = [arr[j],arr[i]]; } });
-
-  return { med, counts, totalCards, totalMin, requiredPerDay, feasible, minDaysNeeded, overflowCards, dayAssignments, days, minutesPerDay };
-}
-
-function openCramSetup(id){
-  closeCtxMenu();
-  const node = nodeById(id);
-  if (!node) return;
-  const due = collectDueCardsForNode(node);
-  if (!due.length){ showToast(`Nothing due in "${node.name}" right now.`); return; }
-  showCramHub(id);
-}
-
-function showCramHub(nodeId){
-  const node = nodeById(nodeId);
-  if (!node) return;
-  const plan = node.cramPlan;
-
-  cramSetupCtx = {
-    nodeId,
-    examDate: (plan && plan.examDate) || node.examDate || '',
-    days: (plan && plan.days) || 3,
-    minutesPerDay: (plan && plan.minutesPerDay) || 60,
-    preview: null,
-  };
-
-  document.getElementById('topbar').style.display = 'none';
-  document.getElementById('content').style.display = 'none';
-  document.getElementById('homeScreen').style.display = 'none';
-  document.getElementById('cramScreen').classList.remove('active');
-  document.getElementById('cramHub').classList.add('active');
-
-  document.getElementById('cramHubName').textContent = node.name;
-  const due = collectDueCardsForNode(node);
-  document.getElementById('cramHubSub').textContent = `${due.length} card${due.length===1?'':'s'} due right now`;
-
-  const input = document.getElementById('cramExamDateInput');
-  input.value = cramSetupCtx.examDate;
-  input.min = new Date().toISOString().slice(0,10);
-  document.getElementById('cramDaysVal').textContent = cramSetupCtx.days + (cramSetupCtx.days===1?' day':' days');
-  document.getElementById('cramMinutesSlider').value = cramSetupCtx.minutesPerDay;
-  document.getElementById('cramMinutesVal').textContent = fmtCramMinutes(cramSetupCtx.minutesPerDay);
-  updateCramFeasHint();
-
-  // Show the schedule screen whenever a plan exists at all — including
-  // one where every day is already done. Previously this only counted
-  // as a "live" plan while at least one day was still incomplete, which
-  // meant finishing the last (or only) day silently dumped you back on
-  // the setup form instead of showing the finished schedule.
-  const hasPlan = !!(plan && plan.dayAssignments && plan.dayAssignments.length);
-  if (hasPlan){
-    // Already have a plan for this node — go straight to the schedule
-    // instead of asking "how much time do you have" all over again.
-    cramSetupCtx.preview = buildCramPlanPreview(node, plan.days, plan.minutesPerDay);
-    cramSetupCtx.preview.dayAssignments = plan.dayAssignments; // keep the ORIGINAL split, don't reshuffle a plan already in progress
-    showCramHubPlan();
-  } else {
-    showCramHubSetup();
-  }
-}
-function showCramHubSetup(){
-  document.getElementById('cramHubSetup').style.display = '';
-  document.getElementById('cramHubPlan').style.display = 'none';
-  document.getElementById('cramHubExamChip').style.display = 'none';
-}
-function showCramHubPlan(){
-  document.getElementById('cramHubSetup').style.display = 'none';
-  document.getElementById('cramHubPlan').style.display = '';
-  const chip = document.getElementById('cramHubExamChip');
-  const daysLeft = daysUntil(cramSetupCtx.examDate);
-  chip.style.display = '';
-  chip.textContent = daysLeft <= 0 ? 'Exam day' : `${daysLeft} day${daysLeft===1?'':'s'} to exam`;
-  renderCramSchedule();
-  renderCramAnalytics();
-}
-function exitCramHub(){
-  document.getElementById('cramHub').classList.remove('active');
-  cramSetupCtx = null;
-  document.getElementById('topbar').style.display = '';
-  render();
-}
-function cramOnDateInput(){
-  cramSetupCtx.examDate = document.getElementById('cramExamDateInput').value;
-}
-function cramAdjustDays(delta){
-  cramSetupCtx.days = Math.max(1, Math.min(30, cramSetupCtx.days + delta));
-  document.getElementById('cramDaysVal').textContent = cramSetupCtx.days + (cramSetupCtx.days===1?' day':' days');
-  updateCramFeasHint();
-}
-function cramOnSliderInput(){
-  cramSetupCtx.minutesPerDay = +document.getElementById('cramMinutesSlider').value;
-  document.getElementById('cramMinutesVal').textContent = fmtCramMinutes(cramSetupCtx.minutesPerDay);
-  updateCramFeasHint();
-}
-function updateCramFeasHint(){
-  const node = nodeById(cramSetupCtx.nodeId);
-  const preview = buildCramPlanPreview(node, cramSetupCtx.days, cramSetupCtx.minutesPerDay);
-  const el = document.getElementById('cramFeasHint');
-  if (preview.feasible){
-    el.className = 'cram-feas-hint ok';
-    el.innerHTML = `<span>✓</span><span>On pace — about <b>${fmtCramMinutes(preview.requiredPerDay)}/day</b> clears all ${preview.totalCards.toLocaleString()} cards in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'}.</span>`;
-  } else {
-    el.className = 'cram-feas-hint bad';
-    el.innerHTML = `<span>⚠</span><span>At ${fmtCramMinutes(cramSetupCtx.minutesPerDay)}/day this needs ~<b>${fmtCramMinutes(preview.requiredPerDay)}/day</b> to cover everything in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'}.</span>`;
-  }
-}
-function cramBuildScheduleFromSetup(){
-  if (!cramSetupCtx.examDate){ showToast('Pick an exam date first.'); return; }
-  const node = nodeById(cramSetupCtx.nodeId);
-  cramSetupCtx.preview = buildCramPlanPreview(node, cramSetupCtx.days, cramSetupCtx.minutesPerDay);
-  persistCramPlanFromCtx();
-  showCramHubPlan();
-}
-function cramEditPlan(){
-  showCramHubSetup();
-}
-function cramApplyExtendDays(){
-  cramSetupCtx.days = cramSetupCtx.preview.minDaysNeeded;
-  cramSetupCtx.preview = buildCramPlanPreview(nodeById(cramSetupCtx.nodeId), cramSetupCtx.days, cramSetupCtx.minutesPerDay);
-  persistCramPlanFromCtx();
-  renderCramSchedule();
-}
-function cramApplyRaiseBudget(){
-  cramSetupCtx.minutesPerDay = Math.min(480, Math.ceil(cramSetupCtx.preview.requiredPerDay/15)*15);
-  cramSetupCtx.preview = buildCramPlanPreview(nodeById(cramSetupCtx.nodeId), cramSetupCtx.days, cramSetupCtx.minutesPerDay);
-  persistCramPlanFromCtx();
-  renderCramSchedule();
-}
-// Reuses an in-progress plan's day assignments verbatim when nothing
-// material changed — a card already scheduled for Day 2 should stay
-// there, not get randomly redealt every time the Hub is reopened.
-function persistCramPlanFromCtx(){
-  const node = nodeById(cramSetupCtx.nodeId);
-  const p = cramSetupCtx.preview;
-  const existing = node.cramPlan;
-  const reuseExisting = !!(existing && existing.examDate === cramSetupCtx.examDate
-    && existing.days === cramSetupCtx.days && existing.minutesPerDay === cramSetupCtx.minutesPerDay
-    && existing.completedDays && existing.completedDays.some(d => !d));
-  if (reuseExisting){
-    cramSetupCtx.preview.dayAssignments = existing.dayAssignments;
-  } else {
-    node.cramPlan = {
-      createdAt: Date.now(),
-      examDate: cramSetupCtx.examDate,
-      days: cramSetupCtx.days,
-      minutesPerDay: cramSetupCtx.minutesPerDay,
-      dayAssignments: p.dayAssignments,
-      completedDays: new Array(cramSetupCtx.days).fill(false),
-      safeCardIds: [], // cumulative, cross-day "predicted to hold by exam" set — see rateCramCard
-    };
-  }
-  node.examDate = cramSetupCtx.examDate;
-  persistTextState(node.type === 'deck' ? node.id : undefined);
-}
-
-const CRAM_LOCK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
-const CRAM_CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-const CRAM_PLAY_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
-
-function renderCramSchedule(){
-  const p = cramSetupCtx.preview;
-  const node = nodeById(cramSetupCtx.nodeId);
-  const plan = node.cramPlan;
-  const allDone = plan.completedDays.every(Boolean);
-  const headline = document.getElementById('cramScheduleHeadline');
-  if (allDone){
-    headline.innerHTML = `<div class="cram-sched-ok">✓ Plan complete — all ${plan.days} day${plan.days===1?'':'s'} done. Adjust days/budget below to start a fresh plan.</div>`;
-  } else if (p.feasible){
-    headline.innerHTML = `<div class="cram-sched-ok">To clear ${p.totalCards.toLocaleString()} cards in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'}, you'll need about <b>${fmtCramMinutes(p.requiredPerDay)}/day</b>.</div>`;
-  } else {
-    headline.innerHTML = `
-      <div class="cram-sched-warn">
-        <div>At ${fmtCramMinutes(cramSetupCtx.minutesPerDay)}/day this needs ~<b>${fmtCramMinutes(p.requiredPerDay)}/day</b> to cover everything in ${cramSetupCtx.days} day${cramSetupCtx.days===1?'':'s'}.</div>
-        <div class="cram-sched-actions">
-          <button class="mini-btn" onclick="cramApplyExtendDays()">Extend to ${p.minDaysNeeded} day${p.minDaysNeeded===1?'':'s'}</button>
-          <button class="mini-btn" onclick="cramApplyRaiseBudget()">Raise to ${fmtCramMinutes(p.requiredPerDay)}/day</button>
-        </div>
-        <div class="cram-sched-note">Or just start Day 1 below — later days will simply have more to catch up on.</div>
-      </div>`;
-  }
-
-  const pending = loadCramPendingSession();
-  const list = document.getElementById('cramScheduleList');
-  list.innerHTML = p.dayAssignments.map((ids, i) => {
-    const secs = ids.reduce((sum, cid) => {
-      const entry = cardIndex.get(cid);
-      const bucket = entry ? answerBucketFor(entry.card) : 'medium';
-      return sum + p.med[bucket];
-    }, 0);
-    const done = plan.completedDays[i];
-    const locked = !done && i > 0 && !plan.completedDays[i-1];
-    const isPending = !done && !locked && pending && pending.nodeId === cramSetupCtx.nodeId && pending.planDayIndex === i;
-    const icon = done ? CRAM_CHECK_SVG : (locked ? CRAM_LOCK_SVG : CRAM_PLAY_SVG);
-    const status = done ? 'Done' : (locked ? 'Locked' : (isPending ? 'Resume' : 'Ready'));
-    const cls = 'cram-day-row' + (done ? ' done' : '') + (locked ? ' locked' : '');
-    const click = locked ? '' : ` onclick="startCramDay('${cramSetupCtx.nodeId}', ${i})"`;
-    return `<div class="${cls}"${click}>
-      <span class="cram-day-icon">${icon}</span>
-      <div class="cram-day-info">
-        <div class="name">Day ${i+1}${isPending ? ' — in progress' : ''}</div>
-        <div class="meta">${ids.length} card${ids.length===1?'':'s'} · ${fmtCramMinutes(secs/60)}</div>
-      </div>
-      <span class="cram-day-status">${status}</span>
-    </div>`;
-  }).join('');
-}
-
-// Cram-specific analytics, scoped to this node's own cards and history —
-// deliberately separate from the Home dashboard's general review stats,
-// since these numbers only make sense in the context of cramming
-// toward a specific exam.
-function renderCramAnalytics(){
-  const node = nodeById(cramSetupCtx.nodeId);
-  const plan = node.cramPlan;
-  const allIds = new Set();
-  (function walk(n){
-    if (n.type === 'folder'){ n.children.forEach(walk); return; }
-    n.cards.forEach(c => allIds.add(c.id));
-  })(node);
-
-  const cramEntries = reviewLog.filter(r => r.cram && allIds.has(r.cardId));
-  const totalReps = cramEntries.length;
-  const goodCount = cramEntries.filter(r => r.good).length;
-  const accuracy = totalReps ? Math.round(goodCount/totalReps*100) : null;
-  const daysDone = plan.completedDays.filter(Boolean).length;
-  const safeCount = (plan.safeCardIds || []).length;
-
-  const stats = [
-    { num: totalReps.toLocaleString(), lbl: 'Cram reps logged' },
-    { num: accuracy == null ? '—' : accuracy + '%', lbl: 'Cram accuracy' },
-    { num: `${daysDone}/${plan.days}`, lbl: 'Days completed' },
-    { num: safeCount.toLocaleString(), lbl: 'Predicted exam-safe' },
-  ];
-  document.getElementById('cramAnalyticsGrid').innerHTML = stats.map(s =>
-    `<div class="cram-analytics-stat"><div class="num">${s.num}</div><div class="lbl">${s.lbl}</div></div>`
-  ).join('');
-}
-
-// ---------------------------------------------------------------
-// Cram pause/resume — deliberately its own storage key, completely
-// separate from the normal flashcard screen's pendingSession. A paused
-// cram day should never show up as "Resume" on the normal study
-// screen, and vice versa; the two card queues are different things.
-// Local-only (this device), not synced to the cloud — cram sessions
-// are single-sitting activity, unlike a normal study session someone
-// might reasonably pick back up on another device days later.
-// ---------------------------------------------------------------
-const CRAM_PENDING_KEY = 'kardex_cram_pending_session';
-function saveCramPendingSession(){
-  const s = cramState;
-  if (!s) return;
-  try {
-    localStorage.setItem(CRAM_PENDING_KEY, JSON.stringify({
-      nodeId: s.node.id,
-      planDayIndex: s.planDayIndex,
-      totalPlanDays: s.totalPlanDays,
-      examDate: s.examDate,
-      queue: s.queue,
-      pos: s.pos,
-      repsToday: Array.from(s.repsToday.entries()),
-      fsrsByCard: Array.from(s.fsrsByCard.entries()),
-      totalStarting: s.totalStarting,
-      seenCount: s.seenCount,
-      safeCount: s.safeCount,
-    }));
-  } catch(e){}
-}
-function loadCramPendingSession(){
-  try {
-    const raw = localStorage.getItem(CRAM_PENDING_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch(e){ return null; }
-}
-function clearCramPendingSession(){
-  try { localStorage.removeItem(CRAM_PENDING_KEY); } catch(e){}
-}
-
-function startCramDay(nodeId, dayIndex){
-  const node = nodeById(nodeId);
-  if (!node || !node.cramPlan) return;
-  const plan = node.cramPlan;
-
-  const pending = loadCramPendingSession();
-  if (pending && pending.nodeId === nodeId && pending.planDayIndex === dayIndex){
-    resumeCramDay(node, pending);
-    return;
-  }
-  // Starting a DIFFERENT day/node than whatever pending session exists
-  // (if any) — that old one is stale now, clear it rather than leaving
-  // an orphaned resume point nothing will ever match again.
-  clearCramPendingSession();
-
-  const idsForDay = (plan.dayAssignments[dayIndex] || []).filter(cid => cardIndex.has(cid));
-  if (!idsForDay.length){
-    // Nothing left for this day (cards deleted/moved since the plan was
-    // built) — mark it done and roll straight into whatever's next
-    // rather than showing an empty session.
-    plan.completedDays[dayIndex] = true;
-    persistTextState(node.type === 'deck' ? node.id : undefined);
-    const nextIdx = plan.completedDays.findIndex(d => !d);
-    if (nextIdx < 0){
-      showToast(`Nothing left to cram in "${node.name}" — plan complete.`);
-      showCramHub(nodeId);
-      return;
-    }
-    startCramDay(nodeId, nextIdx);
-    return;
-  }
-  const order = idsForDay.slice();
-  for (let i = order.length-1; i>0; i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [order[i], order[j]] = [order[j], order[i]];
-  }
-  const byId = new Map();
-  order.forEach(cid => { const entry = cardIndex.get(cid); if (entry) byId.set(cid, entry); });
-
-  cramState = {
-    node,
-    planDayIndex: dayIndex,
-    totalPlanDays: plan.days,
-    examDate: plan.examDate,
-    examDaysLeft: daysUntil(plan.examDate),
-    byId,
-    queue: order,
-    pos: 0,
-    repsToday: new Map(),   // cardId -> reps this session
-    fsrsByCard: new Map(),  // cardId -> {difficulty, stability, lastReviewTs}
-    flipped: false,
-    totalStarting: order.length,
-    seenCount: 0,
-    safeCount: 0,
-  };
-  enterCramScreen();
-  saveCramPendingSession();
-  renderCramCard();
-}
-function resumeCramDay(node, pending){
-  const byId = new Map();
-  pending.queue.forEach(cid => { const entry = cardIndex.get(cid); if (entry) byId.set(cid, entry); });
-  cramState = {
-    node,
-    planDayIndex: pending.planDayIndex,
-    totalPlanDays: pending.totalPlanDays,
-    examDate: pending.examDate,
-    examDaysLeft: daysUntil(pending.examDate),
-    byId,
-    queue: pending.queue.filter(cid => cardIndex.has(cid)),
-    pos: Math.min(pending.pos, Math.max(0, pending.queue.length-1)),
-    repsToday: new Map(pending.repsToday),
-    fsrsByCard: new Map(pending.fsrsByCard),
-    flipped: false,
-    totalStarting: pending.totalStarting,
-    seenCount: pending.seenCount,
-    safeCount: pending.safeCount,
-  };
-  enterCramScreen();
-  renderCramCard();
-}
-function enterCramScreen(){
-  document.getElementById('cramHub').classList.remove('active');
-  document.getElementById('topbar').style.display = 'none';
-  document.getElementById('content').style.display = 'none';
-  document.getElementById('homeScreen').style.display = 'none';
-  document.getElementById('study').classList.remove('active');
-  document.getElementById('cramScreen').classList.add('active');
-  document.getElementById('cramDone').classList.remove('active');
-  document.getElementById('cramBody').style.display = 'flex';
-  document.getElementById('cramExamChip').textContent =
-    cramState.examDaysLeft <= 0 ? 'Exam day' : `${cramState.examDaysLeft} day${cramState.examDaysLeft===1?'':'s'} to exam`;
-}
-
-// FSRS's retrievability prediction is what decides whether a card is
-// "safe" — instead of a blunt interval cap, we ask the more useful
-// question directly: if nothing else happens between now and the exam,
-// how likely are you to still recall this card? Below 85%, it goes
-// back into today's queue for another drill; at or above, it's left
-// alone rather than over-drilling something already solid.
-const CRAM_SAFE_THRESHOLD = 0.85;
-
-function renderCramCard(){
-  const s = cramState;
-  if (!s) return;
-  if (s.pos >= s.queue.length){ finishCramSession(); return; }
-  const cardId = s.queue[s.pos];
-  const entry = s.byId.get(cardId);
-  s.flipped = false;
-  const card = document.getElementById('cramFlashCard');
-  card.classList.add('no-anim');
-  card.classList.remove('flipped');
-  requestAnimationFrame(()=> card.classList.remove('no-anim'));
-
-  document.getElementById('cramTitle').textContent = s.node.name + (s.totalPlanDays>1 ? ` · Day ${s.planDayIndex+1}/${s.totalPlanDays}` : '');
-  document.getElementById('cramFrontText').innerHTML = renderCardFace(entry.card, 'front');
-  document.getElementById('cramBackText').innerHTML = renderCardFace(entry.card, 'back');
-
-  const reps = s.repsToday.get(cardId) || 0;
-  const badges = [`<span class="cram-badge">Rep ${reps+1} today</span>`];
-  const infoNote = document.getElementById('cramInfoNote');
-  if (reps > 0){
-    const fsrs = s.fsrsByCard.get(cardId);
-    const r = fsrs ? Math.round(fsrsRetrievability(s.examDaysLeft, fsrs.stability)*100) : null;
-    badges.push(`<span class="cram-badge">FSRS: not rescheduling this rep</span>`);
-    if (r != null) badges.push(`<span class="cram-badge ${r>=CRAM_SAFE_THRESHOLD*100?'safe':'risk'}">${r}% predicted recall by exam</span>`);
-    infoNote.style.display = 'flex';
-  } else {
-    infoNote.style.display = 'none';
-  }
-  document.getElementById('cramCardBadges').innerHTML = badges.join('');
-
-  const remaining = s.queue.length - s.pos;
-  document.getElementById('cramHeadline').textContent = `${remaining} card${remaining===1?'':'s'} left this session`;
-  document.getElementById('cramSub').textContent = `${s.seenCount} rep${s.seenCount===1?'':'s'} so far · ${s.safeCount} of ${s.totalStarting} marked safe`;
-  renderCramRing((s.totalStarting - remaining) / Math.max(1,s.totalStarting));
-}
-// Reuses the same markdown formatter the normal study screen uses for
-// card text, so cram cards render identically rather than through a
-// second, likely-drifting copy of that logic. (Image badges are
-// intentionally skipped here — cram is a fast drilling pass, and the
-// normal study screen remains the place to review image-heavy cards.)
-function renderCardFace(card, face){
-  const raw = face === 'front' ? card.f : card.b;
-  return `<div class="face-text-inner">${formatInlineMarkdown(raw || '')}</div>`;
-}
-function flipCramCard(){
-  cramState.flipped = !cramState.flipped;
-  document.getElementById('cramFlashCard').classList.toggle('flipped', cramState.flipped);
-}
-function rateCramCard(rating){
-  const s = cramState;
-  if (!s) return;
-  const cardId = s.queue[s.pos];
-  const entry = s.byId.get(cardId);
-  const reps = s.repsToday.get(cardId) || 0;
-  const isFirstRepToday = reps === 0;
-  s.repsToday.set(cardId, reps + 1);
-  s.seenCount++;
-
-  const prior = s.fsrsByCard.get(cardId) || fsrsPriorForCard(cardId);
-  const updated = fsrsReview(prior, rating, Date.now());
-  s.fsrsByCard.set(cardId, updated);
-
-  // Only the first rating of the day for this card touches the real
-  // scheduler — later reps this session are drill-only, exactly what
-  // the Cram Mode setup screen promises.
-  if (isFirstRepToday){
-    const good = rating >= 3;
-    reviewLog.push({ cardId, good, ts: Date.now(), questionSeconds:0, answerSeconds:0, usedHint:false, cram:true });
-    srsMapCache = null;
-  }
-
-  const retrAtExam = fsrsRetrievability(s.examDaysLeft, updated.stability);
-  const isSafe = retrAtExam >= CRAM_SAFE_THRESHOLD;
-  const plan = s.node.cramPlan;
-
-  s.queue.splice(s.pos, 1);
-  if (isSafe){
-    s.safeCount++;
-    if (plan){
-      if (!plan.safeCardIds) plan.safeCardIds = [];
-      if (!plan.safeCardIds.includes(cardId)) plan.safeCardIds.push(cardId);
-    }
-  } else {
-    // A card that looked safe on an earlier day but slipped back below
-    // threshold today shouldn't still count toward the Hub's
-    // "predicted exam-safe" total.
-    if (plan && plan.safeCardIds){
-      const idx = plan.safeCardIds.indexOf(cardId);
-      if (idx !== -1) plan.safeCardIds.splice(idx, 1);
-    }
-    // Not confident it'll hold — push it back in a few cards later
-    // rather than immediately (immediate repeats just get memorized by
-    // position, not actually learned).
-    const reinsertAt = Math.min(s.queue.length, s.pos + 3 + Math.floor(Math.random()*3));
-    s.queue.splice(reinsertAt, 0, cardId);
-  }
-  persistTextState(entry.deck.id);
-  saveCramPendingSession(); // keeps the pause/resume point current after every rating
-  renderCramCard();
-}
-function finishCramSession(){
-  const s = cramState;
-  document.getElementById('cramBody').style.display = 'none';
-  document.getElementById('cramDone').classList.add('active');
-  clearCramPendingSession(); // day is done, nothing left to resume
-
-  const node = s.node;
-  const plan = node.cramPlan;
-  let progressMsg = '';
-  if (plan && typeof s.planDayIndex === 'number'){
-    plan.completedDays[s.planDayIndex] = true;
-    persistTextState(node.type === 'deck' ? node.id : undefined);
-    const remainingDays = plan.completedDays.filter(d => !d).length;
-    progressMsg = remainingDays > 0
-      ? ` · Day ${s.planDayIndex+1} of ${plan.days} done, ${remainingDays} to go`
-      : ` · Plan complete — all ${plan.days} day${plan.days===1?'':'s'} done`;
-  }
-  document.getElementById('cramDoneSummary').textContent =
-    `${s.totalStarting} card${s.totalStarting===1?'':'s'} in "${node.name}"${progressMsg} · ${s.seenCount} total rep${s.seenCount===1?'':'s'}`;
-  updateToughCount();
-}
-function exitCramSession(){
-  document.getElementById('cramScreen').classList.remove('active');
-  const nodeId = cramState ? cramState.node.id : (cramSetupCtx && cramSetupCtx.nodeId);
-  cramState = null;
-  if (nodeId){
-    showCramHub(nodeId); // land back on the schedule, not the main app
-  } else {
-    document.getElementById('topbar').style.display = '';
-    render();
-  }
-}
-function renderCramRing(progress){
-  const fig = document.getElementById('cramRing');
-  if (!fig) return;
-  const size=46, stroke=5, r=(size-stroke)/2, c=2*Math.PI*r;
-  const dash = Math.max(0,Math.min(1,progress))*c;
-  fig.innerHTML =
-    `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--cram-line)" stroke-width="${stroke}"/>
-      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--cram-4)" stroke-width="${stroke}"
-        stroke-dasharray="${dash} ${c-dash}" stroke-linecap="round" transform="rotate(-90 ${size/2} ${size/2})"/>
-    </svg>
-    <div class="cram-ring-center"><span class="num">${Math.round(progress*100)}%</span></div>`;
-}
 function studyDueCards(){
   const srsMap = getSRSMap();
   const due = cardIndexList.filter(i => isCardDue(i.card.id, srsMap)).map(i => i.card);
@@ -5654,7 +4504,6 @@ function renderTreeNode(node, path){
     state.currentPath = path;
     state.viewingStarred = false;
     state.viewingTough = false;
-    state.viewingHome = false;
     state.managingDeckId = null;
     closeSidebar();
     render();
@@ -5734,7 +4583,7 @@ function renderCrumbs(){
     const span = document.createElement('span');
     span.className = 'crumb' + (i===state.currentPath.length-1 ? ' current':'');
     span.textContent = n.name;
-    span.onclick = ()=>{ state.currentPath = state.currentPath.slice(0,i+1); state.viewingStarred=false; state.viewingTough=false; state.viewingHome=false; state.managingDeckId=null; render(); };
+    span.onclick = ()=>{ state.currentPath = state.currentPath.slice(0,i+1); state.viewingStarred=false; state.viewingTough=false; state.managingDeckId=null; render(); };
     el.appendChild(span);
     if (i < state.currentPath.length-1){
       const sep = document.createElement('span');
@@ -5744,26 +4593,9 @@ function renderCrumbs(){
   });
 }
 
-function viewHome(){
-  state.viewingStarred = false;
-  state.viewingTough = false;
-  state.managingDeckId = null;
-  state.search = '';
-  const searchInputEl = document.getElementById('searchInput');
-  if (searchInputEl) searchInputEl.value = '';
-  state.viewingHome = true;
-  closeSidebar();
-  render();
-}
-function sidebarCramClick(){
-  const id = state.currentPath[state.currentPath.length-1];
-  closeSidebar();
-  openCramSetup(id);
-}
 function viewStarred(){
   state.viewingStarred = true;
   state.viewingTough = false;
-  state.viewingHome = false;
   state.managingDeckId = null;
   state.search = '';
   document.getElementById('searchInput').value = '';
@@ -5773,7 +4605,6 @@ function viewStarred(){
 
 function viewTough(){
   state.viewingTough = true;
-  state.viewingHome = false;
   state.viewingStarred = false;
   state.managingDeckId = null;
   state.search = '';
@@ -6129,7 +4960,6 @@ function openCardManager(deckId){
   state.managingDeckId = deckId;
   state.viewingStarred = false;
   state.viewingTough = false;
-  state.viewingHome = false;
   closeSidebar();
   render();
 }
@@ -7088,7 +5918,7 @@ function folderTile(f){
       <div class="fmeta">${decks} deck${decks!==1?'s':''} · ${cards} card${cards!==1?'s':''}</div>
     </div>`;
   div.querySelector('.kebab-btn').onclick = (e)=>{ e.stopPropagation(); openCtxMenu(e, f.id); };
-  div.onclick = ()=>{ state.currentPath = [...state.currentPath, f.id]; state.viewingStarred=false; state.viewingTough=false; state.viewingHome=false; state.managingDeckId=null; render(); };
+  div.onclick = ()=>{ state.currentPath = [...state.currentPath, f.id]; state.viewingStarred=false; state.viewingTough=false; state.managingDeckId=null; render(); };
   div.ondragstart = (e)=>{ e.dataTransfer.setData('text/plain', f.id); div.classList.add('dragging'); };
   div.ondragend = ()=> div.classList.remove('dragging');
   div.ondragover = (e)=>{ e.preventDefault(); div.classList.add('dragover'); };
@@ -7256,13 +6086,12 @@ function goToSearchCardResult(deckId, cardId){
   document.getElementById('searchInput').value = '';
   state.viewingStarred = false;
   state.viewingTough = false;
-  state.viewingHome = false;
   state.currentPath = pathToNode(deckId).slice(0, -1);
   openCardManager(deckId);
   openCardEditor(deckId, cardId);
 }
 
-function onSearch(v){ state.search = v; state.viewingStarred = false; state.viewingTough = false; state.viewingHome=false; state.managingDeckId = null; render(); }
+function onSearch(v){ state.search = v; state.viewingStarred = false; state.viewingTough = false; state.managingDeckId = null; render(); }
 
 /* --- mobile search overlay: same underlying search, presented as a
    blurred spotlight-style panel instead of replacing the page content --- */
@@ -7280,7 +6109,6 @@ function goToOverlayResult(kind, id){
   closeSearchOverlay();
   state.viewingStarred = false;
   state.viewingTough = false;
-  state.viewingHome = false;
   state.managingDeckId = null;
   if (kind === 'folder'){
     state.currentPath = pathToNode(id);
@@ -8926,7 +7754,6 @@ function openCtxMenu(e, id){
     html += `<button onclick="openCardManager('${id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="7" y="3" width="12" height="16" rx="2" transform="rotate(-8 13 11)"/><rect x="5" y="6" width="12" height="16" rx="2"/></svg> Manage cards</button><hr>`;
   }
   if (!isRoot){
-    html += `<button onclick="openCramSetup('${id}')">🔥 Cram this</button><hr>`;
     html += `<button onclick="startRename('${id}')">✎ Rename</button>`;
     html += `<button onclick="openMoveModal('${id}')">⇥ Move to…</button>`;
     html += `<button onclick="clipboardCopy('${id}')">⧉ Copy</button>`;
@@ -9530,7 +8357,6 @@ function startSearchDeckPeek(deck, query){
   closeSearchOverlay();
   state.viewingStarred = false;
   state.viewingTough = false;
-  state.viewingHome = false;
   state.managingDeckId = null;
   closeSidebar();
 
@@ -10290,238 +9116,6 @@ function sanitizeCurrentPath(){
     }
   }
 }
-/* ---------------------------------------------------------
-   HOME DASHBOARD
-   All real data — reviewLog for activity/accuracy, getSRSMap() for
-   due-dates and maturity buckets. No seeded/fake numbers.
---------------------------------------------------------- */
-function homeUserFirstName(){
-  if (!currentUser) return null;
-  const meta = currentUser.user_metadata || {};
-  const name = meta.full_name || meta.name || '';
-  return name ? name.split(' ')[0] : null;
-}
-function dayKey(ts){
-  const d = new Date(ts);
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-}
-function renderHomeScreen(){
-  const name = homeUserFirstName();
-  document.getElementById('homeGreet').textContent = name ? `Welcome back, ${name}` : 'Welcome back';
-  const lastEntry = reviewLog.length ? reviewLog[reviewLog.length-1] : null;
-  document.getElementById('homeGreetSub').textContent = lastEntry
-    ? `Last studied ${new Date(lastEntry.ts).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`
-    : 'No reviews logged yet — pick a drawer to get started.';
-
-  renderHomeStats();
-  renderHomeHeatmap();
-  renderHomeForecast();
-  renderHomeMaturity();
-}
-
-function renderHomeStats(){
-  const DAY = 86400000;
-  // reviews-per-day set, for streak + heatmap
-  const byDay = new Map();
-  reviewLog.forEach(r => byDay.set(dayKey(r.ts), (byDay.get(dayKey(r.ts))||0) + 1));
-
-  // current streak: consecutive days with >=1 review, counting back from
-  // today (or yesterday, so a streak isn't broken just because today's
-  // reviews haven't happened yet).
-  let streak = 0;
-  let cursor = new Date();
-  if (!byDay.has(dayKey(cursor.getTime())) && byDay.has(dayKey(cursor.getTime() - DAY))){
-    cursor = new Date(cursor.getTime() - DAY);
-  }
-  while (byDay.has(dayKey(cursor.getTime()))){
-    streak++;
-    cursor = new Date(cursor.getTime() - DAY);
-  }
-  // longest streak: scan all days that have activity, sorted
-  const activeDays = Array.from(byDay.keys()).sort();
-  let longest = 0, run = 0, prevTs = null;
-  activeDays.forEach(k => {
-    const ts = new Date(k).getTime();
-    if (prevTs !== null && ts - prevTs === DAY) run++; else run = 1;
-    longest = Math.max(longest, run);
-    prevTs = ts;
-  });
-
-  const total = reviewLog.length;
-  const cutoff = Date.now() - 30*DAY;
-  const recent = reviewLog.filter(r => r.ts >= cutoff);
-  const accuracy = recent.length ? Math.round(recent.filter(r=>r.good).length / recent.length * 100) : null;
-
-  document.getElementById('homeStatStreak').textContent = streak + (streak===1?' day':' days');
-  document.getElementById('homeStatLongest').textContent = longest + (longest===1?' day':' days');
-  document.getElementById('homeStatTotal').textContent = total.toLocaleString();
-  document.getElementById('homeStatAccuracy').textContent = accuracy == null ? '—' : accuracy + '%';
-}
-
-function renderHomeHeatmap(){
-  const DAY = 86400000;
-  const byDay = new Map();
-  reviewLog.forEach(r => byDay.set(dayKey(r.ts), (byDay.get(dayKey(r.ts))||0) + 1));
-
-  const end = new Date();
-  const totalDays = 371; // ~53 weeks, matches a classic contribution grid
-  const start = new Date(end.getTime() - (totalDays-1)*DAY);
-  start.setDate(start.getDate() - start.getDay()); // back up to the preceding Sunday so weeks align
-
-  const days = [];
-  let maxCount = 1;
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)){
-    const k = dayKey(d.getTime());
-    const count = byDay.get(k) || 0;
-    maxCount = Math.max(maxCount, count);
-    days.push({ date: new Date(d), key: k, count });
-  }
-
-  const RAMP = ['var(--paper-dark)', '#B7D9CC', '#6FBE97', '#2F6F62', '#1F4E44'];
-  function colorFor(count){
-    if (!count) return RAMP[0];
-    const frac = count / maxCount;
-    if (frac < 0.2) return RAMP[1];
-    if (frac < 0.45) return RAMP[2];
-    if (frac < 0.75) return RAMP[3];
-    return RAMP[4];
-  }
-
-  const weeks = Math.ceil(days.length/7);
-  const monthsRow = document.createElement('div');
-  monthsRow.className = 'hm-months';
-  monthsRow.appendChild(document.createElement('span'));
-  let lastMonth = -1;
-  for (let w=0; w<weeks; w++){
-    const dInWeek = days[w*7];
-    const label = document.createElement('span');
-    if (dInWeek && dInWeek.date.getMonth() !== lastMonth && dInWeek.date.getDate() <= 7){
-      lastMonth = dInWeek.date.getMonth();
-      label.textContent = dInWeek.date.toLocaleDateString('en-US',{month:'short'});
-    }
-    monthsRow.appendChild(label);
-  }
-
-  const grid = document.createElement('div');
-  grid.className = 'hm-grid';
-  const DOWLABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
-  for (let dow=0; dow<7; dow++){
-    const lbl = document.createElement('div');
-    lbl.className = 'hm-daylabel';
-    lbl.textContent = DOWLABELS[dow];
-    grid.appendChild(lbl);
-  }
-  days.forEach(d => {
-    const cell = document.createElement('div');
-    cell.className = 'hm-cell';
-    cell.style.background = colorFor(d.count);
-    if (d.date <= end){
-      cell.title = `${d.count} card${d.count===1?'':'s'} reviewed · ${d.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
-    } else {
-      cell.style.visibility = 'hidden';
-    }
-    grid.appendChild(cell);
-  });
-
-  const container = document.getElementById('homeHeatmap');
-  container.innerHTML = '';
-  container.appendChild(monthsRow);
-  container.appendChild(grid);
-  const legend = document.createElement('div');
-  legend.className = 'hm-legend';
-  legend.innerHTML = 'Less ' + RAMP.map(c => `<span class="sw" style="background:${c}"></span>`).join('') + ' More';
-  container.appendChild(legend);
-}
-
-function renderHomeForecast(){
-  const DAY = 86400000;
-  const srsMap = getSRSMap();
-  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const buckets = [0,0,0,0,0,0,0];
-  const newBuckets = [0,0,0,0,0,0,0];
-  cardIndexList.forEach(entry => {
-    const s = srsMap.get(entry.card.id);
-    if (!s || !s.reps) return; // never reviewed — counted separately as "new" below
-    const daysOut = Math.floor((s.dueDate - today.getTime()) / DAY);
-    if (daysOut >= 0 && daysOut < 7) buckets[daysOut]++;
-  });
-  // Cards never reviewed at all count as "new" and are due starting today.
-  const unseenCount = cardIndexList.filter(entry => { const s = srsMap.get(entry.card.id); return !s || !s.reps; }).length;
-  newBuckets[0] = unseenCount;
-
-  const maxTotal = Math.max(1, ...buckets.map((b,i)=>b+newBuckets[i]));
-  const container = document.getElementById('homeForecast');
-  container.innerHTML = '';
-  for (let i=0; i<7; i++){
-    const d = new Date(today.getTime() + i*DAY);
-    const col = document.createElement('div');
-    col.className = 'hf-col';
-    const totalVal = document.createElement('div');
-    totalVal.className = 'hf-total';
-    totalVal.textContent = buckets[i] + newBuckets[i];
-    col.appendChild(totalVal);
-    const stack = document.createElement('div');
-    stack.className = 'hf-bar-stack';
-    stack.style.height = '96px';
-    const reviewBar = document.createElement('div');
-    reviewBar.className = 'hf-bar-review';
-    reviewBar.style.height = ((buckets[i]/maxTotal)*100) + '%';
-    const newBar = document.createElement('div');
-    newBar.className = 'hf-bar-new';
-    newBar.style.height = ((newBuckets[i]/maxTotal)*100) + '%';
-    stack.appendChild(reviewBar);
-    stack.appendChild(newBar);
-    col.appendChild(stack);
-    const dayLbl = document.createElement('div');
-    dayLbl.className = 'hf-day' + (i===0 ? ' today' : '');
-    dayLbl.textContent = i===0 ? 'Today' : DOW[d.getDay()];
-    col.appendChild(dayLbl);
-    container.appendChild(col);
-  }
-}
-
-function renderHomeMaturity(){
-  const srsMap = getSRSMap();
-  let newCt = 0, youngCt = 0, matureCt = 0;
-  cardIndexList.forEach(entry => {
-    const s = srsMap.get(entry.card.id);
-    if (!s || !s.reps) newCt++;
-    else if (s.interval < 21) youngCt++;
-    else matureCt++;
-  });
-  const totalCt = newCt + youngCt + matureCt;
-  document.getElementById('homeMatNew').textContent = newCt.toLocaleString();
-  document.getElementById('homeMatYoung').textContent = youngCt.toLocaleString();
-  document.getElementById('homeMatMature').textContent = matureCt.toLocaleString();
-
-  const size = 132, stroke = 18, r = (size-stroke)/2, c = 2*Math.PI*r;
-  const fig = document.getElementById('homeDonut');
-  fig.style.width = size+'px'; fig.style.height = size+'px';
-  if (!totalCt){
-    fig.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${stroke}"/></svg>`;
-  } else {
-    const segments = [
-      { val:newCt, color:'var(--line-2)' },
-      { val:youngCt, color:'#6FBE97' },
-      { val:matureCt, color:'var(--teal-dark)' }
-    ];
-    let offset = 0, svgParts = '';
-    segments.forEach(seg => {
-      const frac = seg.val/totalCt;
-      const dash = frac*c;
-      svgParts += `<circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="${stroke}" stroke-dasharray="${dash} ${c-dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${size/2} ${size/2})" stroke-linecap="butt"/>`;
-      offset += dash;
-    });
-    fig.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${svgParts}</svg>`;
-  }
-  const centerDiv = document.createElement('div');
-  centerDiv.className = 'home-donut-center';
-  centerDiv.innerHTML = `<div class="num">${totalCt.toLocaleString()}</div><div class="lbl">Total cards</div>`;
-  fig.appendChild(centerDiv);
-}
-
 function render(){
   sanitizeCurrentPath();
   renderTree();
@@ -10532,25 +9126,6 @@ function render(){
   renderResumeButtons();
   document.getElementById('starredRow').classList.toggle('active', state.viewingStarred);
   document.getElementById('toughRow').classList.toggle('active', state.viewingTough);
-  const homeRowEl = document.getElementById('homeRow');
-  if (homeRowEl) homeRowEl.classList.toggle('active', state.viewingHome);
-  // A live cram session or an open Cram Hub owns #topbar/#content/
-  // #homeScreen/#cramScreen/#cramHub — sidebar counts above still
-  // refresh (useful, since cram reviews change due-counts live), but a
-  // background render triggered by sync/focus/visibilitychange must NOT
-  // touch the screen underneath, or screens end up stacked on top of
-  // each other (this exact bug happened once already with #content).
-  const cramHubEl = document.getElementById('cramHub');
-  if (cramState || (cramHubEl && cramHubEl.classList.contains('active'))) return;
-  if (state.viewingHome){
-    document.getElementById('content').style.display = 'none';
-    document.getElementById('homeScreen').style.display = 'block';
-    document.getElementById('crumbs').innerHTML = '';
-    renderHomeScreen();
-    return;
-  }
-  document.getElementById('homeScreen').style.display = 'none';
-  document.getElementById('content').style.display = '';
   if (state.managingDeckId){
     renderManageCards();
   } else if (state.viewingStarred){
@@ -10825,21 +9400,10 @@ function renderSettingsAccount(){
 function openSettingsModal(){
   renderSettingsAccount();
   renderRecoverySnapshotList();
-  renderLandingPrefButtons();
   document.getElementById('settingsSnippetMd').textContent = CARD_FORMAT_MD;
   document.getElementById('settingsSnippetJson').textContent = CARD_FORMAT_JSON;
   document.getElementById('settingsSnippetWord').textContent = CARD_FORMAT_WORD;
   document.getElementById('settingsOverlay').classList.add('active');
-}
-function renderLandingPrefButtons(){
-  const pref = loadDefaultLandingPref();
-  document.getElementById('landingHomeBtn').classList.toggle('primary', pref === 'home');
-  document.getElementById('landingRootBtn').classList.toggle('primary', pref === 'root');
-}
-function setDefaultLanding(pref){
-  try { localStorage.setItem('kardex_default_landing', pref === 'root' ? 'root' : 'home'); } catch(e){}
-  renderLandingPrefButtons();
-  showToast(`Kardex will now open to ${pref === 'root' ? 'your root folder' : 'the Home dashboard'} next time you load it.`);
 }
 function renderRecoverySnapshotList(){
   const el = document.getElementById('recoverySnapshotList');
@@ -10851,12 +9415,9 @@ function renderRecoverySnapshotList(){
   }
   el.innerHTML = snapshots.map(s => {
     const deckCount = (function count(n){ return n.type === 'folder' ? n.children.reduce((sum,c)=>sum+count(c),0) : 1; })(s.payload.tree);
-    const timeLabel = s.payload.updatedAt
-      ? new Date(s.payload.updatedAt).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })
-      : null;
     return `<div class="trash-item">
       <div class="trash-item-info">
-        <div class="trash-item-name">${s.dateKey}${timeLabel ? ` <span style="color:var(--ink-soft); font-weight:400;">· ${timeLabel}</span>` : ''}</div>
+        <div class="trash-item-name">${s.dateKey}</div>
         <div class="trash-item-meta mono">${deckCount} deck${deckCount!==1?'s':''} · ${s.payload.reviewLog.length} reviews logged</div>
       </div>
       <button class="mini-btn danger" onclick="confirmRestoreSnapshot('${s.dateKey}')">Restore this</button>
