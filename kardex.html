@@ -2152,6 +2152,15 @@ button{font-family:inherit;cursor:pointer;}
     </div>
 
     <div class="settings-section">
+      <p class="settings-label">Default landing page</p>
+      <p class="settings-hint">What you see when Kardex loads — the review-activity dashboard, or straight into your drawers.</p>
+      <div class="settings-btn-row">
+        <button class="action-btn" id="landingHomeBtn" onclick="setDefaultLanding('home')">Home dashboard</button>
+        <button class="action-btn" id="landingRootBtn" onclick="setDefaultLanding('root')">Root folder</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
       <p class="settings-label">Trash</p>
       <p class="settings-hint">Deleted drawers and decks stay here for a while before being permanently removed.</p>
       <div class="settings-btn-row">
@@ -4306,6 +4315,15 @@ const state = {
   homeStatsExpanded: false, // mobile dashboard: stat cards collapsed to one row by default
   viewingHome: false,
 };
+/* Default landing page — 'home' (review-activity dashboard) or 'root'
+   (straight into the drawer tree, the original behavior). Read once at
+   boot; changing it later in Settings only affects the NEXT load, same
+   as how most apps treat a "start on" preference. */
+function loadDefaultLandingPref(){
+  try { return localStorage.getItem('kardex_default_landing') === 'root' ? 'root' : 'home'; }
+  catch(e){ return 'home'; }
+}
+state.viewingHome = loadDefaultLandingPref() === 'home';
 loadPendingSession();
 
 /* ---------------------------------------------------------
@@ -9414,6 +9432,18 @@ function renderHomeHeatmap(){
   legend.className = 'hm-legend';
   legend.innerHTML = 'Less ' + RAMP.map(c => `<span class="sw" style="background:${c}"></span>`).join('') + ' More';
   container.appendChild(legend);
+
+  // The grid is chronological left-to-right, so "today" always sits at
+  // the far right edge — scroll there on every render (fresh load,
+  // reload, or just navigating back to Home) so the current month is
+  // what's in view, not last year's. requestAnimationFrame so this runs
+  // after the browser has actually laid out the new (wider) content —
+  // setting scrollLeft immediately after innerHTML changes can measure
+  // the pre-layout width and undershoot.
+  const wrap = container.parentElement;
+  if (wrap){
+    requestAnimationFrame(() => { wrap.scrollLeft = wrap.scrollWidth; });
+  }
 }
 
 function renderHomeForecast(){
@@ -9800,10 +9830,21 @@ function openSettingsModal(){
   renderSettingsAccount();
   renderRecoverySnapshotList();
   renderTrashBadgeCount();
+  renderLandingPrefButtons();
   document.getElementById('settingsSnippetMd').textContent = CARD_FORMAT_MD;
   document.getElementById('settingsSnippetJson').textContent = CARD_FORMAT_JSON;
   document.getElementById('settingsSnippetWord').textContent = CARD_FORMAT_WORD;
   document.getElementById('settingsOverlay').classList.add('active');
+}
+function renderLandingPrefButtons(){
+  const pref = loadDefaultLandingPref();
+  document.getElementById('landingHomeBtn').classList.toggle('primary', pref === 'home');
+  document.getElementById('landingRootBtn').classList.toggle('primary', pref === 'root');
+}
+function setDefaultLanding(pref){
+  try { localStorage.setItem('kardex_default_landing', pref === 'root' ? 'root' : 'home'); } catch(e){}
+  renderLandingPrefButtons();
+  showToast(`Kardex will now open to ${pref === 'root' ? 'your root folder' : 'the Home dashboard'} next time you load it.`);
 }
 function renderRecoverySnapshotList(){
   const el = document.getElementById('recoverySnapshotList');
