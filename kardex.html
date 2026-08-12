@@ -4870,6 +4870,7 @@ function startCramSession(nodeId){
 
   document.getElementById('topbar').style.display = 'none';
   document.getElementById('content').style.display = 'none';
+  document.getElementById('homeScreen').style.display = 'none';
   document.getElementById('study').classList.remove('active');
   document.getElementById('cramScreen').classList.add('active');
   document.getElementById('cramDone').classList.remove('active');
@@ -4981,9 +4982,8 @@ function finishCramSession(){
 function exitCramSession(){
   document.getElementById('cramScreen').classList.remove('active');
   document.getElementById('topbar').style.display = '';
-  document.getElementById('content').style.display = '';
   cramState = null;
-  render();
+  render(); // render() now decides content vs. homeScreen visibility correctly again
 }
 function renderCramRing(progress){
   const fig = document.getElementById('cramRing');
@@ -9919,6 +9919,12 @@ function render(){
   document.getElementById('toughRow').classList.toggle('active', state.viewingTough);
   const homeRowEl = document.getElementById('homeRow');
   if (homeRowEl) homeRowEl.classList.toggle('active', state.viewingHome);
+  // A live cram session owns #topbar/#content/#homeScreen/#cramScreen —
+  // sidebar counts above still refresh (useful, since cram reviews change
+  // due-counts live), but a background render triggered by sync/focus/
+  // visibilitychange must NOT touch the screen underneath an open cram
+  // session, or the two screens end up stacked on top of each other.
+  if (cramState) return;
   if (state.viewingHome){
     document.getElementById('content').style.display = 'none';
     document.getElementById('homeScreen').style.display = 'block';
