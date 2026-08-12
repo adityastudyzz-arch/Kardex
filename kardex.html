@@ -3535,6 +3535,21 @@ function applyPersistedPayload(parsed){
   uid = parsed.uid || uid;
   rebuildIndex();
 }
+// Called once per app boot (fresh load / reload), right after the tree
+// is restored — NOT on every background/manual sync pull, since that
+// happens mid-session and would be jarring to fold shut a folder
+// someone just opened. The root drawer itself ("Kardex") stays exactly
+// as it was — only folders NESTED inside it reset to collapsed,
+// regardless of what was left open/closed last session. This is a
+// deliberate "always start clean" choice, not a one-time default —
+// whatever collapse state got persisted is overwritten here every time.
+function normalizeCollapseStateOnBoot(){
+  root.children.forEach(function collapseDescendants(child){
+    if (child.type !== 'folder') return;
+    child.collapsed = true;
+    child.children.forEach(collapseDescendants);
+  });
+}
 async function restorePersistedState(){
   // Signed in: try the cloud copy for this user first, since that's the
   // source of truth across devices.
@@ -9923,6 +9938,7 @@ async function initAuthAndApp(){
   if (!SUPABASE_CONFIGURED){
     renderAccountBox();
     await restorePersistedState();
+    normalizeCollapseStateOnBoot();
     render();
     return;
   }
@@ -9996,6 +10012,7 @@ async function initAuthAndApp(){
             try { history.replaceState(null, '', window.location.pathname); } catch(e){}
             renderAccountBox();
             await restorePersistedState();
+            normalizeCollapseStateOnBoot();
             render();
             retryUnsyncedChangesIfAny();
             return;
@@ -10018,6 +10035,7 @@ async function initAuthAndApp(){
       }
       renderAccountBox();
       await restorePersistedState();
+      normalizeCollapseStateOnBoot();
       render();
       retryUnsyncedChangesIfAny();
     } else if (event === 'SIGNED_OUT'){
@@ -10067,6 +10085,7 @@ async function initAuthAndApp(){
     accessToken = data.session.access_token;
     renderAccountBox();
     await restorePersistedState();
+    normalizeCollapseStateOnBoot();
     render();
     retryUnsyncedChangesIfAny();
   }, 4000);
